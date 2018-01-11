@@ -53,13 +53,10 @@ class SimpleETProcessor implements Processor {
         ServiceDelivery serviceDelivery = siri.getServiceDelivery();
         List<EstimatedTimetableDeliveryStructure> estimatedTimetableDeliveries = serviceDelivery.getEstimatedTimetableDeliveries();
         exchange.getIn().setHeader(TestRoute.MORE_DATA_HEADER, serviceDelivery.isMoreData());
-//            logger.debug("estimatedTimetableDeliveries: {} (isMoreData={})", estimatedTimetableDeliveries.size(), serviceDelivery.isMoreData());
         for (EstimatedTimetableDeliveryStructure estimatedTimetableDelivery : estimatedTimetableDeliveries) {
             List<EstimatedVersionFrameStructure> estimatedJourneyVersionFrames = estimatedTimetableDelivery.getEstimatedJourneyVersionFrames();
-//                logger.debug(".estimatedJourneyVersionFrames: {}", estimatedJourneyVersionFrames.size());
             for (EstimatedVersionFrameStructure estimatedJourneyVersionFrame : estimatedJourneyVersionFrames) {
                 List<EstimatedVehicleJourney> estimatedVehicleJourneies = estimatedJourneyVersionFrame.getEstimatedVehicleJourneies();
-//                    logger.debug("..estimatedVehicleJourneies: {}", estimatedVehicleJourneies.size());
                 for (EstimatedVehicleJourney estimatedVehicleJourney : estimatedVehicleJourneies) {
 
                     StringBuilder filenameBuilder = new StringBuilder();

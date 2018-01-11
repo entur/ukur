@@ -38,9 +38,13 @@
             </providers>
         </encoder>
     </appender>
-
-    <!--<logger name="org.entur" level="DEBUG"/>-->
+    <appender name="localdev" class="ch.qos.logback.core.ConsoleAppender">
+        <encoder>
+            <pattern>%date{HH:mm:ss} [%thread] %-5level %logger{35} - %msg %n</pattern>
+        </encoder>
+    </appender>
+    <logger name="org.entur" level="${logback-level:-INFO}"/>
     <root level="INFO">
-        <appender-ref ref="console"/>
+        <appender-ref ref="${logback-appender:-console}"/>
     </root>
 </configuration>
