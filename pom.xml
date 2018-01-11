@@ -39,6 +39,7 @@
         <spring-boot.version>1.5.7.RELEASE</spring-boot.version>
     </properties>
 
+    
     <licenses>
         <license>
             <name>EUPL-1.2 with modifications</name>
