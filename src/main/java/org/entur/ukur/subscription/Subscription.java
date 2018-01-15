@@ -15,17 +15,24 @@
 
 package org.entur.ukur.subscription;
 
+import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashSet;
 import java.util.Objects;
 import java.util.Set;
 
-public class Subscription {
+public class Subscription implements Serializable {
 
+    private String id;
     private Set<String> fromStopPoints = new HashSet<>();
     private Set<String> toStopPoints = new HashSet<>();
     private String name; //TODO: Denne blir nok erstattet av andre ting etterhvert!
+
     //TODO: varslingsdetaljer, gyldighet (fra-til, ukedag), "holdbarhet på subscriptionen"
+
+    public Subscription(String id) {
+        this.id = id;
+    }
 
     public Set<String> getFromStopPoints() {
         return Collections.unmodifiableSet(fromStopPoints);
@@ -60,18 +67,24 @@ public class Subscription {
         this.name = name;
     }
 
+    public String getId() {
+        return id;
+    }
+
+    public void setId(String id) {
+        this.id = id;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
         if (o == null || getClass() != o.getClass()) return false;
         Subscription that = (Subscription) o;
-        return Objects.equals(fromStopPoints, that.fromStopPoints) &&
-                Objects.equals(toStopPoints, that.toStopPoints) &&
-                Objects.equals(name, that.name);
+        return Objects.equals(id, that.id);
     }
 
     @Override
     public int hashCode() {
-        return Objects.hash(fromStopPoints, toStopPoints, name);
+        return Objects.hash(id);
     }
 }

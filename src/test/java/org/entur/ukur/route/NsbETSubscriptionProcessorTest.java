@@ -48,7 +48,7 @@ public class NsbETSubscriptionProcessorTest {
         NsbETSubscriptionProcessor processor = new NsbETSubscriptionProcessor(new SubscriptionManager());
 
         //No errors if no hits...
-        assertFalse(processor.validDirection(new Subscription(), journey));
+        assertFalse(processor.validDirection(new Subscription("1"), journey));
 
         //Only to in journey
         assertFalse(processor.validDirection(createSubscription("X", "E2"), journey));
@@ -71,7 +71,7 @@ public class NsbETSubscriptionProcessorTest {
     }
 
     private Subscription createSubscription(String from, String to) {
-        Subscription subscription = new Subscription();
+        Subscription subscription = new Subscription("1");
         if (from != null) {
             subscription.addFromStopPoint(from);
         }

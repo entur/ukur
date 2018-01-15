@@ -23,6 +23,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.rutebanken.siri20.util.SiriXml;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 import uk.org.ifopt.siri20.StopPlaceRef;
 import uk.org.siri.siri20.*;
 
@@ -31,11 +33,14 @@ import java.io.Serializable;
 import java.util.HashSet;
 import java.util.List;
 
-class NsbSXSubscriptionProcessor implements Processor {
+@Service
+public class NsbSXSubscriptionProcessor implements Processor {
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
     private SubscriptionManager subscriptionManager;
+    private SubscriptionStatus status = new SubscriptionStatus();
 
+    @Autowired
     public NsbSXSubscriptionProcessor(SubscriptionManager subscriptionManager) {
         this.subscriptionManager = subscriptionManager;
     }
@@ -49,29 +54,38 @@ class NsbSXSubscriptionProcessor implements Processor {
             throw new IllegalArgumentException("No ServiceDelivery element...");
         }
         ServiceDelivery serviceDelivery = siri.getServiceDelivery();
-        exchange.getIn().setHeader(TestRoute.MORE_DATA_HEADER, serviceDelivery.isMoreData());
+        //TODO: Sette dette flagget på en bedre måte (så vi kan sende events til kø etc)
+        exchange.getIn().setHeader(AnsharPollingRoutes.MORE_DATA_HEADER, serviceDelivery.isMoreData());
         List<SituationExchangeDeliveryStructure> situationExchangeDeliveries = serviceDelivery.getSituationExchangeDeliveries();
         for (SituationExchangeDeliveryStructure situationExchangeDelivery : situationExchangeDeliveries) {
             SituationExchangeDeliveryStructure.Situations situations = situationExchangeDelivery.getSituations();
             List<PtSituationElement> ptSituationElements = situations.getPtSituationElements();
             for (PtSituationElement ptSituationElement : ptSituationElements) {
                 processPtSituationElement(ptSituationElement);
+                status.processed(PtSituationElement.class);
             }
         }
+    }
+
+    @SuppressWarnings("unused") //Used from camel route
+    public SubscriptionStatus getStatus() {
+        return status;
     }
 
     private void processPtSituationElement(PtSituationElement ptSituationElement) {
         RequestorRef participantRef = ptSituationElement.getParticipantRef();
         boolean isNSB = participantRef != null && "NSB".equalsIgnoreCase(participantRef.getValue());
         if (!isNSB) {
-//            logger.debug("Skips estimatedVehicleJourney (not NSB)");
+            logger.trace("Skips estimatedVehicleJourney (not NSB)");
             return;
         }
         HashSet<String> stopsToNotify = findAffectedStopPointRefs(ptSituationElement);
+        logger.debug("Processes NSB PtSituationElement ({}) - with {} affected stops", ptSituationElement.getSituationNumber().getValue(), stopsToNotify.size());
         HashSet<Subscription> subscriptionsToNotify = new HashSet<>();
         for (String ref : stopsToNotify) {
             subscriptionsToNotify.addAll(subscriptionManager.getSubscriptionsForStopPoint(ref));
         }
+        logger.debug("There are {} subscriptions to notify", subscriptionsToNotify.size());
         if (!subscriptionsToNotify.isEmpty()) {
             subscriptionManager.notify(subscriptionsToNotify, ptSituationElement);
         }

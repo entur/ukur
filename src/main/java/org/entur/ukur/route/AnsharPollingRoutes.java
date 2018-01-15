@@ -15,51 +15,57 @@
 
 package org.entur.ukur.route;
 
+import org.apache.camel.Exchange;
+import org.apache.camel.model.rest.RestBindingMode;
+import org.entur.ukur.setup.UkurConfiguration;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionManager;
-import org.apache.camel.Exchange;
-import org.apache.camel.builder.RouteBuilder;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import java.util.UUID;
 
 @Component
-public class TestRoute extends RouteBuilder {
+public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
 
     public static final String MORE_DATA_HEADER = "moreData";
+    private SubscriptionManager subscriptionManager;
+
+    @Autowired
+    public AnsharPollingRoutes(UkurConfiguration config, SubscriptionManager subscriptionManager) {
+        super(config);
+        this.subscriptionManager = subscriptionManager;
+    }
 
     @Override
     public void configure() {
-        String outfolder = "target/received/"+System.currentTimeMillis();
-        SubscriptionManager subscriptionManager = new SubscriptionManager();
+
         addTestSubscriptions(subscriptionManager);
 
         UUID uuid = UUID.randomUUID();
-        String siriETurl = "https4://api.entur.org/anshar/1.0/rest/et?requestorId=" + uuid;
-        String siriSXurl = "https4://api.entur.org/anshar/1.0/rest/sx?requestorId=" + uuid;
+        String siriETurl = config.getAnsharETCamelUrl(uuid);
+        String siriSXurl = config.getAnsharSXCamelUrl(uuid);
 
         int repatInterval = 60_000;
 
-        from("quartz2://avvik/test?fireNow=true&trigger.repeatInterval=" + repatInterval)
-                .routeId("Quartz trigger")
-                .log("Trigget av timer!")
-                .to("direct:retrieveAnsharET")
-//                .to("direct:retrieveAnsharSX")
-                ;
+        singletonFrom("quartz2://ukur/pollAnsharET?fireNow=true&trigger.repeatInterval=" + repatInterval, "Anshar ET poller")
+                .to("direct:retrieveAnsharET");
+
+        singletonFrom("quartz2://ukur/pollAnsharSX?fireNow=true&trigger.repeatInterval=" + repatInterval, "Anshar SX poller")
+                .to("direct:retrieveAnsharSX");
 
         from("direct:retrieveAnsharET")
                 .routeId("Anshar ET retriever")
                 .log("About to call Anshar with url: " + siriETurl)
                 .setHeader(Exchange.HTTP_METHOD, constant("GET"))
                 .to(siriETurl)
-//                .process(new SimpleETProcessor(outfolder))
-                .process(new NsbETSubscriptionProcessor(subscriptionManager))
+                .to("bean:nsbETSubscriptionProcessor")
                 .choice()
-                    .when(header(MORE_DATA_HEADER).isEqualTo(true))
-                        .log("Call Anshar again since there are more ET data")
-                        .to("direct:retrieveAnsharET")
-                    .otherwise()
-                        .log("No more ET data from Anshar now")
+                .when(header(MORE_DATA_HEADER).isEqualTo(true))
+                .log("Call Anshar again since there are more ET data")
+                .to("direct:retrieveAnsharET")
+                .otherwise()
+                .log("No more ET data from Anshar now")
                 .endChoice()
                 .end();
 
@@ -68,21 +74,40 @@ public class TestRoute extends RouteBuilder {
                 .log("About to call Anshar with url: " + siriSXurl)
                 .setHeader(Exchange.HTTP_METHOD, constant("GET"))
                 .to(siriSXurl)
-//                .process(new SimpleSXProcessor(outfolder))
-                .process(new NsbSXSubscriptionProcessor(subscriptionManager))
+                .to("bean:nsbSXSubscriptionProcessor")
                 .choice()
-                    .when(header(MORE_DATA_HEADER).isEqualTo(true))
-                        .log("Call Anshar again since there are more SX data")
-                        .to("direct:retrieveAnsharSX")
-                    .otherwise()
-                        .log("No more SX data from Anshar now")
+                .when(header(MORE_DATA_HEADER).isEqualTo(true))
+                .log("Call Anshar again since there are more SX data")
+                .to("direct:retrieveAnsharSX")
+                .otherwise()
+                .log("No more SX data from Anshar now")
                 .endChoice()
                 .end();
+
+        restConfiguration()
+                .component("jetty")
+                .bindingMode(RestBindingMode.json)
+                .dataFormatProperty("prettyPrint", "true")
+                .port(8080);
+        rest("/health")
+                .produces("application/json")
+                .get("/subscriptions").to("bean:subscriptionManager?method=listAll")
+                .get("/et").to("bean:nsbETSubscriptionProcessor?method=getStatus")
+                .get("/sx").to("bean:nsbSXSubscriptionProcessor?method=getStatus")
+                .get("/live").to("direct:OK")
+                .get("/ready").to("direct:OK");
+        rest("/data")
+                .produces("application/json")
+                .get("/{id}").to("bean:subscriptionManager?method=getData(${header.id})");
+
+        from("direct:OK")
+                .setBody(simple("OK"))
+                .setHeader(Exchange.HTTP_RESPONSE_CODE, constant("200"));
     }
 
     private void addTestSubscriptions(SubscriptionManager subscriptionManager) {
         //TODO: Vi trenger noen test susbcriptions... Hardkodes her i første omgang!
-        Subscription askerTilOslo = new Subscription();
+        Subscription askerTilOslo = new Subscription("1");
         askerTilOslo.setName("Asker til OsloS");
         askerTilOslo.addFromStopPoint("NSR:StopPlace:418");
         askerTilOslo.addFromStopPoint("NSR:Quay:695");
@@ -113,7 +138,7 @@ public class TestRoute extends RouteBuilder {
         askerTilOslo.addToStopPoint("NSR:Quay:571");
         subscriptionManager.addSusbcription(askerTilOslo);
 
-        Subscription osloTilAsker = new Subscription();
+        Subscription osloTilAsker = new Subscription("2");
         osloTilAsker.setName("OsloS til Asker");
         osloTilAsker.addFromStopPoint("NSR:StopPlace:337");
         osloTilAsker.addFromStopPoint("NSR:Quay:550");

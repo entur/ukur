@@ -23,12 +23,15 @@ import org.apache.commons.lang3.StringUtils;
 import org.rutebanken.siri20.util.SiriXml;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 import uk.org.siri.siri20.*;
 
 import java.io.InputStream;
 import java.time.ZonedDateTime;
 import java.util.*;
 
+@Service
 public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
     private static final int DIRECTION_FROM = 1;
     private static final int DIRECTION_TO   = 2;
@@ -36,7 +39,9 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     private SubscriptionManager subscriptionManager;
+    private SubscriptionStatus status = new SubscriptionStatus();
 
+    @Autowired
     public NsbETSubscriptionProcessor(SubscriptionManager subscriptionManager) {
         logger.debug("Initializes...");
         this.subscriptionManager = subscriptionManager;
@@ -51,7 +56,8 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
             throw new IllegalArgumentException("No ServiceDelivery element...");
         }
         ServiceDelivery serviceDelivery = siri.getServiceDelivery();
-        exchange.getIn().setHeader(TestRoute.MORE_DATA_HEADER, serviceDelivery.isMoreData());
+        //TODO: Sette dette flagget på en bedre måte (så vi kan sende events til kø etc)
+        exchange.getIn().setHeader(AnsharPollingRoutes.MORE_DATA_HEADER, serviceDelivery.isMoreData());
         List<EstimatedTimetableDeliveryStructure> estimatedTimetableDeliveries = serviceDelivery.getEstimatedTimetableDeliveries();
         for (EstimatedTimetableDeliveryStructure estimatedTimetableDelivery : estimatedTimetableDeliveries) {
             List<EstimatedVersionFrameStructure> estimatedJourneyVersionFrames = estimatedTimetableDelivery.getEstimatedJourneyVersionFrames();
@@ -59,9 +65,15 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
                 List<EstimatedVehicleJourney> estimatedVehicleJourneies = estimatedJourneyVersionFrame.getEstimatedVehicleJourneies();
                 for (EstimatedVehicleJourney estimatedVehicleJourney : estimatedVehicleJourneies) {
                     processEstimatedVehicleJourney(estimatedVehicleJourney);
+                    status.processed(EstimatedVehicleJourney.class);
                 }
             }
         }
+    }
+
+    @SuppressWarnings("unused") //Used from camel route
+    public SubscriptionStatus getStatus() {
+        return status;
     }
 
     protected void processEstimatedVehicleJourney(EstimatedVehicleJourney estimatedVehicleJourney) {

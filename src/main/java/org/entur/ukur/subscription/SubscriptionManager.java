@@ -17,11 +17,14 @@ package org.entur.ukur.subscription;
 
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
+import com.hazelcast.core.IMap;
 import org.entur.ukur.xml.NoNamespaceIndentingXMLStreamWriter;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.stereotype.Service;
 import uk.org.siri.siri20.*;
 
 import javax.xml.bind.JAXBContext;
@@ -36,10 +39,15 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 import java.util.concurrent.TimeUnit;
 
+@Service
 public class SubscriptionManager {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
-    private HashMap<String, Set<Subscription>> subscriptionsPerStopPoint = new HashMap<>();
+    @Autowired
+    private IMap<String, Set<Subscription>> subscriptionsPerStopPoint;
+    @Autowired
+    private IMap<String, List<PushMessage>> pushMessagesMemoryStore;
     private JAXBContext jaxbContext;
+    //TODO: AlreadySent bør enten sjekkes i anshar-polle-ruta eller her om vi skal støtte nye subscriptions (men må da cachen til hazelcast)
     private Cache<String, Long> alreadySentCache = CacheBuilder.newBuilder()
             .maximumSize(10000)
             .expireAfterAccess(5, TimeUnit.MINUTES)
@@ -53,6 +61,27 @@ public class SubscriptionManager {
         }
     }
 
+    @SuppressWarnings("unused") //Used from camel route
+    public Set<Subscription> listAll() {
+        HashSet<Subscription> all = new HashSet<>();
+        //TODO: Mer fornuftig implementasjon her etterhvert...
+        Collection<Set<Subscription>> values = subscriptionsPerStopPoint.values();
+        for (Set<Subscription> value : values) {
+            all.addAll(value);
+        }
+        logger.debug("There are {} subscriptions regarding {} unique stoppoints", all.size(), subscriptionsPerStopPoint.keySet().size());
+        return all;
+    }
+
+    @SuppressWarnings("unused") //Used from camel route
+    public List<PushMessage> getData(String id) {
+        List<PushMessage> remove = pushMessagesMemoryStore.get(id);
+        int size = remove == null ? 0 : remove.size();
+        logger.debug("Retrieves {} messages and removes data stored in memory for subscription with id {}", size, id);
+        pushMessagesMemoryStore.put(id, new ArrayList<>());
+        return remove;
+    }
+
     public void addSusbcription(Subscription subscription) {
         if (subscription == null || subscription.getToStopPoints().isEmpty() || subscription.getFromStopPoints().isEmpty()) {
             throw new IllegalArgumentException("Illegal subscription");
@@ -61,13 +90,23 @@ public class SubscriptionManager {
         subscribedStops.addAll(subscription.getFromStopPoints());
         subscribedStops.addAll(subscription.getToStopPoints());
         for (String stoppoint : subscribedStops) {
-            Set<Subscription> subscriptions = subscriptionsPerStopPoint.computeIfAbsent(stoppoint, k -> new HashSet<>());
+            Set<Subscription> subscriptions = subscriptionsPerStopPoint.get(stoppoint);
+            if (subscriptions == null) {
+                subscriptions = new HashSet<>();
+            }
             subscriptions.add(subscription);
+            subscriptionsPerStopPoint.put(stoppoint, subscriptions);
         }
+        Set<String> stopRefs = subscriptionsPerStopPoint.keySet();
+        logger.debug("There are new subscriptions regarding {} unique stoppoints", stopRefs.size());
     }
 
     public Set<Subscription> getSubscriptionsForStopPoint(String stopPointRef) {
-        return subscriptionsPerStopPoint.getOrDefault(stopPointRef, Collections.emptySet());
+        Set<Subscription> subscriptions = subscriptionsPerStopPoint.get(stopPointRef);
+        if (subscriptions == null) {
+            return Collections.emptySet();
+        }
+        return subscriptions;
     }
 
     public void notify(HashSet<Subscription> subscriptions, EstimatedCall estimatedCall, EstimatedVehicleJourney estimatedVehicleJourney) {
@@ -95,26 +134,43 @@ public class SubscriptionManager {
 
     private void pushMessage(HashSet<Subscription> subscriptions, String xml, String pushMessageFilename) {
 
-        Long ifPresent = alreadySentCache.getIfPresent(xml); //kanskje ikke godt nok...
+        Long ifPresent = alreadySentCache.getIfPresent(xml); //kanskje ikke godt nok - støtter dårlig nye subscriptions...
         if (ifPresent != null) {
             long diffInSecs = (System.currentTimeMillis() - ifPresent) / 1000;
             logger.debug("skips message since it has already been \"pushed\" {} seconds ago", diffInSecs);
             return;
         }
 
+        alreadySentCache.put(xml, System.currentTimeMillis());
         for (Subscription subscription : subscriptions) {
-            alreadySentCache.put(xml, System.currentTimeMillis());
-            try {
-                File folder = new File("target/pushmessages/" + subscription.getName());
-                //noinspection ResultOfMethodCallIgnored
-                folder.mkdirs();
-                FileWriter fw = new FileWriter(new File(folder, pushMessageFilename));
-                fw.write(xml);
-                fw.close();
-            } catch (IOException e) {
-                logger.error("Could not write pushmessage file", e);
-            }
+//            writeMessageToFile(xml, pushMessageFilename, subscription);
+            storeMessageInMemory(xml, pushMessageFilename, subscription);
             logger.info("PUSH: to subscription name: {}\n{}", subscription.getName(), xml);
+        }
+    }
+
+    private void storeMessageInMemory(String xml, String pushMessageFilename, Subscription subscription) {
+        List<PushMessage> pushMessages = pushMessagesMemoryStore.get(subscription.getId());
+        if (pushMessages == null) {
+            pushMessages = new ArrayList<>();
+        }
+        PushMessage pushMessage = new PushMessage();
+        pushMessage.setMessagename(pushMessageFilename);
+        pushMessage.setXmlPayload(xml);
+        pushMessages.add(pushMessage);
+        pushMessagesMemoryStore.put(subscription.getId(), pushMessages);
+    }
+
+    private void writeMessageToFile(String xml, String pushMessageFilename, Subscription subscription) {
+        try {
+            File folder = new File("target/pushmessages/" + subscription.getName());
+            //noinspection ResultOfMethodCallIgnored
+            folder.mkdirs();
+            FileWriter fw = new FileWriter(new File(folder, pushMessageFilename));
+            fw.write(xml);
+            fw.close();
+        } catch (IOException e) {
+            logger.error("Could not write pushmessage file", e);
         }
     }
 
