@@ -29,6 +29,8 @@ import java.util.UUID;
 public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
 
     public static final String MORE_DATA_HEADER = "moreData";
+    private static final String ROUTE_ANSHAR_ET_POLLER = "Anshar ET poller";
+    private static final String ROUTE_ANSHAR_SX_POLLER = "Anshar SX poller";
     private SubscriptionManager subscriptionManager;
 
     @Autowired
@@ -48,11 +50,11 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
 
         int repatInterval = 60_000;
 
-        singletonFrom("quartz2://ukur/pollAnsharET?fireNow=true&trigger.repeatInterval=" + repatInterval, "Anshar ET poller")
+        singletonFrom("quartz2://ukur/pollAnsharET?fireNow=true&trigger.repeatInterval=" + repatInterval, ROUTE_ANSHAR_ET_POLLER)
                 .filter(e -> isLeader(e.getFromRouteId()))
                 .to("direct:retrieveAnsharET");
 
-        singletonFrom("quartz2://ukur/pollAnsharSX?fireNow=true&trigger.repeatInterval=" + repatInterval, "Anshar SX poller")
+        singletonFrom("quartz2://ukur/pollAnsharSX?fireNow=true&trigger.repeatInterval=" + repatInterval, ROUTE_ANSHAR_SX_POLLER)
                 .filter(e -> isLeader(e.getFromRouteId()))
                 .to("direct:retrieveAnsharSX");
 
@@ -96,6 +98,8 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                 .get("/subscriptions").to("bean:subscriptionManager?method=listAll")
                 .get("/et").to("bean:nsbETSubscriptionProcessor?method=getStatus")
                 .get("/sx").to("bean:nsbSXSubscriptionProcessor?method=getStatus")
+                .get("/routes/et").to("direct:routeStatus-et")
+                .get("/routes/sx").to("direct:routeStatus-sx")
                 .get("/live").to("direct:OK")
                 .get("/ready").to("direct:OK");
         rest("/data")
@@ -105,7 +109,23 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
         from("direct:OK")
                 .setBody(simple("OK"))
                 .setHeader(Exchange.HTTP_RESPONSE_CODE, constant("200"));
+        from("direct:routeStatus-et")
+                .choice()
+                    .when(p -> isLeader(ROUTE_ANSHAR_ET_POLLER))
+                        .setBody(simple("Is leader for "+ROUTE_ANSHAR_ET_POLLER))
+                    .otherwise()
+                        .setBody(simple("Is NOT leader for "+ROUTE_ANSHAR_ET_POLLER))
+                .end();
+        from("direct:routeStatus-sx")
+                .choice()
+                    .when(p -> isLeader(ROUTE_ANSHAR_SX_POLLER))
+                        .setBody(simple("Is leader for "+ROUTE_ANSHAR_SX_POLLER))
+                    .otherwise()
+                        .setBody(simple("Is NOT leader for "+ROUTE_ANSHAR_SX_POLLER))
+                .end();
+
     }
+
 
     private void addTestSubscriptions(SubscriptionManager subscriptionManager) {
         //TODO: Vi trenger noen test susbcriptions... Hardkodes her i første omgang!
