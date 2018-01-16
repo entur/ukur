@@ -49,9 +49,11 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
         int repatInterval = 60_000;
 
         singletonFrom("quartz2://ukur/pollAnsharET?fireNow=true&trigger.repeatInterval=" + repatInterval, "Anshar ET poller")
+                .filter(e -> isLeader(e.getFromRouteId()))
                 .to("direct:retrieveAnsharET");
 
         singletonFrom("quartz2://ukur/pollAnsharSX?fireNow=true&trigger.repeatInterval=" + repatInterval, "Anshar SX poller")
+                .filter(e -> isLeader(e.getFromRouteId()))
                 .to("direct:retrieveAnsharSX");
 
         from("direct:retrieveAnsharET")
