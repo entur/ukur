@@ -15,12 +15,12 @@
 
 package org.entur.ukur.route;
 
-import org.entur.ukur.subscription.Subscription;
-import org.entur.ukur.subscription.SubscriptionManager;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.commons.lang3.StringUtils;
-import org.rutebanken.siri20.util.SiriXml;
+import org.entur.ukur.subscription.Subscription;
+import org.entur.ukur.subscription.SubscriptionManager;
+import org.entur.ukur.xml.SiriMarshaller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -38,33 +38,25 @@ public class NsbSXSubscriptionProcessor implements Processor {
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
     private SubscriptionManager subscriptionManager;
+    private SiriMarshaller siriMarshaller;
     private SubscriptionStatus status = new SubscriptionStatus();
 
     @Autowired
-    public NsbSXSubscriptionProcessor(SubscriptionManager subscriptionManager) {
+    public NsbSXSubscriptionProcessor(SubscriptionManager subscriptionManager, SiriMarshaller siriMarshaller) {
         this.subscriptionManager = subscriptionManager;
+        this.siriMarshaller = siriMarshaller;
     }
 
     @Override
     public void process(Exchange exchange) throws Exception {
         InputStream xml = exchange.getIn().getBody(InputStream.class);
         logger.debug("Reveived XML with size {} bytes", String.format("%,d", xml.available()));
-        Siri siri = SiriXml.parseXml(xml);
-        if (siri == null || siri.getServiceDelivery() == null) {
-            throw new IllegalArgumentException("No ServiceDelivery element...");
+        PtSituationElement ptSituationElement = siriMarshaller.unmarhall(xml, PtSituationElement.class);
+        if (ptSituationElement == null) {
+            throw new IllegalArgumentException("No PtSituationElement element...");
         }
-        ServiceDelivery serviceDelivery = siri.getServiceDelivery();
-        //TODO: Sette dette flagget på en bedre måte (så vi kan sende events til kø etc)
-        exchange.getIn().setHeader(AnsharPollingRoutes.MORE_DATA_HEADER, serviceDelivery.isMoreData());
-        List<SituationExchangeDeliveryStructure> situationExchangeDeliveries = serviceDelivery.getSituationExchangeDeliveries();
-        for (SituationExchangeDeliveryStructure situationExchangeDelivery : situationExchangeDeliveries) {
-            SituationExchangeDeliveryStructure.Situations situations = situationExchangeDelivery.getSituations();
-            List<PtSituationElement> ptSituationElements = situations.getPtSituationElements();
-            for (PtSituationElement ptSituationElement : ptSituationElements) {
-                processPtSituationElement(ptSituationElement);
-                status.processed(PtSituationElement.class);
-            }
-        }
+        processPtSituationElement(ptSituationElement);
+        status.processed(PtSituationElement.class);
     }
 
     @SuppressWarnings("unused") //Used from camel route
@@ -79,6 +71,7 @@ public class NsbSXSubscriptionProcessor implements Processor {
             logger.trace("Skips estimatedVehicleJourney (not NSB)");
             return;
         }
+        status.handled(PtSituationElement.class);
         HashSet<String> stopsToNotify = findAffectedStopPointRefs(ptSituationElement);
         logger.debug("Processes NSB PtSituationElement ({}) - with {} affected stops", ptSituationElement.getSituationNumber().getValue(), stopsToNotify.size());
         HashSet<Subscription> subscriptionsToNotify = new HashSet<>();

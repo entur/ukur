@@ -16,10 +16,16 @@
 package org.entur.ukur.route;
 
 import org.apache.camel.Exchange;
+import org.apache.camel.Predicate;
+import org.apache.camel.builder.PredicateBuilder;
+import org.apache.camel.builder.xml.Namespaces;
+import org.apache.camel.model.language.XPathExpression;
 import org.apache.camel.model.rest.RestBindingMode;
 import org.entur.ukur.setup.UkurConfiguration;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionManager;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -27,16 +33,24 @@ import java.util.UUID;
 
 @Component
 public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
-
-    public static final String MORE_DATA_HEADER = "moreData";
-    private static final String ROUTE_ANSHAR_ET_POLLER = "Anshar ET poller";
-    private static final String ROUTE_ANSHAR_SX_POLLER = "Anshar SX poller";
+    private Logger logger = LoggerFactory.getLogger(this.getClass());
+    private static final String MORE_DATA = "MoreData";
+    private static final String ROUTENAME_ET_TRIGGER = "ET trigger";
+    private static final String ROUTENAME_SX_TRIGGER = "SX trigger";
+    private UkurConfiguration config;
     private SubscriptionManager subscriptionManager;
+    private final NsbETSubscriptionProcessor nsbETSubscriptionProcessor;
+    private NsbSXSubscriptionProcessor nsbSXSubscriptionProcessor;
 
     @Autowired
-    public AnsharPollingRoutes(UkurConfiguration config, SubscriptionManager subscriptionManager) {
-        super(config);
+    public AnsharPollingRoutes(UkurConfiguration config,
+                               SubscriptionManager subscriptionManager,
+                               NsbETSubscriptionProcessor nsbETSubscriptionProcessor,
+                               NsbSXSubscriptionProcessor nsbSXSubscriptionProcessor) {
+        this.config = config;
         this.subscriptionManager = subscriptionManager;
+        this.nsbETSubscriptionProcessor = nsbETSubscriptionProcessor;
+        this.nsbSXSubscriptionProcessor = nsbSXSubscriptionProcessor;
     }
 
     @Override
@@ -48,46 +62,17 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
         String siriETurl = config.getAnsharETCamelUrl(uuid);
         String siriSXurl = config.getAnsharSXCamelUrl(uuid);
 
-        int repatInterval = 60_000;
+        createPollingRoutes(siriETurl, siriSXurl);
+        createRestRoutes();
+        if (config.isQuartzRoutesEnabled()) {
+            createQuartzRoutes();
+        } else {
+            logger.warn("Quartz routes disabled!");
+        }
 
-        singletonFrom("quartz2://ukur/pollAnsharET?fireNow=true&trigger.repeatInterval=" + repatInterval, ROUTE_ANSHAR_ET_POLLER)
-                .filter(e -> isLeader(e.getFromRouteId()))
-                .to("direct:retrieveAnsharET");
+    }
 
-        singletonFrom("quartz2://ukur/pollAnsharSX?fireNow=true&trigger.repeatInterval=" + repatInterval, ROUTE_ANSHAR_SX_POLLER)
-                .filter(e -> isLeader(e.getFromRouteId()))
-                .to("direct:retrieveAnsharSX");
-
-        from("direct:retrieveAnsharET")
-                .routeId("Anshar ET retriever")
-                .log("About to call Anshar with url: " + siriETurl)
-                .setHeader(Exchange.HTTP_METHOD, constant("GET"))
-                .to(siriETurl)
-                .to("bean:nsbETSubscriptionProcessor")
-                .choice()
-                .when(header(MORE_DATA_HEADER).isEqualTo(true))
-                .log("Call Anshar again since there are more ET data")
-                .to("direct:retrieveAnsharET")
-                .otherwise()
-                .log("No more ET data from Anshar now")
-                .endChoice()
-                .end();
-
-        from("direct:retrieveAnsharSX")
-                .routeId("Anshar SX retriever")
-                .log("About to call Anshar with url: " + siriSXurl)
-                .setHeader(Exchange.HTTP_METHOD, constant("GET"))
-                .to(siriSXurl)
-                .to("bean:nsbSXSubscriptionProcessor")
-                .choice()
-                .when(header(MORE_DATA_HEADER).isEqualTo(true))
-                .log("Call Anshar again since there are more SX data")
-                .to("direct:retrieveAnsharSX")
-                .otherwise()
-                .log("No more SX data from Anshar now")
-                .endChoice()
-                .end();
-
+    protected void createRestRoutes() {
         restConfiguration()
                 .component("jetty")
                 .bindingMode(RestBindingMode.json)
@@ -111,19 +96,83 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                 .setHeader(Exchange.HTTP_RESPONSE_CODE, constant("200"));
         from("direct:routeStatus-et")
                 .choice()
-                    .when(p -> isLeader(ROUTE_ANSHAR_ET_POLLER))
-                        .setBody(simple("Is leader for "+ROUTE_ANSHAR_ET_POLLER))
+                    .when(p -> isLeader(ROUTENAME_ET_TRIGGER))
+                        .setBody(simple("Is leader for "+ ROUTENAME_ET_TRIGGER))
                     .otherwise()
-                        .setBody(simple("Is NOT leader for "+ROUTE_ANSHAR_ET_POLLER))
+                        .setBody(simple("Is NOT leader for "+ ROUTENAME_ET_TRIGGER))
                 .end();
         from("direct:routeStatus-sx")
                 .choice()
-                    .when(p -> isLeader(ROUTE_ANSHAR_SX_POLLER))
-                        .setBody(simple("Is leader for "+ROUTE_ANSHAR_SX_POLLER))
+                    .when(p -> isLeader(ROUTENAME_SX_TRIGGER))
+                        .setBody(simple("Is leader for "+ ROUTENAME_SX_TRIGGER))
                     .otherwise()
-                        .setBody(simple("Is NOT leader for "+ROUTE_ANSHAR_SX_POLLER))
+                        .setBody(simple("Is NOT leader for "+ ROUTENAME_SX_TRIGGER))
+                .end();
+    }
+
+    protected void createQuartzRoutes() {
+        int repatInterval = 60_000;
+
+        singletonFrom("quartz2://ukur/pollAnsharET?fireNow=true&trigger.repeatInterval=" + repatInterval, ROUTENAME_ET_TRIGGER)
+                .filter(e -> isLeader(e.getFromRouteId()))
+                .to("direct:retrieveAnsharET");
+
+        singletonFrom("quartz2://ukur/pollAnsharSX?fireNow=true&trigger.repeatInterval=" + repatInterval, ROUTENAME_SX_TRIGGER)
+                .filter(e -> isLeader(e.getFromRouteId()))
+                .to("direct:retrieveAnsharSX");
+    }
+
+    protected void createPollingRoutes(String siriETurl, String siriSXurl) {
+
+        Predicate splitComplete = exchangeProperty(Exchange.SPLIT_COMPLETE).isEqualTo(true);
+        Predicate moreData = exchangeProperty(MORE_DATA).isEqualToIgnoreCase("true");
+        Predicate callAnsharAgain = PredicateBuilder.and(splitComplete, moreData);
+
+        Namespaces ns = new Namespaces("s", "http://www.siri.org.uk/siri");
+        XPathExpression moreDataExpression = ns.xpath("/s:Siri/s:ServiceDelivery/s:MoreData/text()", String.class);
+
+        from("direct:retrieveAnsharET")
+                .routeId("ET retriever")
+                .log("About to call Anshar with url: " + siriETurl)
+                .setHeader(Exchange.HTTP_METHOD, constant("GET"))
+                .to(siriETurl)
+                .streamCaching()
+                .setProperty(MORE_DATA, moreDataExpression)
+                .split(ns.xpath("//s:EstimatedVehicleJourney"))
+                .to("activemq:queue:"+UkurConfiguration.ET_QUEUE)
+                .choice()
+                    .when(callAnsharAgain)
+                        .log("Call Anshar again since there are more ET data")
+                        .to("direct:retrieveAnsharET")
+                    .otherwise()
+                        .log("No more ET data from Anshar now")
                 .end();
 
+        from("activemq:queue:"+UkurConfiguration.ET_QUEUE)
+                .process(nsbETSubscriptionProcessor)
+                .end();
+
+
+        from("direct:retrieveAnsharSX")
+                .routeId("SX retriever")
+                .log("About to call Anshar with url: " + siriSXurl)
+                .setHeader(Exchange.HTTP_METHOD, constant("GET"))
+                .to(siriSXurl)
+                .streamCaching()
+                .setProperty(MORE_DATA, moreDataExpression)
+                .split(ns.xpath("//s:PtSituationElement"))
+                .to("activemq:queue:"+UkurConfiguration.SX_QUEUE)
+                .choice()
+                    .when(callAnsharAgain)
+                        .log("Call Anshar again since there are more SX data")
+                        .to("direct:retrieveAnsharSX")
+                    .otherwise()
+                        .log("No more SX data from Anshar now")
+                .end();
+
+        from("activemq:queue:"+UkurConfiguration.SX_QUEUE)
+                .process(nsbSXSubscriptionProcessor)
+                .end();
     }
 
 

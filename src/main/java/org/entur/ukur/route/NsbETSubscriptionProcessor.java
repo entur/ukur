@@ -15,12 +15,12 @@
 
 package org.entur.ukur.route;
 
+import org.apache.camel.Exchange;
+import org.apache.commons.lang3.StringUtils;
 import org.entur.ukur.subscription.EstimatedCallAndSubscriptions;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionManager;
-import org.apache.camel.Exchange;
-import org.apache.commons.lang3.StringUtils;
-import org.rutebanken.siri20.util.SiriXml;
+import org.entur.ukur.xml.SiriMarshaller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -34,41 +34,34 @@ import java.util.*;
 @Service
 public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
     private static final int DIRECTION_FROM = 1;
-    private static final int DIRECTION_TO   = 2;
+    private static final int DIRECTION_TO = 2;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     private SubscriptionManager subscriptionManager;
     private SubscriptionStatus status = new SubscriptionStatus();
+    private SiriMarshaller siriMarshaller;
 
     @Autowired
-    public NsbETSubscriptionProcessor(SubscriptionManager subscriptionManager) {
+    public NsbETSubscriptionProcessor(SubscriptionManager subscriptionManager, SiriMarshaller siriMarshaller) {
+        this.siriMarshaller = siriMarshaller;
         logger.debug("Initializes...");
         this.subscriptionManager = subscriptionManager;
     }
 
+    /**
+     * Expects inputstream with XML with EstimatedVehicleJourney as root element.
+     */
     @Override
     public void process(Exchange exchange) throws Exception {
         InputStream xml = exchange.getIn().getBody(InputStream.class);
         logger.debug("Reveived XML with size {} bytes", String.format("%,d", xml.available()));
-        Siri siri = SiriXml.parseXml(xml);
-        if (siri == null || siri.getServiceDelivery() == null) {
-            throw new IllegalArgumentException("No ServiceDelivery element...");
+        EstimatedVehicleJourney estimatedVehicleJourney = siriMarshaller.unmarhall(xml, EstimatedVehicleJourney.class);
+        if (estimatedVehicleJourney == null) {
+            throw new IllegalArgumentException("No EstimatedVehicleJourney element...");
         }
-        ServiceDelivery serviceDelivery = siri.getServiceDelivery();
-        //TODO: Sette dette flagget på en bedre måte (så vi kan sende events til kø etc)
-        exchange.getIn().setHeader(AnsharPollingRoutes.MORE_DATA_HEADER, serviceDelivery.isMoreData());
-        List<EstimatedTimetableDeliveryStructure> estimatedTimetableDeliveries = serviceDelivery.getEstimatedTimetableDeliveries();
-        for (EstimatedTimetableDeliveryStructure estimatedTimetableDelivery : estimatedTimetableDeliveries) {
-            List<EstimatedVersionFrameStructure> estimatedJourneyVersionFrames = estimatedTimetableDelivery.getEstimatedJourneyVersionFrames();
-            for (EstimatedVersionFrameStructure estimatedJourneyVersionFrame : estimatedJourneyVersionFrames) {
-                List<EstimatedVehicleJourney> estimatedVehicleJourneies = estimatedJourneyVersionFrame.getEstimatedVehicleJourneies();
-                for (EstimatedVehicleJourney estimatedVehicleJourney : estimatedVehicleJourneies) {
-                    processEstimatedVehicleJourney(estimatedVehicleJourney);
-                    status.processed(EstimatedVehicleJourney.class);
-                }
-            }
-        }
+        status.processed(EstimatedVehicleJourney.class);
+        processEstimatedVehicleJourney(estimatedVehicleJourney);
     }
 
     @SuppressWarnings("unused") //Used from camel route
@@ -83,10 +76,11 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
             logger.trace("Skips estimatedVehicleJourney (not NSB)");
             return;
         }
+        status.handled(EstimatedVehicleJourney.class);
         List<EstimatedCall> estimatedDelays = getEstimatedDelaysAndCancellations(estimatedVehicleJourney.getEstimatedCalls());
         logger.debug("Processes NSB estimatedVehicleJourney ({}) - with {} estimated delays", estimatedVehicleJourney.getDatedVehicleJourneyRef().getValue(), estimatedDelays.size());
         List<EstimatedCallAndSubscriptions> affectedSubscriptions = findAffectedSubscriptions(estimatedDelays, estimatedVehicleJourney);
-        for (EstimatedCallAndSubscriptions estimatedCallAndSubscriptions: affectedSubscriptions) {
+        for (EstimatedCallAndSubscriptions estimatedCallAndSubscriptions : affectedSubscriptions) {
             EstimatedCall estimatedCall = estimatedCallAndSubscriptions.getEstimatedCall();
             HashSet<Subscription> subscriptions = estimatedCallAndSubscriptions.getSubscriptions();
             logger.debug(" - For delayed departure from stopPlace {} there are {} affected subscriptions ", estimatedCall.getStopPointRef().getValue(), subscriptions.size());
@@ -194,11 +188,11 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
         private final ArrivalBoardingActivityEnumeration arrivalBoardingActivity;
         private final DepartureBoardingActivityEnumeration departureBoardingActivity;
 
-        public StopData(ZonedDateTime aimedDepartureTime) {
+        StopData(ZonedDateTime aimedDepartureTime) {
             this(aimedDepartureTime, null, null);
         }
 
-        public StopData(ZonedDateTime aimedDepartureTime,
+        StopData(ZonedDateTime aimedDepartureTime,
                         ArrivalBoardingActivityEnumeration arrivalBoardingActivity,
                         DepartureBoardingActivityEnumeration departureBoardingActivity) {
             this.aimedDepartureTime = aimedDepartureTime;
@@ -206,15 +200,15 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
             this.departureBoardingActivity = departureBoardingActivity;
         }
 
-        public ZonedDateTime getAimedDepartureTime() {
+        ZonedDateTime getAimedDepartureTime() {
             return aimedDepartureTime;
         }
 
-        public ArrivalBoardingActivityEnumeration getArrivalBoardingActivity() {
+        ArrivalBoardingActivityEnumeration getArrivalBoardingActivity() {
             return arrivalBoardingActivity;
         }
 
-        public DepartureBoardingActivityEnumeration getDepartureBoardingActivity() {
+        DepartureBoardingActivityEnumeration getDepartureBoardingActivity() {
             return departureBoardingActivity;
         }
     }

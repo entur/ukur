@@ -17,23 +17,26 @@ package org.entur.ukur.route;
 
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionManager;
+import org.entur.ukur.xml.SiriMarshaller;
 import org.junit.Test;
 import uk.org.siri.siri20.EstimatedCall;
 import uk.org.siri.siri20.EstimatedVehicleJourney;
 import uk.org.siri.siri20.RecordedCall;
 import uk.org.siri.siri20.StopPointRef;
 
+import javax.xml.bind.JAXBException;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 
 import static junit.framework.TestCase.assertTrue;
 import static org.junit.Assert.assertFalse;
+import static org.mockito.Mockito.mock;
 
 public class NsbETSubscriptionProcessorTest {
 
 
     @Test
-    public void validDirection() {
+    public void validDirection() throws JAXBException {
 
         EstimatedVehicleJourney.RecordedCalls recordedCalls = new EstimatedVehicleJourney.RecordedCalls();
         addRecordedCall(recordedCalls, "R1", ZonedDateTime.now().minus(2, ChronoUnit.HOURS));
@@ -45,7 +48,7 @@ public class NsbETSubscriptionProcessorTest {
         journey.setRecordedCalls(recordedCalls);
         journey.setEstimatedCalls(estimatedCalls);
 
-        NsbETSubscriptionProcessor processor = new NsbETSubscriptionProcessor(new SubscriptionManager());
+        NsbETSubscriptionProcessor processor = new NsbETSubscriptionProcessor(mock(SubscriptionManager.class), new SiriMarshaller());
 
         //No errors if no hits...
         assertFalse(processor.validDirection(new Subscription("1"), journey));

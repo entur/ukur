@@ -5,6 +5,7 @@ import java.io.Serializable;
 public class PushMessage implements Serializable {
 
     private String messagename;
+    private String node;
     private String xmlPayload;
 
     public String getMessagename() {
@@ -21,5 +22,13 @@ public class PushMessage implements Serializable {
 
     public void setXmlPayload(String xmlPayload) {
         this.xmlPayload = xmlPayload;
+    }
+
+    public String getNode() {
+        return node;
+    }
+
+    public void setNode(String node) {
+        this.node = node;
     }
 }

@@ -18,22 +18,23 @@ package org.entur.ukur.subscription;
 import com.google.common.cache.Cache;
 import com.google.common.cache.CacheBuilder;
 import com.hazelcast.core.IMap;
-import org.entur.ukur.xml.NoNamespaceIndentingXMLStreamWriter;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.entur.ukur.xml.SiriMarshaller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;
 import uk.org.siri.siri20.*;
 
-import javax.xml.bind.JAXBContext;
 import javax.xml.bind.JAXBException;
-import javax.xml.bind.Marshaller;
-import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
-import javax.xml.stream.XMLStreamWriter;
-import java.io.*;
+import java.io.File;
+import java.io.FileWriter;
+import java.io.IOException;
+import java.io.Serializable;
+import java.net.InetAddress;
+import java.net.UnknownHostException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
@@ -41,23 +42,33 @@ import java.util.concurrent.TimeUnit;
 
 @Service
 public class SubscriptionManager {
-    private Logger logger = LoggerFactory.getLogger(this.getClass());
-    @Autowired
+
     private IMap<String, Set<Subscription>> subscriptionsPerStopPoint;
-    @Autowired
     private IMap<String, List<PushMessage>> pushMessagesMemoryStore;
-    private JAXBContext jaxbContext;
-    //TODO: AlreadySent bør enten sjekkes i anshar-polle-ruta eller her om vi skal støtte nye subscriptions (men må da cachen til hazelcast)
+    private final SiriMarshaller siriMarshaller;
+
+    //TODO: AlreadySent bør enten sjekkes i anshar-polle-ruta eller her om vi skal støtte nye subscriptions (men da må cachen "til hazelcast")
     private Cache<String, Long> alreadySentCache = CacheBuilder.newBuilder()
             .maximumSize(10000)
             .expireAfterAccess(5, TimeUnit.MINUTES)
             .build();
+    private String hostname;
 
-    public SubscriptionManager() {
+    private Logger logger = LoggerFactory.getLogger(this.getClass());
+
+    @Autowired
+    public SubscriptionManager(IMap<String, Set<Subscription>> subscriptionsPerStopPoint,
+                               IMap<String, List<PushMessage>> pushMessagesMemoryStore,
+                               SiriMarshaller siriMarshaller) {
+        this.subscriptionsPerStopPoint = subscriptionsPerStopPoint;
+        this.pushMessagesMemoryStore = pushMessagesMemoryStore;
+        this.siriMarshaller = siriMarshaller;
         try {
-            jaxbContext = JAXBContext.newInstance(Siri.class);
-        } catch (JAXBException e) {
-            throw new RuntimeException("Problem initializing JAXBContext", e);
+            hostname = InetAddress.getLocalHost().getHostName();
+            logger.info("This nodes hostname is '{}'", hostname);
+        } catch (UnknownHostException e) {
+            hostname = "random_"+new Random().nextInt(10000); //want to separate message producing nodes from each other, this will work as fallback
+            logger.error("Cant resolve hostname - use random name '{}' instead to differentiate nodes", hostname, e);
         }
     }
 
@@ -157,6 +168,7 @@ public class SubscriptionManager {
         PushMessage pushMessage = new PushMessage();
         pushMessage.setMessagename(pushMessageFilename);
         pushMessage.setXmlPayload(xml);
+        pushMessage.setNode(hostname);
         pushMessages.add(pushMessage);
         pushMessagesMemoryStore.put(subscription.getId(), pushMessages);
     }
@@ -196,11 +208,7 @@ public class SubscriptionManager {
 
     private String toXMLString(Object element) {
         try {
-            Marshaller jaxbMarshaller = jaxbContext.createMarshaller();
-            StringWriter stringWriter = new StringWriter();
-            XMLStreamWriter writer = XMLOutputFactory.newFactory().createXMLStreamWriter(stringWriter);
-            jaxbMarshaller.marshal(element, new NoNamespaceIndentingXMLStreamWriter(writer));
-            return stringWriter.getBuffer().toString();
+            return siriMarshaller.prettyPrintNoNamespaces(element);
         } catch (JAXBException | XMLStreamException e) {
             logger.warn("Error marshalling object", e);
             return "ERROR: " + e.getMessage();

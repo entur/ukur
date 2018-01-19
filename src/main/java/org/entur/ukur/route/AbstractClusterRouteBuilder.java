@@ -4,9 +4,7 @@ import org.apache.camel.model.RouteDefinition;
 import org.apache.camel.spi.RouteContext;
 import org.apache.camel.spi.RoutePolicy;
 import org.apache.camel.spring.SpringRouteBuilder;
-import org.entur.ukur.setup.UkurConfiguration;
 import org.entur.ukur.setup.policy.InterruptibleHazelcastRoutePolicy;
-import org.springframework.stereotype.Component;
 
 import java.util.List;
 
@@ -18,18 +16,13 @@ import static org.entur.ukur.setup.policy.SingletonRoutePolicyFactory.SINGLETON_
 public abstract class AbstractClusterRouteBuilder extends SpringRouteBuilder {
 
 
-    protected UkurConfiguration config;
-
-    protected AbstractClusterRouteBuilder(UkurConfiguration config) {
-        this.config = config;
-    }
-
     @Override
     public void configure() {
         errorHandler(transactionErrorHandler()
                 .logExhausted(true)
                 .logRetryStackTrace(true));
     }
+
     /**
      * Create a new singleton route definition from URI. Only one such route should be active throughout the cluster at any time.
      */

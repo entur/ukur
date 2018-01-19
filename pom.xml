@@ -41,6 +41,9 @@
         <fabric8.dockerUser>carbon-1287/</fabric8.dockerUser>
         <docker.image>eu.gcr.io/${fabric8.dockerUser}${project.artifactId}:${project.version}</docker.image>
         <docker.cleanup>none</docker.cleanup>
+
+        <!-- TODO: sjekk denne:  "Holding back activemq version as newest version no long support spring wired broker config" -->
+        <activemq.version>5.13.4</activemq.version>
     </properties>
 
     <licenses>
@@ -129,6 +132,11 @@
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-bean-validator</artifactId>
         </dependency>
+        <dependency>
+            <groupId>org.apache.activemq</groupId>
+            <artifactId>activemq-camel</artifactId>
+            <version>${activemq.version}</version>
+        </dependency>
 
         <dependency>
             <groupId>org.springframework.boot</groupId>
@@ -179,6 +187,12 @@
             <version>1.9.0</version>
         </dependency>
 
+        <dependency>
+            <groupId>commons-io</groupId>
+            <artifactId>commons-io</artifactId>
+            <version>2.6</version>
+        </dependency>
+
         <!--<dependency>-->
             <!--<groupId>com.hazelcast</groupId>-->
             <!--<artifactId>hazelcast</artifactId>-->
@@ -206,6 +220,18 @@
             <artifactId>camel-test</artifactId>
             <scope>test</scope>
         </dependency>
+        <dependency>
+            <groupId>org.apache.camel</groupId>
+            <artifactId>camel-test-spring</artifactId>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.springframework.cloud</groupId>
+            <artifactId>spring-cloud-contract-wiremock</artifactId>
+            <version>1.2.2.RELEASE</version>
+            <scope>test</scope>
+        </dependency>
+
     </dependencies>
 
 
