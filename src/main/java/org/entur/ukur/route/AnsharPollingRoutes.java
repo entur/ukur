@@ -92,10 +92,12 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                 .get("/{id}").to("bean:subscriptionManager?method=getData(${header.id})");
 
         from("direct:OK")
+                .routeId("OK response")
                 .log("Return hardcoded 'OK' on uri '${header."+Exchange.HTTP_URI+"}'")
                 .setBody(simple("OK    \n\n"))
                 .setHeader(Exchange.HTTP_RESPONSE_CODE, constant("200"));
         from("direct:routeStatus-et")
+                .routeId("ET Status")
                 .choice()
                     .when(p -> isLeader(ROUTENAME_ET_TRIGGER))
                         .setBody(simple("Is leader for route '"+ ROUTENAME_ET_TRIGGER+"'"))
@@ -103,6 +105,7 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                         .setBody(simple("Is NOT leader for route '"+ ROUTENAME_ET_TRIGGER+"'"))
                 .end();
         from("direct:routeStatus-sx")
+                .routeId("SX Status")
                 .choice()
                     .when(p -> isLeader(ROUTENAME_SX_TRIGGER))
                         .setBody(simple("Is leader for route '"+ ROUTENAME_SX_TRIGGER+"'"))
@@ -133,7 +136,7 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
         XPathExpression moreDataExpression = ns.xpath("/s:Siri/s:ServiceDelivery/s:MoreData/text()", String.class);
 
         from("direct:retrieveAnsharET")
-                .routeId("ET retriever")
+                .routeId("ET Retriever")
                 .log("About to call Anshar with url: " + siriETurl)
                 .setHeader(Exchange.HTTP_METHOD, constant("GET"))
                 .to(siriETurl)
@@ -148,12 +151,13 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                 .end();
 
         from("activemq:queue:"+UkurConfiguration.ET_QUEUE)
+                .routeId("ET ActiveMQ Listener")
                 .process(nsbETSubscriptionProcessor)
                 .end();
 
 
         from("direct:retrieveAnsharSX")
-                .routeId("SX retriever")
+                .routeId("SX Retriever")
                 .log("About to call Anshar with url: " + siriSXurl)
                 .setHeader(Exchange.HTTP_METHOD, constant("GET"))
                 .to(siriSXurl)
@@ -168,6 +172,7 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                 .end();
 
         from("activemq:queue:"+UkurConfiguration.SX_QUEUE)
+                .routeId("SX ActiveMQ Listener")
                 .process(nsbSXSubscriptionProcessor)
                 .end();
     }

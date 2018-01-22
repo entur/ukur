@@ -155,8 +155,8 @@ public class SubscriptionManager {
         alreadySentCache.put(xml, System.currentTimeMillis());
         for (Subscription subscription : subscriptions) {
 //            writeMessageToFile(xml, pushMessageFilename, subscription);
-            storeMessageInMemory(xml, pushMessageFilename, subscription);
-            logger.info("PUSH: to subscription name: {}\n{}", subscription.getName(), xml);
+//            storeMessageInMemory(xml, pushMessageFilename, subscription);
+            logger.info("PUSH ({}): to subscription name: {}\n{}", hostname, subscription.getName(), xml);
         }
     }
 
