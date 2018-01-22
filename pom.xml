@@ -18,12 +18,6 @@
 
     <modelVersion>4.0.0</modelVersion>
 
-    <!--<parent>-->
-        <!--<groupId>org.rutebanken.superpom</groupId>-->
-        <!--<artifactId>superpom</artifactId>-->
-        <!--<version>0.0.6</version>-->
-    <!--</parent>-->
-
     <groupId>org.entur</groupId>
     <artifactId>ukur</artifactId>
     <packaging>jar</packaging>
@@ -41,9 +35,7 @@
         <fabric8.dockerUser>carbon-1287/</fabric8.dockerUser>
         <docker.image>eu.gcr.io/${fabric8.dockerUser}${project.artifactId}:${project.version}</docker.image>
         <docker.cleanup>none</docker.cleanup>
-
-        <!-- TODO: sjekk denne:  "Holding back activemq version as newest version no long support spring wired broker config" -->
-        <activemq.version>5.13.4</activemq.version>
+        <activemq.version>5.15.2</activemq.version>
     </properties>
 
     <licenses>
