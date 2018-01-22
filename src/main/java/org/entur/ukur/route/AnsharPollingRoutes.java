@@ -92,21 +92,22 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                 .get("/{id}").to("bean:subscriptionManager?method=getData(${header.id})");
 
         from("direct:OK")
-                .setBody(simple("OK"))
+                .log("Return hardcoded 'OK' on uri '${header."+Exchange.HTTP_URI+"}'")
+                .setBody(simple("OK    \n\n"))
                 .setHeader(Exchange.HTTP_RESPONSE_CODE, constant("200"));
         from("direct:routeStatus-et")
                 .choice()
                     .when(p -> isLeader(ROUTENAME_ET_TRIGGER))
-                        .setBody(simple("Is leader for "+ ROUTENAME_ET_TRIGGER))
+                        .setBody(simple("Is leader for route '"+ ROUTENAME_ET_TRIGGER+"'"))
                     .otherwise()
-                        .setBody(simple("Is NOT leader for "+ ROUTENAME_ET_TRIGGER))
+                        .setBody(simple("Is NOT leader for route '"+ ROUTENAME_ET_TRIGGER+"'"))
                 .end();
         from("direct:routeStatus-sx")
                 .choice()
                     .when(p -> isLeader(ROUTENAME_SX_TRIGGER))
-                        .setBody(simple("Is leader for "+ ROUTENAME_SX_TRIGGER))
+                        .setBody(simple("Is leader for route '"+ ROUTENAME_SX_TRIGGER+"'"))
                     .otherwise()
-                        .setBody(simple("Is NOT leader for "+ ROUTENAME_SX_TRIGGER))
+                        .setBody(simple("Is NOT leader for route '"+ ROUTENAME_SX_TRIGGER+"'"))
                 .end();
     }
 

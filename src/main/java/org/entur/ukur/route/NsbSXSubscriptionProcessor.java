@@ -50,7 +50,7 @@ public class NsbSXSubscriptionProcessor implements Processor {
     @Override
     public void process(Exchange exchange) throws Exception {
         InputStream xml = exchange.getIn().getBody(InputStream.class);
-        logger.debug("Reveived XML with size {} bytes", String.format("%,d", xml.available()));
+        logger.trace("Reveived XML with size {} bytes", String.format("%,d", xml.available()));
         PtSituationElement ptSituationElement = siriMarshaller.unmarhall(xml, PtSituationElement.class);
         if (ptSituationElement == null) {
             throw new IllegalArgumentException("No PtSituationElement element...");

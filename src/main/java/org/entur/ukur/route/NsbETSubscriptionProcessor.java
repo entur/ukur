@@ -55,7 +55,7 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
     @Override
     public void process(Exchange exchange) throws Exception {
         InputStream xml = exchange.getIn().getBody(InputStream.class);
-        logger.debug("Reveived XML with size {} bytes", String.format("%,d", xml.available()));
+        logger.trace("Reveived XML with size {} bytes", String.format("%,d", xml.available()));
         EstimatedVehicleJourney estimatedVehicleJourney = siriMarshaller.unmarhall(xml, EstimatedVehicleJourney.class);
         if (estimatedVehicleJourney == null) {
             throw new IllegalArgumentException("No EstimatedVehicleJourney element...");
