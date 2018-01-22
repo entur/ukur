@@ -30,6 +30,9 @@ public class UkurConfiguration {
     @Value("${ukur.camel.anshar.sx.url}")
     private String sxURL;
 
+    @Value("${ukur.camel.quartz.routes.enabled}")
+    private boolean quartzRoutesEnabled;
+
     public String getHazelcastManagementUrl() {
         return hazelcastManagementUrl;
     }
@@ -55,7 +58,6 @@ public class UkurConfiguration {
     }
 
     public boolean isQuartzRoutesEnabled() {
-        //Method overridden in test...
-        return true;
+        return quartzRoutesEnabled;
     }
 }
