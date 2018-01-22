@@ -144,8 +144,6 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                     .when(callAnsharAgain)
                         .log("Call Anshar again since there are more ET data")
                         .to("direct:retrieveAnsharET")
-                    .otherwise()
-                        .log("No more ET data from Anshar now")
                 .end();
 
         from("activemq:queue:"+UkurConfiguration.ET_QUEUE)
@@ -166,8 +164,6 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                     .when(callAnsharAgain)
                         .log("Call Anshar again since there are more SX data")
                         .to("direct:retrieveAnsharSX")
-                    .otherwise()
-                        .log("No more SX data from Anshar now")
                 .end();
 
         from("activemq:queue:"+UkurConfiguration.SX_QUEUE)
