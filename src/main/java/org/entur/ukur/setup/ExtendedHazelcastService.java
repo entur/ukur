@@ -2,6 +2,7 @@ package org.entur.ukur.setup;
 
 import com.hazelcast.config.EvictionPolicy;
 import com.hazelcast.config.MapConfig;
+import com.hazelcast.config.MaxSizeConfig;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IMap;
 import org.entur.ukur.subscription.PushMessage;
@@ -18,6 +19,11 @@ import java.util.Set;
 @Service
 public class ExtendedHazelcastService extends HazelCastService {
 
+    /**
+     * Evict cache when free heap percentage is below this value
+     */
+    private static final int EVICT_WHEN_FREE_HEAP_PERCENTAGE_BELOW = 25;
+
     public ExtendedHazelcastService(@Autowired KubernetesService kubernetesService, @Autowired UkurConfiguration cfg) {
         super(kubernetesService, cfg.getHazelcastManagementUrl());
     }
@@ -27,18 +33,18 @@ public class ExtendedHazelcastService extends HazelCastService {
     }
 
     @Bean
-    public IMap<String, Set<Subscription>> getSubscriptionsPerStopPoint() {
+    public IMap<String, Set<Subscription>> subscriptionsPerStopPoint() {
         return hazelcast.getMap("ukur.subscriptionsPerStop");
     }
 
     @Bean
-    public IMap<String, List<PushMessage>> getPushMessagesMemoryStore() {
+    public IMap<String, List<PushMessage>> pushMessagesMemoryStore() {
         //TODO: Denne skal fjernes når vi får på plass skikkelig push over http!
         return hazelcast.getMap("ukur.pushMessagesMemoryStore");
     }
 
     @Bean
-    public IMap<String, Long> getAlreadySentCache() {
+    public IMap<String, Long> alreadySentCache() {
         return hazelcast.getMap("ukur.alreadySentCache");
     }
 
@@ -55,7 +61,9 @@ public class ExtendedHazelcastService extends HazelCastService {
                 new MapConfig()
                         .setName("ukur.alreadySentCache")
                         .setMaxIdleSeconds(300)
-                        .setEvictionPolicy(EvictionPolicy.NONE));
+                        .setEvictionPolicy(EvictionPolicy.LFU)
+                        .setMaxSizeConfig(
+                                new MaxSizeConfig(EVICT_WHEN_FREE_HEAP_PERCENTAGE_BELOW, MaxSizeConfig.MaxSizePolicy.FREE_HEAP_PERCENTAGE)));
 
         return mapConfigs;
 

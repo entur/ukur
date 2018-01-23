@@ -46,7 +46,7 @@ public class WiremockTestConfig extends UkurConfiguration {
             logger.info("Use {} as REST port", localPort);
             return localPort;
         } catch (IOException e) {
-            throw new RuntimeException("Could not get an avaible port...", e);
+            throw new RuntimeException("Could not get an available port...", e);
         }
     }
 }

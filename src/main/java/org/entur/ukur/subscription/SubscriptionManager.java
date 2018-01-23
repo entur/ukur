@@ -141,6 +141,7 @@ public class SubscriptionManager {
 
     private void pushMessage(HashSet<Subscription> subscriptions, String xml, String pushMessageFilename) {
 
+        //TODO: Denne håndterer ikke de ulike subscriptionene, kun om denne meldingen er sendt til noen, og får dermed ikke med seg nye subscriptions (det er nok ikke noe stort problem for ET meldinger, men kanskje SX...)
         Long ifPresent = alreadySentCache.get(xml);
         if (ifPresent != null) {
             long diffInSecs = (System.currentTimeMillis() - ifPresent) / 1000;
@@ -150,9 +151,9 @@ public class SubscriptionManager {
 
         alreadySentCache.set(xml, System.currentTimeMillis());
         for (Subscription subscription : subscriptions) {
-//            writeMessageToFile(xml, pushMessageFilename, subscription);
-//            storeMessageInMemory(xml, pushMessageFilename, subscription);
             logger.info("PUSH ({}): to subscription name: {}\n{}", hostname, subscription.getName(), xml);
+//            writeMessageToFile(xml, pushMessageFilename, subscription);
+            storeMessageInMemory(xml, pushMessageFilename, subscription);
         }
     }
 

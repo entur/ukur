@@ -66,7 +66,10 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
 
         addTestSubscriptions(subscriptionManager);
 
-        String requestorId = sharedProperties.putIfAbsent("AnsharRequestorId", "ukur-" + UUID.randomUUID());
+        String proposedValue = "ukur-" + UUID.randomUUID();
+        String requestorId = sharedProperties.putIfAbsent("AnsharRequestorId", proposedValue);
+        requestorId = requestorId == null ? proposedValue : requestorId;
+        logger.debug("Uses requestorId: '{}' - proposded value was {}", requestorId, proposedValue);
         String siriETurl = config.getAnsharETCamelUrl(requestorId);
         String siriSXurl = config.getAnsharSXCamelUrl(requestorId);
 
