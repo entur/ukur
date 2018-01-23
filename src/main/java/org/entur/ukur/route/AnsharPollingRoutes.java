@@ -33,6 +33,8 @@ import java.util.UUID;
 
 @Component
 public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
+    public static final String ROUTE_ET_RETRIEVER = "seda:retrieveAnsharET";
+    public static final String ROUTE_SX_RETRIEVER = "seda:retrieveAnsharSX";
     private Logger logger = LoggerFactory.getLogger(this.getClass());
     private static final String MORE_DATA = "MoreData";
     private static final String ROUTENAME_ET_TRIGGER = "ET trigger";
@@ -59,6 +61,7 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
         addTestSubscriptions(subscriptionManager);
 
         UUID uuid = UUID.randomUUID();
+        //TODO: Use hazelcast to get or set this uid so that we have same uid on all nodes! (use lock etc)
         String siriETurl = config.getAnsharETCamelUrl(uuid);
         String siriSXurl = config.getAnsharSXCamelUrl(uuid);
 
@@ -115,16 +118,20 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
 
         if (etPollingEnabled) {
             singletonFrom("quartz2://ukur/pollAnsharET?fireNow=true&trigger.repeatInterval=" + repatInterval, ROUTENAME_ET_TRIGGER)
+                    .log("ET: Triggered by timer")
                     .filter(e -> isLeader(e.getFromRouteId()))
-                    .to("direct:retrieveAnsharET");
+                    .filter(e -> getContext().getInflightRepository().size(ROUTE_ET_RETRIEVER) == 0 )
+                    .to(ROUTE_ET_RETRIEVER);
         } else {
             logger.warn("ET polling is disabled");
         }
 
         if (sxPollingEnabled) {
             singletonFrom("quartz2://ukur/pollAnsharSX?fireNow=true&trigger.repeatInterval=" + repatInterval, ROUTENAME_SX_TRIGGER)
+                    .log("SX: Triggered by timer")
                     .filter(e -> isLeader(e.getFromRouteId()))
-                    .to("direct:retrieveAnsharSX");
+                    .filter(e -> getContext().getInflightRepository().size(ROUTE_SX_RETRIEVER) == 0 )
+                    .to(ROUTE_SX_RETRIEVER);
         } else {
             logger.warn("SX polling is disabled");
         }
@@ -139,7 +146,7 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
         Namespaces ns = new Namespaces("s", "http://www.siri.org.uk/siri");
         XPathExpression moreDataExpression = ns.xpath("/s:Siri/s:ServiceDelivery/s:MoreData/text()", String.class);
 
-        from("direct:retrieveAnsharET")
+        from(ROUTE_ET_RETRIEVER)
                 .routeId("ET Retriever")
                 .log("About to call Anshar with url: " + siriETurl)
                 .setHeader(Exchange.HTTP_METHOD, constant("GET"))
@@ -151,7 +158,7 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                 .choice()
                     .when(callAnsharAgain)
                         .log("Call Anshar again since there are more ET data")
-                        .to("direct:retrieveAnsharET")
+                        .to(ROUTE_ET_RETRIEVER)
                 .end();
 
         from("activemq:queue:"+UkurConfiguration.ET_QUEUE)
@@ -160,7 +167,7 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                 .end();
 
 
-        from("direct:retrieveAnsharSX")
+        from(ROUTE_SX_RETRIEVER)
                 .routeId("SX Retriever")
                 .log("About to call Anshar with url: " + siriSXurl)
                 .setHeader(Exchange.HTTP_METHOD, constant("GET"))
@@ -172,7 +179,7 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                 .choice()
                     .when(callAnsharAgain)
                         .log("Call Anshar again since there are more SX data")
-                        .to("direct:retrieveAnsharSX")
+                        .to(ROUTE_SX_RETRIEVER)
                 .end();
 
         from("activemq:queue:"+UkurConfiguration.SX_QUEUE)

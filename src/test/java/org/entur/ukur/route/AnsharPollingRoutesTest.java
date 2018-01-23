@@ -37,10 +37,10 @@ public class AnsharPollingRoutesTest extends AbstractJUnit4SpringContextTests {
     @Autowired
     private NsbSXSubscriptionProcessor nsbSXSubscriptionProcessor;
 
-    @Produce(uri = "direct:retrieveAnsharET")
+    @Produce(uri = AnsharPollingRoutes.ROUTE_ET_RETRIEVER)
     private ProducerTemplate etTemplate;
 
-    @Produce(uri = "direct:retrieveAnsharSX")
+    @Produce(uri = AnsharPollingRoutes.ROUTE_SX_RETRIEVER)
     private ProducerTemplate sxTemplate;
 
     @Test
