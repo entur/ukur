@@ -30,8 +30,14 @@ public class UkurConfiguration {
     @Value("${ukur.camel.anshar.sx.url}")
     private String sxURL;
 
-    @Value("${ukur.camel.quartz.routes.enabled}")
-    private boolean quartzRoutesEnabled;
+    @Value("${ukur.camel.et.polling.enabled}")
+    private boolean etPollingEnabled;
+
+    @Value("${ukur.camel.sx.polling.enabled}")
+    private boolean sxPollingEnabled;
+
+    @Value("${ukur.camel.rest.port}")
+    private int restPort;
 
     public String getHazelcastManagementUrl() {
         return hazelcastManagementUrl;
@@ -57,7 +63,15 @@ public class UkurConfiguration {
         return sxURL + "?requestorId=" + uuid;
     }
 
-    public boolean isQuartzRoutesEnabled() {
-        return quartzRoutesEnabled;
+    public boolean isEtPollingEnabled() {
+        return etPollingEnabled;
+    }
+
+    public boolean isSxPollingEnabled() {
+        return sxPollingEnabled;
+    }
+
+    public int getRestPort() {
+        return restPort;
     }
 }

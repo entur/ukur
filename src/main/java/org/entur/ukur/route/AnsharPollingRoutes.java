@@ -63,21 +63,17 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
         String siriSXurl = config.getAnsharSXCamelUrl(uuid);
 
         createPollingRoutes(siriETurl, siriSXurl);
-        createRestRoutes();
-        if (config.isQuartzRoutesEnabled()) {
-            createQuartzRoutes();
-        } else {
-            logger.warn("Quartz routes disabled!");
-        }
+        createRestRoutes(config.getRestPort());
+        createQuartzRoutes(config.isEtPollingEnabled(), config.isSxPollingEnabled());
 
     }
 
-    protected void createRestRoutes() {
+    protected void createRestRoutes(int jettyPort) {
         restConfiguration()
                 .component("jetty")
                 .bindingMode(RestBindingMode.json)
                 .dataFormatProperty("prettyPrint", "true")
-                .port(8080);
+                .port(jettyPort);
         rest("/health")
                 .produces("application/json")
                 .get("/subscriptions").to("bean:subscriptionManager?method=listAll")
@@ -114,16 +110,24 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                 .end();
     }
 
-    protected void createQuartzRoutes() {
+    protected void createQuartzRoutes(boolean etPollingEnabled, boolean sxPollingEnabled) {
         int repatInterval = 60_000;
 
-        singletonFrom("quartz2://ukur/pollAnsharET?fireNow=true&trigger.repeatInterval=" + repatInterval, ROUTENAME_ET_TRIGGER)
-                .filter(e -> isLeader(e.getFromRouteId()))
-                .to("direct:retrieveAnsharET");
+        if (etPollingEnabled) {
+            singletonFrom("quartz2://ukur/pollAnsharET?fireNow=true&trigger.repeatInterval=" + repatInterval, ROUTENAME_ET_TRIGGER)
+                    .filter(e -> isLeader(e.getFromRouteId()))
+                    .to("direct:retrieveAnsharET");
+        } else {
+            logger.warn("ET polling is disabled");
+        }
 
-        singletonFrom("quartz2://ukur/pollAnsharSX?fireNow=true&trigger.repeatInterval=" + repatInterval, ROUTENAME_SX_TRIGGER)
-                .filter(e -> isLeader(e.getFromRouteId()))
-                .to("direct:retrieveAnsharSX");
+        if (sxPollingEnabled) {
+            singletonFrom("quartz2://ukur/pollAnsharSX?fireNow=true&trigger.repeatInterval=" + repatInterval, ROUTENAME_SX_TRIGGER)
+                    .filter(e -> isLeader(e.getFromRouteId()))
+                    .to("direct:retrieveAnsharSX");
+        } else {
+            logger.warn("SX polling is disabled");
+        }
     }
 
     protected void createPollingRoutes(String siriETurl, String siriSXurl) {
