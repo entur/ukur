@@ -121,7 +121,7 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
             singletonFrom("quartz2://ukur/pollAnsharET?fireNow=true&trigger.repeatInterval=" + repatInterval, ROUTEID_ET_TRIGGER)
                     .log("ET: Triggered by timer")
                     .filter(e -> isLeader(e.getFromRouteId()))
-                    .filter(e -> getContext().getInflightRepository().size(ROUTEID_ET_RETRIEVER) == 0 )
+                    .filter(new NotRunningPredicate(ROUTEID_ET_RETRIEVER))
                     .to(ROUTE_ET_RETRIEVER);
         } else {
             logger.warn("ET polling is disabled");
@@ -131,7 +131,7 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
             singletonFrom("quartz2://ukur/pollAnsharSX?fireNow=true&trigger.repeatInterval=" + repatInterval, ROUTEID_SX_TRIGGER)
                     .log("SX: Triggered by timer")
                     .filter(e -> isLeader(e.getFromRouteId()))
-                    .filter(e -> getContext().getInflightRepository().size(ROUTEID_SX_RETRIEVER) == 0 )
+                    .filter(new NotRunningPredicate(ROUTEID_SX_RETRIEVER))
                     .to(ROUTE_SX_RETRIEVER);
         } else {
             logger.warn("SX polling is disabled");
@@ -255,6 +255,5 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
         subscriptionManager.addSusbcription(osloTilAsker);
 
     }
-
 
 }
