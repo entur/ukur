@@ -39,6 +39,9 @@ public class UkurConfiguration {
     @Value("${ukur.camel.rest.port}")
     private int restPort;
 
+    @Value("${ukur.camel.polling.interval}")
+    private int pollingInterval;
+
     public String getHazelcastManagementUrl() {
         return hazelcastManagementUrl;
     }
@@ -74,4 +77,9 @@ public class UkurConfiguration {
     public int getRestPort() {
         return restPort;
     }
+
+    public int getPollingInterval() {
+        return pollingInterval;
+    }
+
 }

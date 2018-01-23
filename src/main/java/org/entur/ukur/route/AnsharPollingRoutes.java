@@ -36,9 +36,11 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
     public static final String ROUTE_ET_RETRIEVER = "seda:retrieveAnsharET";
     public static final String ROUTE_SX_RETRIEVER = "seda:retrieveAnsharSX";
     private Logger logger = LoggerFactory.getLogger(this.getClass());
+    private static final String ROUTEID_SX_RETRIEVER = "SX Retriever";
+    private static final String ROUTEID_ET_RETRIEVER = "ET Retriever";
     private static final String MORE_DATA = "MoreData";
-    private static final String ROUTENAME_ET_TRIGGER = "ET trigger";
-    private static final String ROUTENAME_SX_TRIGGER = "SX trigger";
+    private static final String ROUTEID_ET_TRIGGER = "ET trigger";
+    private static final String ROUTEID_SX_TRIGGER = "SX trigger";
     private UkurConfiguration config;
     private SubscriptionManager subscriptionManager;
     private final NsbETSubscriptionProcessor nsbETSubscriptionProcessor;
@@ -67,7 +69,7 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
 
         createPollingRoutes(siriETurl, siriSXurl);
         createRestRoutes(config.getRestPort());
-        createQuartzRoutes(config.isEtPollingEnabled(), config.isSxPollingEnabled());
+        createQuartzRoutes(config.isEtPollingEnabled(), config.isSxPollingEnabled(), config.getPollingInterval());
 
     }
 
@@ -98,39 +100,38 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
         from("direct:routeStatus-et")
                 .routeId("ET Status")
                 .choice()
-                    .when(p -> isLeader(ROUTENAME_ET_TRIGGER))
-                        .setBody(simple("Is leader for route '"+ ROUTENAME_ET_TRIGGER+"'"))
+                    .when(p -> isLeader(ROUTEID_ET_TRIGGER))
+                        .setBody(simple("Is leader for route '"+ ROUTEID_ET_TRIGGER +"'"))
                     .otherwise()
-                        .setBody(simple("Is NOT leader for route '"+ ROUTENAME_ET_TRIGGER+"'"))
+                        .setBody(simple("Is NOT leader for route '"+ ROUTEID_ET_TRIGGER +"'"))
                 .end();
         from("direct:routeStatus-sx")
                 .routeId("SX Status")
                 .choice()
-                    .when(p -> isLeader(ROUTENAME_SX_TRIGGER))
-                        .setBody(simple("Is leader for route '"+ ROUTENAME_SX_TRIGGER+"'"))
+                    .when(p -> isLeader(ROUTEID_SX_TRIGGER))
+                        .setBody(simple("Is leader for route '"+ ROUTEID_SX_TRIGGER +"'"))
                     .otherwise()
-                        .setBody(simple("Is NOT leader for route '"+ ROUTENAME_SX_TRIGGER+"'"))
+                        .setBody(simple("Is NOT leader for route '"+ ROUTEID_SX_TRIGGER +"'"))
                 .end();
     }
 
-    protected void createQuartzRoutes(boolean etPollingEnabled, boolean sxPollingEnabled) {
-        int repatInterval = 60_000;
+    protected void createQuartzRoutes(boolean etPollingEnabled, boolean sxPollingEnabled, int repatInterval) {
 
         if (etPollingEnabled) {
-            singletonFrom("quartz2://ukur/pollAnsharET?fireNow=true&trigger.repeatInterval=" + repatInterval, ROUTENAME_ET_TRIGGER)
+            singletonFrom("quartz2://ukur/pollAnsharET?fireNow=true&trigger.repeatInterval=" + repatInterval, ROUTEID_ET_TRIGGER)
                     .log("ET: Triggered by timer")
                     .filter(e -> isLeader(e.getFromRouteId()))
-                    .filter(e -> getContext().getInflightRepository().size(ROUTE_ET_RETRIEVER) == 0 )
+                    .filter(e -> getContext().getInflightRepository().size(ROUTEID_ET_RETRIEVER) == 0 )
                     .to(ROUTE_ET_RETRIEVER);
         } else {
             logger.warn("ET polling is disabled");
         }
 
         if (sxPollingEnabled) {
-            singletonFrom("quartz2://ukur/pollAnsharSX?fireNow=true&trigger.repeatInterval=" + repatInterval, ROUTENAME_SX_TRIGGER)
+            singletonFrom("quartz2://ukur/pollAnsharSX?fireNow=true&trigger.repeatInterval=" + repatInterval, ROUTEID_SX_TRIGGER)
                     .log("SX: Triggered by timer")
                     .filter(e -> isLeader(e.getFromRouteId()))
-                    .filter(e -> getContext().getInflightRepository().size(ROUTE_SX_RETRIEVER) == 0 )
+                    .filter(e -> getContext().getInflightRepository().size(ROUTEID_SX_RETRIEVER) == 0 )
                     .to(ROUTE_SX_RETRIEVER);
         } else {
             logger.warn("SX polling is disabled");
@@ -147,7 +148,7 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
         XPathExpression moreDataExpression = ns.xpath("/s:Siri/s:ServiceDelivery/s:MoreData/text()", String.class);
 
         from(ROUTE_ET_RETRIEVER)
-                .routeId("ET Retriever")
+                .routeId(ROUTEID_ET_RETRIEVER)
                 .log("About to call Anshar with url: " + siriETurl)
                 .setHeader(Exchange.HTTP_METHOD, constant("GET"))
                 .to(siriETurl)
@@ -168,7 +169,7 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
 
 
         from(ROUTE_SX_RETRIEVER)
-                .routeId("SX Retriever")
+                .routeId(ROUTEID_SX_RETRIEVER)
                 .log("About to call Anshar with url: " + siriSXurl)
                 .setHeader(Exchange.HTTP_METHOD, constant("GET"))
                 .to(siriSXurl)
