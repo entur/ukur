@@ -58,12 +58,12 @@ public class UkurConfiguration {
         return namespace;
     }
 
-    public String getAnsharETCamelUrl(UUID uuid) {
-        return etURL + "?requestorId=" + uuid;
+    public String getAnsharETCamelUrl(String requestorId) {
+        return etURL + "?requestorId=" + requestorId;
     }
 
-    public String getAnsharSXCamelUrl(UUID uuid) {
-        return sxURL + "?requestorId=" + uuid;
+    public String getAnsharSXCamelUrl(String requestorId) {
+        return sxURL + "?requestorId=" + requestorId;
     }
 
     public boolean isEtPollingEnabled() {

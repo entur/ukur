@@ -8,9 +8,7 @@ import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
 
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.ServerSocket;
-import java.util.UUID;
 
 @Configuration
 @Primary
@@ -22,12 +20,12 @@ public class WiremockTestConfig extends UkurConfiguration {
     private String wiremockPort;
 
     @Override
-    public String getAnsharETCamelUrl(UUID uuid) {
+    public String getAnsharETCamelUrl(String uuid) {
         return "http4://localhost:" + wiremockPort + "/et";
     }
 
     @Override
-    public String getAnsharSXCamelUrl(UUID uuid) {
+    public String getAnsharSXCamelUrl(String uuid) {
         return "http4://localhost:" + wiremockPort + "/sx";
     }
 

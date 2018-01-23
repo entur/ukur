@@ -15,8 +15,6 @@
 
 package org.entur.ukur.subscription;
 
-import com.google.common.cache.Cache;
-import com.google.common.cache.CacheBuilder;
 import com.hazelcast.core.IMap;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.StringUtils;
@@ -38,20 +36,15 @@ import java.net.UnknownHostException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.*;
-import java.util.concurrent.TimeUnit;
 
 @Service
 public class SubscriptionManager {
 
     private IMap<String, Set<Subscription>> subscriptionsPerStopPoint;
     private IMap<String, List<PushMessage>> pushMessagesMemoryStore;
+    private IMap<String, Long> alreadySentCache;
     private final SiriMarshaller siriMarshaller;
 
-    //TODO: AlreadySent bør enten sjekkes i anshar-polle-ruta eller her om vi skal støtte nye subscriptions (men da må cachen "til hazelcast")
-    private Cache<String, Long> alreadySentCache = CacheBuilder.newBuilder()
-            .maximumSize(10000)
-            .expireAfterAccess(5, TimeUnit.MINUTES)
-            .build();
     private String hostname;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -59,9 +52,11 @@ public class SubscriptionManager {
     @Autowired
     public SubscriptionManager(IMap<String, Set<Subscription>> subscriptionsPerStopPoint,
                                IMap<String, List<PushMessage>> pushMessagesMemoryStore,
+                               IMap<String, Long> alreadySentCache,
                                SiriMarshaller siriMarshaller) {
         this.subscriptionsPerStopPoint = subscriptionsPerStopPoint;
         this.pushMessagesMemoryStore = pushMessagesMemoryStore;
+        this.alreadySentCache = alreadySentCache;
         this.siriMarshaller = siriMarshaller;
         try {
             hostname = InetAddress.getLocalHost().getHostName();
@@ -133,7 +128,8 @@ public class SubscriptionManager {
 
     public void notify(HashSet<Subscription> subscriptions, PtSituationElement ptSituationElement) {
         ptSituationElement = clone(ptSituationElement);
-        ptSituationElement.setAffects(null);//TODO: Fjerner affects for å begrense størrelse (mulig det er dumt...?)
+        ptSituationElement.setAffects(null);//TODO: Fjerner affects for å begrense størrelse (mulig det er dumt - mister bla hvilke ruter som er berørt...?)
+                                            //TODO: Kanskje vi bare skal fjerne affects som ikke inneholder til-fra stoppoint?
         String xml = toXMLString(ptSituationElement);
         String pushMessageFilename = getPushMessageFilename(ptSituationElement);
         pushMessage(subscriptions, xml, pushMessageFilename);
@@ -145,14 +141,14 @@ public class SubscriptionManager {
 
     private void pushMessage(HashSet<Subscription> subscriptions, String xml, String pushMessageFilename) {
 
-        Long ifPresent = alreadySentCache.getIfPresent(xml); //kanskje ikke godt nok - støtter dårlig nye subscriptions...
+        Long ifPresent = alreadySentCache.get(xml);
         if (ifPresent != null) {
             long diffInSecs = (System.currentTimeMillis() - ifPresent) / 1000;
             logger.debug("skips message since it has already been \"pushed\" {} seconds ago", diffInSecs);
             return;
         }
 
-        alreadySentCache.put(xml, System.currentTimeMillis());
+        alreadySentCache.set(xml, System.currentTimeMillis());
         for (Subscription subscription : subscriptions) {
 //            writeMessageToFile(xml, pushMessageFilename, subscription);
 //            storeMessageInMemory(xml, pushMessageFilename, subscription);

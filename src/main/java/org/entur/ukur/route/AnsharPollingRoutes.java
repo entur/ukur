@@ -15,6 +15,7 @@
 
 package org.entur.ukur.route;
 
+import com.hazelcast.core.IMap;
 import org.apache.camel.Exchange;
 import org.apache.camel.Predicate;
 import org.apache.camel.builder.PredicateBuilder;
@@ -45,16 +46,19 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
     private SubscriptionManager subscriptionManager;
     private final NsbETSubscriptionProcessor nsbETSubscriptionProcessor;
     private NsbSXSubscriptionProcessor nsbSXSubscriptionProcessor;
+    private IMap<String, String> sharedProperties;
 
     @Autowired
     public AnsharPollingRoutes(UkurConfiguration config,
                                SubscriptionManager subscriptionManager,
                                NsbETSubscriptionProcessor nsbETSubscriptionProcessor,
-                               NsbSXSubscriptionProcessor nsbSXSubscriptionProcessor) {
+                               NsbSXSubscriptionProcessor nsbSXSubscriptionProcessor,
+                               IMap<String, String> sharedProperties) {
         this.config = config;
         this.subscriptionManager = subscriptionManager;
         this.nsbETSubscriptionProcessor = nsbETSubscriptionProcessor;
         this.nsbSXSubscriptionProcessor = nsbSXSubscriptionProcessor;
+        this.sharedProperties = sharedProperties;
     }
 
     @Override
@@ -62,10 +66,9 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
 
         addTestSubscriptions(subscriptionManager);
 
-        UUID uuid = UUID.randomUUID();
-        //TODO: Use hazelcast to get or set this uid so that we have same uid on all nodes! (use lock etc)
-        String siriETurl = config.getAnsharETCamelUrl(uuid);
-        String siriSXurl = config.getAnsharSXCamelUrl(uuid);
+        String requestorId = sharedProperties.putIfAbsent("AnsharRequestorId", "ukur-" + UUID.randomUUID());
+        String siriETurl = config.getAnsharETCamelUrl(requestorId);
+        String siriSXurl = config.getAnsharSXCamelUrl(requestorId);
 
         createPollingRoutes(siriETurl, siriSXurl);
         createRestRoutes(config.getRestPort());
