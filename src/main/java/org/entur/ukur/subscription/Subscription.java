@@ -24,15 +24,13 @@ import java.util.Set;
 public class Subscription implements Serializable {
 
     private String id;
+    private String name;
+    private String pushAddress;
     private Set<String> fromStopPoints = new HashSet<>();
     private Set<String> toStopPoints = new HashSet<>();
-    private String name; //TODO: Denne blir nok erstattet av andre ting etterhvert!
+    private int failedPushCounter = 0;
 
     //TODO: varslingsdetaljer, gyldighet (fra-til, ukedag), "holdbarhet på subscriptionen"
-
-    public Subscription(String id) {
-        this.id = id;
-    }
 
     public Set<String> getFromStopPoints() {
         return Collections.unmodifiableSet(fromStopPoints);
@@ -75,6 +73,14 @@ public class Subscription implements Serializable {
         this.id = id;
     }
 
+    public String getPushAddress() {
+        return pushAddress;
+    }
+
+    public void setPushAddress(String pushAddress) {
+        this.pushAddress = pushAddress;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -86,5 +92,18 @@ public class Subscription implements Serializable {
     @Override
     public int hashCode() {
         return Objects.hash(id);
+    }
+
+    public void resetFailedPushCounter() {
+        failedPushCounter = 0;
+    }
+
+    public int increaseFailedPushCounter() {
+        failedPushCounter++;
+        return failedPushCounter;
+    }
+
+    public int getFailedPushCounter() {
+        return failedPushCounter;
     }
 }

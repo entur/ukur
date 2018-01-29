@@ -33,8 +33,13 @@ public class ExtendedHazelcastService extends HazelCastService {
     }
 
     @Bean
-    public IMap<String, Set<Subscription>> subscriptionsPerStopPoint() {
-        return hazelcast.getMap("ukur.subscriptionsPerStop");
+    public IMap<String, Set<String>> subscriptionIdsPerStopPoint() {
+        return hazelcast.getMap("ukur.subscriptionIdsPerStop");
+    }
+
+    @Bean
+    public IMap<String, Subscription> subscriptions() {
+        return hazelcast.getMap("ukur.subscriptions");
     }
 
     @Bean

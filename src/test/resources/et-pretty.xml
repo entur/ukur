@@ -2963,8 +2963,8 @@
                             <ArrivalPlatformName>1</ArrivalPlatformName>
                             <ArrivalBoardingActivity>alighting</ArrivalBoardingActivity>
                             <AimedDepartureTime>2018-01-17T13:57:00+01:00</AimedDepartureTime>
-                            <ExpectedDepartureTime>2018-01-17T13:57:00+01:00</ExpectedDepartureTime>
-                            <DepartureStatus>onTime</DepartureStatus>
+                            <ExpectedDepartureTime>2018-01-17T14:17:00+01:00</ExpectedDepartureTime>
+                            <DepartureStatus>delayed</DepartureStatus>
                             <DeparturePlatformName>1</DeparturePlatformName>
                             <DepartureBoardingActivity>boarding</DepartureBoardingActivity>
                         </EstimatedCall>
@@ -2973,8 +2973,8 @@
                             <StopPointName>Egersund</StopPointName>
                             <RequestStop>false</RequestStop>
                             <AimedArrivalTime>2018-01-17T14:03:00+01:00</AimedArrivalTime>
-                            <ExpectedArrivalTime>2018-01-17T14:03:00+01:00</ExpectedArrivalTime>
-                            <ArrivalStatus>onTime</ArrivalStatus>
+                            <ExpectedArrivalTime>2018-01-17T14:23:00+01:00</ExpectedArrivalTime>
+                            <ArrivalStatus>delayed</ArrivalStatus>
                             <ArrivalPlatformName>1</ArrivalPlatformName>
                             <ArrivalBoardingActivity>alighting</ArrivalBoardingActivity>
                             <DepartureBoardingActivity>boarding</DepartureBoardingActivity>

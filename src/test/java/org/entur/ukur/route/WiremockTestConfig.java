@@ -49,4 +49,8 @@ public class WiremockTestConfig extends UkurConfiguration {
             throw new RuntimeException("Could not get an available port...", e);
         }
     }
+
+    public String getWiremockPort() {
+        return wiremockPort;
+    }
 }

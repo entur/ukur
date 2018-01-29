@@ -24,7 +24,6 @@ import org.apache.camel.model.language.XPathExpression;
 import org.apache.camel.model.rest.RestBindingMode;
 import org.entur.ukur.setup.UkurConfiguration;
 import org.entur.ukur.subscription.Subscription;
-import org.entur.ukur.subscription.SubscriptionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -43,19 +42,16 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
     private static final String ROUTEID_ET_TRIGGER = "ET trigger";
     private static final String ROUTEID_SX_TRIGGER = "SX trigger";
     private UkurConfiguration config;
-    private SubscriptionManager subscriptionManager;
     private final NsbETSubscriptionProcessor nsbETSubscriptionProcessor;
     private NsbSXSubscriptionProcessor nsbSXSubscriptionProcessor;
     private IMap<String, String> sharedProperties;
 
     @Autowired
     public AnsharPollingRoutes(UkurConfiguration config,
-                               SubscriptionManager subscriptionManager,
                                NsbETSubscriptionProcessor nsbETSubscriptionProcessor,
                                NsbSXSubscriptionProcessor nsbSXSubscriptionProcessor,
                                IMap<String, String> sharedProperties) {
         this.config = config;
-        this.subscriptionManager = subscriptionManager;
         this.nsbETSubscriptionProcessor = nsbETSubscriptionProcessor;
         this.nsbSXSubscriptionProcessor = nsbSXSubscriptionProcessor;
         this.sharedProperties = sharedProperties;
@@ -63,9 +59,6 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
 
     @Override
     public void configure() {
-
-        addTestSubscriptions(subscriptionManager);
-
         String proposedValue = "ukur-" + UUID.randomUUID();
         String requestorId = sharedProperties.putIfAbsent("AnsharRequestorId", proposedValue);
         requestorId = requestorId == null ? proposedValue : requestorId;
@@ -86,7 +79,6 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                 .dataFormatProperty("prettyPrint", "true")
                 .port(jettyPort);
         rest("/health")
-                .produces("application/json")
                 .get("/subscriptions").to("bean:subscriptionManager?method=listAll")
                 .get("/et").to("bean:nsbETSubscriptionProcessor?method=getStatus")
                 .get("/sx").to("bean:nsbSXSubscriptionProcessor?method=getStatus")
@@ -94,9 +86,13 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                 .get("/routes/sx").to("direct:routeStatus-sx")
                 .get("/live").to("direct:OK")
                 .get("/ready").to("direct:OK");
+
         rest("/data")
-                .produces("application/json")
                 .get("/{id}").to("bean:subscriptionManager?method=getData(${header.id})");
+
+        rest("/subscription")
+                .post().type(Subscription.class).outType(Subscription.class).to("bean:subscriptionManager?method=add(${body})")
+                .delete("{id}").to("bean:subscriptionManager?method=remove(${header.id})");
 
         from("direct:OK")
                 .routeId("OK response")
@@ -193,73 +189,6 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                 .routeId("SX ActiveMQ Listener")
                 .process(nsbSXSubscriptionProcessor)
                 .end();
-    }
-
-
-    private void addTestSubscriptions(SubscriptionManager subscriptionManager) {
-        //TODO: Vi trenger noen test susbcriptions... Hardkodes her i første omgang!
-        Subscription askerTilOslo = new Subscription("1");
-        askerTilOslo.setName("Asker til OsloS");
-        askerTilOslo.addFromStopPoint("NSR:StopPlace:418");
-        askerTilOslo.addFromStopPoint("NSR:Quay:695");
-        askerTilOslo.addFromStopPoint("NSR:Quay:696");
-        askerTilOslo.addFromStopPoint("NSR:Quay:697");
-        askerTilOslo.addFromStopPoint("NSR:Quay:698");
-        askerTilOslo.addFromStopPoint("NSR:Quay:699");
-        askerTilOslo.addFromStopPoint("NSR:Quay:700");
-        askerTilOslo.addToStopPoint("NSR:StopPlace:337");
-        askerTilOslo.addToStopPoint("NSR:Quay:550");
-        askerTilOslo.addToStopPoint("NSR:Quay:551");
-        askerTilOslo.addToStopPoint("NSR:Quay:553");
-        askerTilOslo.addToStopPoint("NSR:Quay:554");
-        askerTilOslo.addToStopPoint("NSR:Quay:555");
-        askerTilOslo.addToStopPoint("NSR:Quay:556");
-        askerTilOslo.addToStopPoint("NSR:Quay:563");
-        askerTilOslo.addToStopPoint("NSR:Quay:557");
-        askerTilOslo.addToStopPoint("NSR:Quay:559");
-        askerTilOslo.addToStopPoint("NSR:Quay:561");
-        askerTilOslo.addToStopPoint("NSR:Quay:562");
-        askerTilOslo.addToStopPoint("NSR:Quay:564");
-        askerTilOslo.addToStopPoint("NSR:Quay:566");
-        askerTilOslo.addToStopPoint("NSR:Quay:567");
-        askerTilOslo.addToStopPoint("NSR:Quay:568");
-        askerTilOslo.addToStopPoint("NSR:Quay:569");
-        askerTilOslo.addToStopPoint("NSR:Quay:565");
-        askerTilOslo.addToStopPoint("NSR:Quay:570");
-        askerTilOslo.addToStopPoint("NSR:Quay:571");
-        subscriptionManager.addSusbcription(askerTilOslo);
-
-        Subscription osloTilAsker = new Subscription("2");
-        osloTilAsker.setName("OsloS til Asker");
-        osloTilAsker.addFromStopPoint("NSR:StopPlace:337");
-        osloTilAsker.addFromStopPoint("NSR:Quay:550");
-        osloTilAsker.addFromStopPoint("NSR:Quay:551");
-        osloTilAsker.addFromStopPoint("NSR:Quay:553");
-        osloTilAsker.addFromStopPoint("NSR:Quay:554");
-        osloTilAsker.addFromStopPoint("NSR:Quay:555");
-        osloTilAsker.addFromStopPoint("NSR:Quay:556");
-        osloTilAsker.addFromStopPoint("NSR:Quay:563");
-        osloTilAsker.addFromStopPoint("NSR:Quay:557");
-        osloTilAsker.addFromStopPoint("NSR:Quay:559");
-        osloTilAsker.addFromStopPoint("NSR:Quay:561");
-        osloTilAsker.addFromStopPoint("NSR:Quay:562");
-        osloTilAsker.addFromStopPoint("NSR:Quay:564");
-        osloTilAsker.addFromStopPoint("NSR:Quay:566");
-        osloTilAsker.addFromStopPoint("NSR:Quay:567");
-        osloTilAsker.addFromStopPoint("NSR:Quay:568");
-        osloTilAsker.addFromStopPoint("NSR:Quay:569");
-        osloTilAsker.addFromStopPoint("NSR:Quay:565");
-        osloTilAsker.addFromStopPoint("NSR:Quay:570");
-        osloTilAsker.addFromStopPoint("NSR:Quay:571");
-        osloTilAsker.addToStopPoint("NSR:StopPlace:418");
-        osloTilAsker.addToStopPoint("NSR:Quay:695");
-        osloTilAsker.addToStopPoint("NSR:Quay:696");
-        osloTilAsker.addToStopPoint("NSR:Quay:697");
-        osloTilAsker.addToStopPoint("NSR:Quay:698");
-        osloTilAsker.addToStopPoint("NSR:Quay:699");
-        osloTilAsker.addToStopPoint("NSR:Quay:700");
-        subscriptionManager.addSusbcription(osloTilAsker);
-
     }
 
 }

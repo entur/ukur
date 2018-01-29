@@ -51,7 +51,7 @@ public class NsbETSubscriptionProcessorTest {
         NsbETSubscriptionProcessor processor = new NsbETSubscriptionProcessor(mock(SubscriptionManager.class), new SiriMarshaller());
 
         //No errors if no hits...
-        assertFalse(processor.validDirection(new Subscription("1"), journey));
+        assertFalse(processor.validDirection(new Subscription(), journey));
 
         //Only to in journey
         assertFalse(processor.validDirection(createSubscription("X", "E2"), journey));
@@ -74,7 +74,7 @@ public class NsbETSubscriptionProcessorTest {
     }
 
     private Subscription createSubscription(String from, String to) {
-        Subscription subscription = new Subscription("1");
+        Subscription subscription = new Subscription();
         if (from != null) {
             subscription.addFromStopPoint(from);
         }

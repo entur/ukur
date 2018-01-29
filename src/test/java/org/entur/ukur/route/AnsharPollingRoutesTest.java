@@ -2,10 +2,14 @@ package org.entur.ukur.route;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
+import com.github.tomakehurst.wiremock.matching.RequestPatternBuilder;
 import org.apache.camel.Produce;
 import org.apache.camel.ProducerTemplate;
 import org.apache.commons.io.IOUtils;
 import org.entur.ukur.App;
+import org.entur.ukur.subscription.PushAcknowledge;
+import org.entur.ukur.subscription.Subscription;
+import org.entur.ukur.subscription.SubscriptionManager;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.slf4j.Logger;
@@ -36,6 +40,12 @@ public class AnsharPollingRoutesTest extends AbstractJUnit4SpringContextTests {
 
     @Autowired
     private NsbSXSubscriptionProcessor nsbSXSubscriptionProcessor;
+
+    @Autowired
+    private SubscriptionManager subscriptionManager;
+
+    @Autowired
+    private WiremockTestConfig config;
 
     @Produce(uri = AnsharPollingRoutes.ROUTE_ET_RETRIEVER)
     private ProducerTemplate etTemplate;
