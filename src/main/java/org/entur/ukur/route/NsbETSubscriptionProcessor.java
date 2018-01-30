@@ -69,7 +69,7 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
         return status;
     }
 
-    protected void processEstimatedVehicleJourney(EstimatedVehicleJourney estimatedVehicleJourney) {
+    private void processEstimatedVehicleJourney(EstimatedVehicleJourney estimatedVehicleJourney) {
         OperatorRefStructure operatorRef = estimatedVehicleJourney.getOperatorRef();
         boolean isNSB = operatorRef != null && "NSB".equalsIgnoreCase(operatorRef.getValue());
         if (!isNSB) {
@@ -88,7 +88,7 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
         }
     }
 
-    protected List<EstimatedCallAndSubscriptions> findAffectedSubscriptions(List<EstimatedCall> estimatedDelays, EstimatedVehicleJourney estimatedVehicleJourney) {
+    private List<EstimatedCallAndSubscriptions> findAffectedSubscriptions(List<EstimatedCall> estimatedDelays, EstimatedVehicleJourney estimatedVehicleJourney) {
         ArrayList<EstimatedCallAndSubscriptions> affectedSubscriptions = new ArrayList<>();
         for (EstimatedCall estimatedDelay : estimatedDelays) {
             HashSet<Subscription> subscriptions = new HashSet<>();
@@ -157,6 +157,7 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
         return delayed;
     }
 
+    //TODO: case of stop ids given are relevant... That's not nessecary!
     private ZonedDateTime findOne(HashMap<String, StopData> stops, Set<String> fromStopPoints, int direction) {
         for (String fromStopPoint : fromStopPoints) {
             StopData stopData = stops.get(fromStopPoint);

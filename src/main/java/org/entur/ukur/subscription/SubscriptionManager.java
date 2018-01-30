@@ -74,9 +74,17 @@ public class SubscriptionManager {
 
     @SuppressWarnings("unused") //Used from camel route
     public Collection<Subscription> listAll() {
-        Collection<Subscription> all = Collections.unmodifiableCollection(this.subscriptions.values());
-        logger.debug("There are {} subscriptions regarding {} unique stoppoints", all.size(), subscriptionsPerStopPoint.keySet().size());
-        return all;
+        Collection<Subscription> existingSubscriptions = subscriptions.values();
+        Collection<Subscription> result = new ArrayList<>(existingSubscriptions.size());
+        for (Subscription subscription : existingSubscriptions) {
+            Subscription clone = clone(subscription);
+            //TODO: add authorization so we can list these things...
+            clone.setId("REMOVED (as eventual push address)");
+            clone.setPushAddress(null);
+            result.add(clone);
+        }
+        logger.debug("There are {} subscriptions regarding {} unique stoppoints", result.size(), subscriptionsPerStopPoint.keySet().size());
+        return result;
     }
 
     @SuppressWarnings("unused") //Used from camel route
@@ -86,32 +94,6 @@ public class SubscriptionManager {
         logger.debug("Retrieves {} messages and removes data stored in memory for subscription with id {}", size, id);
         pushMessagesMemoryStore.put(id, new ArrayList<>());
         return remove;
-    }
-
-    public void addSubscription(Subscription subscription) {
-        if (subscription == null || StringUtils.isBlank(subscription.getId())
-                || subscription.getToStopPoints().isEmpty() || subscription.getFromStopPoints().isEmpty()) {
-            throw new IllegalArgumentException("Illegal subscription");
-        }
-        String id = subscription.getId().trim();
-        if (subscriptions.containsKey(id)) {
-            throw new IllegalArgumentException("Subscription with id='"+id+"' already exists");
-        }
-        subscription.setId(id);
-        subscriptions.put(id, subscription);
-        HashSet<String> subscribedStops = new HashSet<>();
-        subscribedStops.addAll(subscription.getFromStopPoints());
-        subscribedStops.addAll(subscription.getToStopPoints());
-        for (String stoppoint : subscribedStops) {
-            Set<String> subscriptions = subscriptionsPerStopPoint.get(stoppoint);
-            if (subscriptions == null) {
-                subscriptions = new HashSet<>();
-            }
-            subscriptions.add(subscription.getId());
-            subscriptionsPerStopPoint.put(stoppoint, subscriptions);//cause of hazelcast
-        }
-        Set<String> stopRefs = subscriptionsPerStopPoint.keySet();
-        logger.debug("There are now subscriptions regarding {} unique stoppoints", stopRefs.size());
     }
 
     public Set<Subscription> getSubscriptionsForStopPoint(String stopPointRef) {
@@ -156,14 +138,33 @@ public class SubscriptionManager {
             throw new IllegalArgumentException("No subscription given");
         }
         String id = UUID.randomUUID().toString();
+        while (subscriptions.containsKey(id)) {
+            logger.info("New randomUUID already exists (!) - generates a new one....");
+            id = UUID.randomUUID().toString();
+        }
         logger.info("Adds new subscription - assigns id: {}", id);
         s.setId(id);
         //TODO: validation...?
-        //TODO: Test push address before add
+        //TODO: Test push address before add?
 //        if (StringUtils.isBlank(s.getPushAddress())) {
 //            throw new IllegalArgumentException("PushAddress is required");
 //        }
-        addSubscription(s);
+        subscriptions.put(id, s);
+        HashSet<String> subscribedStops = new HashSet<>();
+        subscribedStops.addAll(s.getFromStopPoints());
+        subscribedStops.addAll(s.getToStopPoints());
+        for (String stoppoint : subscribedStops) {
+            stoppoint = stoppoint.trim();// //TODO: make usage of these ids case insentive, maybe using .toUpperCase();
+            Set<String> subscriptions = subscriptionsPerStopPoint.get(stoppoint);
+            if (subscriptions == null) {
+                subscriptions = new HashSet<>();
+            }
+            subscriptions.add(s.getId());
+            subscriptionsPerStopPoint.put(stoppoint, subscriptions);//cause of hazelcast
+        }
+        Set<String> stopRefs = subscriptionsPerStopPoint.keySet();
+        logger.debug("There are now subscriptions regarding {} unique stoppoints", stopRefs.size());
+
         return s;
     }
 

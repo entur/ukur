@@ -72,7 +72,7 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
 
     }
 
-    protected void createRestRoutes(int jettyPort) {
+    private void createRestRoutes(int jettyPort) {
         restConfiguration()
                 .component("jetty")
                 .bindingMode(RestBindingMode.json)
@@ -80,10 +80,7 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                 .port(jettyPort);
         rest("/health")
                 .get("/subscriptions").to("bean:subscriptionManager?method=listAll")
-                .get("/et").to("bean:nsbETSubscriptionProcessor?method=getStatus")
-                .get("/sx").to("bean:nsbSXSubscriptionProcessor?method=getStatus")
-                .get("/routes/et").to("direct:routeStatus-et")
-                .get("/routes/sx").to("direct:routeStatus-sx")
+                .get("/routes").to("direct:routeStatus")
                 .get("/live").to("direct:OK")
                 .get("/ready").to("direct:OK");
 
@@ -96,34 +93,28 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
 
         from("direct:OK")
                 .routeId("OK response")
-                .log("Return hardcoded 'OK' on uri '${header."+Exchange.HTTP_URI+"}'")
+                .log("Return hardcoded 'OK' on uri '${header." + Exchange.HTTP_URI + "}'")
                 .setBody(simple("OK    \n\n"))
                 .setHeader(Exchange.HTTP_RESPONSE_CODE, constant("200"));
-        from("direct:routeStatus-et")
-                .routeId("ET Status")
-                .choice()
-                    .when(p -> isLeader(ROUTEID_ET_TRIGGER))
-                        .setBody(simple("Is leader for route '"+ ROUTEID_ET_TRIGGER +"'"))
-                    .otherwise()
-                        .setBody(simple("Is NOT leader for route '"+ ROUTEID_ET_TRIGGER +"'"))
-                .end();
-        from("direct:routeStatus-sx")
-                .routeId("SX Status")
-                .choice()
-                    .when(p -> isLeader(ROUTEID_SX_TRIGGER))
-                        .setBody(simple("Is leader for route '"+ ROUTEID_SX_TRIGGER +"'"))
-                    .otherwise()
-                        .setBody(simple("Is NOT leader for route '"+ ROUTEID_SX_TRIGGER +"'"))
-                .end();
+        from("direct:routeStatus")
+                .routeId("Route Status")
+                .process(exchange -> {
+                    RouteStatus status = new RouteStatus();
+                    status.setLeaderForETPolling(isLeader(ROUTEID_ET_TRIGGER));
+                    status.setLeaderForSXPolling(isLeader(ROUTEID_SX_TRIGGER));
+                    status.setEtSusbcriptionStatus(nsbETSubscriptionProcessor.getStatus());
+                    status.setSxSusbcriptionStatus(nsbSXSubscriptionProcessor.getStatus());
+                    exchange.getOut().setBody(status);
+                });
     }
 
-    protected void createQuartzRoutes(boolean etPollingEnabled, boolean sxPollingEnabled, int repatInterval) {
+    private void createQuartzRoutes(boolean etPollingEnabled, boolean sxPollingEnabled, int repatInterval) {
 
         if (etPollingEnabled) {
             singletonFrom("quartz2://ukur/pollAnsharET?fireNow=true&trigger.repeatInterval=" + repatInterval, ROUTEID_ET_TRIGGER)
-                    .log("ET: Triggered by timer")
                     .filter(e -> isLeader(e.getFromRouteId()))
                     .filter(new NotRunningPredicate(ROUTEID_ET_RETRIEVER))
+                    .log("ET: Triggered by timer")
                     .to(ROUTE_ET_RETRIEVER);
         } else {
             logger.warn("ET polling is disabled");
@@ -131,16 +122,16 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
 
         if (sxPollingEnabled) {
             singletonFrom("quartz2://ukur/pollAnsharSX?fireNow=true&trigger.repeatInterval=" + repatInterval, ROUTEID_SX_TRIGGER)
-                    .log("SX: Triggered by timer")
                     .filter(e -> isLeader(e.getFromRouteId()))
                     .filter(new NotRunningPredicate(ROUTEID_SX_RETRIEVER))
+                    .log("SX: Triggered by timer")
                     .to(ROUTE_SX_RETRIEVER);
         } else {
             logger.warn("SX polling is disabled");
         }
     }
 
-    protected void createPollingRoutes(String siriETurl, String siriSXurl) {
+    private void createPollingRoutes(String siriETurl, String siriSXurl) {
 
         Predicate splitComplete = exchangeProperty(Exchange.SPLIT_COMPLETE).isEqualTo(true);
         Predicate moreData = exchangeProperty(MORE_DATA).isEqualToIgnoreCase("true");
@@ -157,14 +148,14 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                 .convertBodyTo(org.w3c.dom.Document.class)
                 .setProperty(MORE_DATA, moreDataExpression)
                 .split(ns.xpath("//s:EstimatedVehicleJourney"))
-                .to("activemq:queue:"+UkurConfiguration.ET_QUEUE)
+                .to("activemq:queue:" + UkurConfiguration.ET_QUEUE)
                 .choice()
-                    .when(callAnsharAgain)
-                        .log("Call Anshar again since there are more ET data")
-                        .to(ROUTE_ET_RETRIEVER)
+                .when(callAnsharAgain)
+                .log("Call Anshar again since there are more ET data")
+                .to(ROUTE_ET_RETRIEVER)
                 .end();
 
-        from("activemq:queue:"+UkurConfiguration.ET_QUEUE)
+        from("activemq:queue:" + UkurConfiguration.ET_QUEUE)
                 .routeId("ET ActiveMQ Listener")
                 .process(nsbETSubscriptionProcessor)
                 .end();
@@ -178,14 +169,14 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                 .convertBodyTo(org.w3c.dom.Document.class)
                 .setProperty(MORE_DATA, moreDataExpression)
                 .split(ns.xpath("//s:PtSituationElement"))
-                .to("activemq:queue:"+UkurConfiguration.SX_QUEUE)
+                .to("activemq:queue:" + UkurConfiguration.SX_QUEUE)
                 .choice()
-                    .when(callAnsharAgain)
-                        .log("Call Anshar again since there are more SX data")
-                        .to(ROUTE_SX_RETRIEVER)
+                .when(callAnsharAgain)
+                .log("Call Anshar again since there are more SX data")
+                .to(ROUTE_SX_RETRIEVER)
                 .end();
 
-        from("activemq:queue:"+UkurConfiguration.SX_QUEUE)
+        from("activemq:queue:" + UkurConfiguration.SX_QUEUE)
                 .routeId("SX ActiveMQ Listener")
                 .process(nsbSXSubscriptionProcessor)
                 .end();
