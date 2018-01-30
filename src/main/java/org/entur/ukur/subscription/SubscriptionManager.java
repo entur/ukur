@@ -44,7 +44,6 @@ public class SubscriptionManager {
 
     private IMap<String, Set<String>> subscriptionsPerStopPoint;
     private IMap<String, Subscription> subscriptions;
-    private IMap<String, List<PushMessage>> pushMessagesMemoryStore;
     private IMap<String, Long> alreadySentCache;
     private final SiriMarshaller siriMarshaller;
 
@@ -55,12 +54,10 @@ public class SubscriptionManager {
     @Autowired
     public SubscriptionManager(IMap<String, Set<String>> subscriptionsPerStopPoint,
                                IMap<String, Subscription> subscriptions,
-                               IMap<String, List<PushMessage>> pushMessagesMemoryStore,
                                IMap<String, Long> alreadySentCache,
                                SiriMarshaller siriMarshaller) {
         this.subscriptionsPerStopPoint = subscriptionsPerStopPoint;
         this.subscriptions = subscriptions;
-        this.pushMessagesMemoryStore = pushMessagesMemoryStore;
         this.alreadySentCache = alreadySentCache;
         this.siriMarshaller = siriMarshaller;
         try {
@@ -79,21 +76,12 @@ public class SubscriptionManager {
         for (Subscription subscription : existingSubscriptions) {
             Subscription clone = clone(subscription);
             //TODO: add authorization so we can list these things...
-            clone.setId("REMOVED (as eventual push address)");
-            clone.setPushAddress(null);
+            clone.setId("REMOVED");
+            clone.setPushAddress("REMOVED");
             result.add(clone);
         }
         logger.debug("There are {} subscriptions regarding {} unique stoppoints", result.size(), subscriptionsPerStopPoint.keySet().size());
         return result;
-    }
-
-    @SuppressWarnings("unused") //Used from camel route
-    public List<PushMessage> getData(String id) {
-        List<PushMessage> remove = pushMessagesMemoryStore.get(id);
-        int size = remove == null ? 0 : remove.size();
-        logger.debug("Retrieves {} messages and removes data stored in memory for subscription with id {}", size, id);
-        pushMessagesMemoryStore.put(id, new ArrayList<>());
-        return remove;
     }
 
     public Set<Subscription> getSubscriptionsForStopPoint(String stopPointRef) {
@@ -216,8 +204,7 @@ public class SubscriptionManager {
             if (StringUtils.startsWithIgnoreCase(subscription.getPushAddress(), "http://") ) {
                 pushToHttp(subscription, pushMessage);
             } else {
-                logger.debug("No push address for subscription with id='{}' - stores it in memory instead");
-                storeMessageInMemory(subscription, pushMessage);
+                logger.warn("No push address for subscription with id='{}'");
             }
         }
     }
@@ -255,15 +242,6 @@ public class SubscriptionManager {
         }
     }
 
-    private void storeMessageInMemory(Subscription subscription, PushMessage pushMessage) {
-        List<PushMessage> pushMessages = pushMessagesMemoryStore.get(subscription.getId());
-        if (pushMessages == null) {
-            pushMessages = new ArrayList<>();
-        }
-        pushMessages.add(pushMessage);
-        pushMessagesMemoryStore.put(subscription.getId(), pushMessages);
-    }
-
     private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
 
     private String getPushMessageName(EstimatedCall estimatedCall, EstimatedVehicleJourney estimatedVehicleJourney) {
@@ -280,7 +258,7 @@ public class SubscriptionManager {
 
     private String getPushMessageName(PtSituationElement ptSituationElement) {
         String situationNumber = ptSituationElement.getSituationNumber() == null ? "null" : ptSituationElement.getSituationNumber().getValue();
-        return LocalDateTime.now().format(formatter) + "_SX_" + situationNumber + ".xml";
+        return LocalDateTime.now().format(formatter) + " SX " + situationNumber;
     }
 
     private String toXMLString(Object element) {

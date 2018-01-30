@@ -1,3 +1,18 @@
+/*
+ * Licensed under the EUPL, Version 1.2 or – as soon they will be approved by
+ * the European Commission - subsequent versions of the EUPL (the "Licence");
+ * You may not use this work except in compliance with the Licence.
+ * You may obtain a copy of the Licence at:
+ *
+ *  https://joinup.ec.europa.eu/software/page/eupl
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the Licence is distributed on an "AS IS" basis,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the Licence for the specific language governing permissions and
+ * limitations under the Licence.
+ */
+
 package org.entur.ukur.setup;
 
 import com.hazelcast.config.EvictionPolicy;
@@ -5,7 +20,6 @@ import com.hazelcast.config.MapConfig;
 import com.hazelcast.config.MaxSizeConfig;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IMap;
-import org.entur.ukur.subscription.PushMessage;
 import org.entur.ukur.subscription.Subscription;
 import org.rutebanken.hazelcasthelper.service.HazelCastService;
 import org.rutebanken.hazelcasthelper.service.KubernetesService;
@@ -40,12 +54,6 @@ public class ExtendedHazelcastService extends HazelCastService {
     @Bean
     public IMap<String, Subscription> subscriptions() {
         return hazelcast.getMap("ukur.subscriptions");
-    }
-
-    @Bean
-    public IMap<String, List<PushMessage>> pushMessagesMemoryStore() {
-        //TODO: Denne skal fjernes når vi får på plass skikkelig push over http!
-        return hazelcast.getMap("ukur.pushMessagesMemoryStore");
     }
 
     @Bean

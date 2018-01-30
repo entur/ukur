@@ -84,9 +84,6 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                 .get("/live").to("direct:OK")
                 .get("/ready").to("direct:OK");
 
-        rest("/data")
-                .get("/{id}").to("bean:subscriptionManager?method=getData(${header.id})");
-
         rest("/subscription")
                 .post().type(Subscription.class).outType(Subscription.class).to("bean:subscriptionManager?method=add(${body})")
                 .delete("{id}").to("bean:subscriptionManager?method=remove(${header.id})");

@@ -15,6 +15,8 @@
 
 package org.entur.ukur.subscription;
 
+import com.fasterxml.jackson.annotation.JsonIgnore;
+
 import java.io.Serializable;
 import java.util.Collections;
 import java.util.HashSet;
@@ -28,6 +30,7 @@ public class Subscription implements Serializable {
     private String pushAddress;
     private Set<String> fromStopPoints = new HashSet<>();
     private Set<String> toStopPoints = new HashSet<>();
+    @JsonIgnore
     private int failedPushCounter = 0;
 
     //TODO: varslingsdetaljer, gyldighet (fra-til, ukedag), "holdbarhet på subscriptionen"
