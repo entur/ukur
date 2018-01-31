@@ -67,6 +67,7 @@ public class SubscriptionManager {
             hostname = "random_"+new Random().nextInt(10000); //want to separate message producing nodes from each other, this will work as fallback
             logger.error("Cant resolve hostname - use random name '{}' instead to differentiate nodes", hostname, e);
         }
+        logger.info("There are at startup {} subscriptions with totally {} unique stops", subscriptions.size(), subscriptionsPerStopPoint.size());
     }
 
     @SuppressWarnings("unused") //Used from camel route

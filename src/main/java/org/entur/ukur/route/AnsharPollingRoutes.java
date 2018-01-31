@@ -80,6 +80,7 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                 .bindingMode(RestBindingMode.json)
                 .dataFormatProperty("prettyPrint", "true")
                 .port(jettyPort);
+
         rest("/health")
                 .get("/subscriptions").to("bean:subscriptionManager?method=listAll")
                 .get("/routes").to("direct:routeStatus")
@@ -95,6 +96,7 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                 .log(LoggingLevel.TRACE, "Return hardcoded 'OK' on uri '${header." + Exchange.HTTP_URI + "}'")
                 .setBody(simple("OK    \n\n"))
                 .setHeader(Exchange.HTTP_RESPONSE_CODE, constant("200"));
+
         from("direct:routeStatus")
                 .routeId("Route Status")
                 .process(exchange -> {
