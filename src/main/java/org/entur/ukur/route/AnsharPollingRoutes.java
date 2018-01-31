@@ -17,6 +17,7 @@ package org.entur.ukur.route;
 
 import com.hazelcast.core.IMap;
 import org.apache.camel.Exchange;
+import org.apache.camel.LoggingLevel;
 import org.apache.camel.Predicate;
 import org.apache.camel.builder.PredicateBuilder;
 import org.apache.camel.builder.xml.Namespaces;
@@ -29,6 +30,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
+import java.net.InetAddress;
 import java.util.UUID;
 
 @Component
@@ -90,13 +92,14 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
 
         from("direct:OK")
                 .routeId("OK response")
-                .log("Return hardcoded 'OK' on uri '${header." + Exchange.HTTP_URI + "}'")
+                .log(LoggingLevel.TRACE, "Return hardcoded 'OK' on uri '${header." + Exchange.HTTP_URI + "}'")
                 .setBody(simple("OK    \n\n"))
                 .setHeader(Exchange.HTTP_RESPONSE_CODE, constant("200"));
         from("direct:routeStatus")
                 .routeId("Route Status")
                 .process(exchange -> {
                     RouteStatus status = new RouteStatus();
+                    status.setHostname(InetAddress.getLocalHost().getHostName());
                     status.setLeaderForETPolling(isLeader(ROUTEID_ET_TRIGGER));
                     status.setLeaderForSXPolling(isLeader(ROUTEID_SX_TRIGGER));
                     status.setEtSusbcriptionStatus(nsbETSubscriptionProcessor.getStatus());

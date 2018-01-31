@@ -21,6 +21,7 @@ package org.entur.ukur.route;
 @SuppressWarnings("unused")
 public class RouteStatus {
 
+    private String hostname;
     private boolean isLeaderForETPolling = false;
     private SubscriptionStatus etSusbcriptionStatus;
     private boolean isLeaderForSXPolling = false;
@@ -56,5 +57,13 @@ public class RouteStatus {
 
     public void setSxSusbcriptionStatus(SubscriptionStatus sxSusbcriptionStatus) {
         this.sxSusbcriptionStatus = sxSusbcriptionStatus;
+    }
+
+    public String getHostname() {
+        return hostname;
+    }
+
+    public void setHostname(String hostname) {
+        this.hostname = hostname;
     }
 }
