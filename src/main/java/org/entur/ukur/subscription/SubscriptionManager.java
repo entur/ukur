@@ -85,6 +85,10 @@ public class SubscriptionManager {
         return result;
     }
 
+    public int getNoSubscriptions() {
+        return subscriptions.size();
+    }
+
     public Set<Subscription> getSubscriptionsForStopPoint(String stopPointRef) {
         Set<String> subscriptionIds = subscriptionsPerStopPoint.get(stopPointRef);
         if (subscriptionIds == null) {
@@ -270,5 +274,4 @@ public class SubscriptionManager {
             return "ERROR: " + e.getMessage();
         }
     }
-
 }

@@ -25,6 +25,7 @@ import org.apache.camel.model.language.XPathExpression;
 import org.apache.camel.model.rest.RestBindingMode;
 import org.entur.ukur.setup.UkurConfiguration;
 import org.entur.ukur.subscription.Subscription;
+import org.entur.ukur.subscription.SubscriptionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -47,16 +48,19 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
     private final NsbETSubscriptionProcessor nsbETSubscriptionProcessor;
     private NsbSXSubscriptionProcessor nsbSXSubscriptionProcessor;
     private IMap<String, String> sharedProperties;
+    private SubscriptionManager subscriptionManager;
 
     @Autowired
     public AnsharPollingRoutes(UkurConfiguration config,
                                NsbETSubscriptionProcessor nsbETSubscriptionProcessor,
                                NsbSXSubscriptionProcessor nsbSXSubscriptionProcessor,
-                               IMap<String, String> sharedProperties) {
+                               IMap<String, String> sharedProperties,
+                               SubscriptionManager subscriptionManager) {
         this.config = config;
         this.nsbETSubscriptionProcessor = nsbETSubscriptionProcessor;
         this.nsbSXSubscriptionProcessor = nsbSXSubscriptionProcessor;
         this.sharedProperties = sharedProperties;
+        this.subscriptionManager = subscriptionManager;
     }
 
     @Override
@@ -106,6 +110,7 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                     status.setLeaderForSXPolling(isLeader(ROUTEID_SX_TRIGGER));
                     status.setEtSusbcriptionStatus(nsbETSubscriptionProcessor.getStatus());
                     status.setSxSusbcriptionStatus(nsbSXSubscriptionProcessor.getStatus());
+                    status.setNumberOfSubscriptions(subscriptionManager.getNoSubscriptions());
                     exchange.getOut().setBody(status);
                 });
     }
@@ -116,7 +121,7 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
             singletonFrom("quartz2://ukur/pollAnsharET?fireNow=true&trigger.repeatInterval=" + repatInterval, ROUTEID_ET_TRIGGER)
                     .filter(e -> isLeader(e.getFromRouteId()))
                     .filter(new NotRunningPredicate(ROUTEID_ET_RETRIEVER))
-                    .log("ET: Triggered by timer")
+                    .log(LoggingLevel.DEBUG, "ET: Triggered by timer")
                     .to(ROUTE_ET_RETRIEVER);
         } else {
             logger.warn("ET polling is disabled");
@@ -126,7 +131,7 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
             singletonFrom("quartz2://ukur/pollAnsharSX?fireNow=true&trigger.repeatInterval=" + repatInterval, ROUTEID_SX_TRIGGER)
                     .filter(e -> isLeader(e.getFromRouteId()))
                     .filter(new NotRunningPredicate(ROUTEID_SX_RETRIEVER))
-                    .log("SX: Triggered by timer")
+                    .log(LoggingLevel.DEBUG, "SX: Triggered by timer")
                     .to(ROUTE_SX_RETRIEVER);
         } else {
             logger.warn("SX polling is disabled");
@@ -144,7 +149,7 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
 
         from(ROUTE_ET_RETRIEVER)
                 .routeId(ROUTEID_ET_RETRIEVER)
-                .log("About to call Anshar with url: " + siriETurl)
+                .log(LoggingLevel.DEBUG, "About to call Anshar with url: " + siriETurl)
                 .setHeader(Exchange.HTTP_METHOD, constant("GET"))
                 .to(siriETurl)
                 .convertBodyTo(org.w3c.dom.Document.class)
@@ -153,7 +158,7 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                 .to("activemq:queue:" + UkurConfiguration.ET_QUEUE)
                 .choice()
                 .when(callAnsharAgain)
-                .log("Call Anshar again since there are more ET data")
+                .log(LoggingLevel.DEBUG, "Call Anshar again since there are more ET data")
                 .to(ROUTE_ET_RETRIEVER)
                 .end();
 
@@ -165,7 +170,7 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
 
         from(ROUTE_SX_RETRIEVER)
                 .routeId(ROUTEID_SX_RETRIEVER)
-                .log("About to call Anshar with url: " + siriSXurl)
+                .log(LoggingLevel.DEBUG, "About to call Anshar with url: " + siriSXurl)
                 .setHeader(Exchange.HTTP_METHOD, constant("GET"))
                 .to(siriSXurl)
                 .convertBodyTo(org.w3c.dom.Document.class)
@@ -174,7 +179,7 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                 .to("activemq:queue:" + UkurConfiguration.SX_QUEUE)
                 .choice()
                 .when(callAnsharAgain)
-                .log("Call Anshar again since there are more SX data")
+                .log(LoggingLevel.DEBUG, "Call Anshar again since there are more SX data")
                 .to(ROUTE_SX_RETRIEVER)
                 .end();
 

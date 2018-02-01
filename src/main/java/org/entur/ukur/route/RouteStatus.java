@@ -22,6 +22,7 @@ package org.entur.ukur.route;
 public class RouteStatus {
 
     private String hostname;
+    private int numberOfSubscriptions;
     private boolean isLeaderForETPolling = false;
     private SubscriptionStatus etSusbcriptionStatus;
     private boolean isLeaderForSXPolling = false;
@@ -65,5 +66,13 @@ public class RouteStatus {
 
     public void setHostname(String hostname) {
         this.hostname = hostname;
+    }
+
+    public int getNumberOfSubscriptions() {
+        return numberOfSubscriptions;
+    }
+
+    public void setNumberOfSubscriptions(int numberOfSubscriptions) {
+        this.numberOfSubscriptions = numberOfSubscriptions;
     }
 }
