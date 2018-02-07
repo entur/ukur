@@ -16,20 +16,18 @@
 package org.entur.ukur.subscription;
 
 import com.fasterxml.jackson.annotation.JsonIgnore;
+import org.apache.commons.lang3.StringUtils;
 
 import java.io.Serializable;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Objects;
-import java.util.Set;
+import java.util.*;
 
 public class Subscription implements Serializable {
 
     private String id;
     private String name;
     private String pushAddress;
-    private Set<String> fromStopPoints = new HashSet<>();
-    private Set<String> toStopPoints = new HashSet<>();
+    private HashSet<String> fromStopPoints = new HashSet<>();
+    private HashSet<String> toStopPoints = new HashSet<>();
     @JsonIgnore
     private int failedPushCounter = 0;
 
@@ -108,5 +106,22 @@ public class Subscription implements Serializable {
 
     public int getFailedPushCounter() {
         return failedPushCounter;
+    }
+
+    public void normalizeAndRemoveIgnoredStops() {
+        fromStopPoints = normalizeAndRemoveIgnoredStops(fromStopPoints);
+        toStopPoints = normalizeAndRemoveIgnoredStops(toStopPoints);
+    }
+
+    private HashSet<String> normalizeAndRemoveIgnoredStops(HashSet<String> set) {
+        HashSet<String> result = new HashSet<>();
+        Iterator<String> iterator = set.iterator();
+        while (iterator.hasNext()) {
+            String next = StringUtils.trimToEmpty(iterator.next());
+            if (next.startsWith("NSR:")) {
+                result.add(next);
+            }
+        }
+        return result;
     }
 }

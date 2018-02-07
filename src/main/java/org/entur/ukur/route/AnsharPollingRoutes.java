@@ -108,8 +108,8 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                     status.setHostname(InetAddress.getLocalHost().getHostName());
                     status.setLeaderForETPolling(isLeader(ROUTEID_ET_TRIGGER));
                     status.setLeaderForSXPolling(isLeader(ROUTEID_SX_TRIGGER));
-                    status.setEtSusbcriptionStatus(nsbETSubscriptionProcessor.getStatus());
-                    status.setSxSusbcriptionStatus(nsbSXSubscriptionProcessor.getStatus());
+                    status.setEtSubscriptionStatus(nsbETSubscriptionProcessor.getStatus());
+                    status.setSxSubscriptionStatus(nsbSXSubscriptionProcessor.getStatus());
                     status.setNumberOfSubscriptions(subscriptionManager.getNoSubscriptions());
                     exchange.getOut().setBody(status);
                 });

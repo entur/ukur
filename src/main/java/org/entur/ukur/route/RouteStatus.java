@@ -24,9 +24,9 @@ public class RouteStatus {
     private String hostname;
     private int numberOfSubscriptions;
     private boolean isLeaderForETPolling = false;
-    private SubscriptionStatus etSusbcriptionStatus;
+    private SubscriptionStatus etSubscriptionStatus;
     private boolean isLeaderForSXPolling = false;
-    private SubscriptionStatus sxSusbcriptionStatus;
+    private SubscriptionStatus sxSubscriptionStatus;
 
     public boolean isLeaderForETPolling() {
         return isLeaderForETPolling;
@@ -36,12 +36,12 @@ public class RouteStatus {
         isLeaderForETPolling = leaderForETPolling;
     }
 
-    public SubscriptionStatus getEtSusbcriptionStatus() {
-        return etSusbcriptionStatus;
+    public SubscriptionStatus getEtSubscriptionStatus() {
+        return etSubscriptionStatus;
     }
 
-    public void setEtSusbcriptionStatus(SubscriptionStatus etSusbcriptionStatus) {
-        this.etSusbcriptionStatus = etSusbcriptionStatus;
+    public void setEtSubscriptionStatus(SubscriptionStatus etSubscriptionStatus) {
+        this.etSubscriptionStatus = etSubscriptionStatus;
     }
 
     public boolean isLeaderForSXPolling() {
@@ -52,12 +52,12 @@ public class RouteStatus {
         isLeaderForSXPolling = leaderForSXPolling;
     }
 
-    public SubscriptionStatus getSxSusbcriptionStatus() {
-        return sxSusbcriptionStatus;
+    public SubscriptionStatus getSxSubscriptionStatus() {
+        return sxSubscriptionStatus;
     }
 
-    public void setSxSusbcriptionStatus(SubscriptionStatus sxSusbcriptionStatus) {
-        this.sxSusbcriptionStatus = sxSusbcriptionStatus;
+    public void setSxSubscriptionStatus(SubscriptionStatus sxSubscriptionStatus) {
+        this.sxSubscriptionStatus = sxSubscriptionStatus;
     }
 
     public String getHostname() {

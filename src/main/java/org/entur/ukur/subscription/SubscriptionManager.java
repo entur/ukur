@@ -219,24 +219,30 @@ public class SubscriptionManager {
         if (s == null) {
             throw new IllegalArgumentException("No subscription given");
         }
+        if (StringUtils.isBlank(s.getPushAddress())) {
+            throw new IllegalArgumentException("PushAddress is required");
+        }
+        s.normalizeAndRemoveIgnoredStops();
+        if (s.getFromStopPoints() == null || s.getFromStopPoints().isEmpty()) {
+            throw new IllegalArgumentException("At least one valid FROM stop required");
+        }
+        if (s.getToStopPoints() == null || s.getToStopPoints().isEmpty()) {
+            throw new IllegalArgumentException("At least one valid TO stop required");
+        }
+
         String id = UUID.randomUUID().toString();
         while (subscriptions.containsKey(id)) {
-            logger.info("New randomUUID already exists (!) - generates a new one....");
+            logger.warn("Not really possible: New randomUUID already exists (!) - generates a new one....");
             id = UUID.randomUUID().toString();
         }
         logger.info("Adds new subscription - assigns id: {}", id);
         s.setId(id);
-        //TODO: validation...?
-        //TODO: Test push address before add?
-//        if (StringUtils.isBlank(s.getPushAddress())) {
-//            throw new IllegalArgumentException("PushAddress is required");
-//        }
         subscriptions.put(id, s);
         HashSet<String> subscribedStops = new HashSet<>();
         subscribedStops.addAll(s.getFromStopPoints());
         subscribedStops.addAll(s.getToStopPoints());
         for (String stoppoint : subscribedStops) {
-            stoppoint = stoppoint.trim();// //TODO: make usage of these ids case insentive, maybe using .toUpperCase();
+            stoppoint = stoppoint.trim();// //TODO: consider make usage of these ids case insensitive, maybe using .toUpperCase();
             Set<String> subscriptions = subscriptionsPerStopPoint.get(stoppoint);
             if (subscriptions == null) {
                 subscriptions = new HashSet<>();
@@ -289,15 +295,15 @@ public class SubscriptionManager {
 
     private void pushMessage(Subscription subscription, Object siriElement) {
 
-        //TODO: Denne håndterer ikke de ulike subscriptionene, kun om denne meldingen er sendt til noen, og får dermed ikke med seg nye subscriptions (det er nok ikke noe stort problem for ET meldinger som kommer ofte, men kanskje SX...)
-        Long ifPresent = alreadySentCache.get(siriElement);
+        String alreadySentKey = subscription.getId()+" "+siriElement.hashCode();
+        Long ifPresent = alreadySentCache.get(alreadySentKey);
         if (ifPresent != null) {
             long diffInSecs = (System.currentTimeMillis() - ifPresent) / 1000;
-            logger.debug("skips message since it has already been \"pushed\" {} seconds ago", diffInSecs);
+            logger.debug("skips message since it has already been pushed to the same subscription (id={}) {} seconds ago", subscription.getId(), diffInSecs);
             return;
         }
 
-        alreadySentCache.put(siriElement, System.currentTimeMillis());
+        alreadySentCache.put(alreadySentKey, System.currentTimeMillis());
 
         logger.debug("PUSH ({}) {} to subscription name: {}, pushAddress: {}",
                 hostname, siriElement.getClass(), subscription.getName(), subscription.getPushAddress());
