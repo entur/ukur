@@ -57,7 +57,7 @@ public class ExtendedHazelcastService extends HazelCastService {
     }
 
     @Bean
-    public IMap<String, Long> alreadySentCache() {
+    public IMap<Object, Long> alreadySentCache() {
         return hazelcast.getMap("ukur.alreadySentCache");
     }
 

@@ -18,22 +18,19 @@ package org.entur.ukur.subscription;
 import com.hazelcast.core.IMap;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.entur.ukur.xml.SiriMarshaller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
+import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import uk.org.siri.siri20.*;
 
-import javax.xml.bind.JAXBException;
-import javax.xml.stream.XMLStreamException;
 import java.io.Serializable;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
-import java.time.LocalDateTime;
-import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static org.entur.ukur.subscription.PushAcknowledge.FORGET_ME;
@@ -44,22 +41,18 @@ public class SubscriptionManager {
 
     private IMap<String, Set<String>> subscriptionsPerStopPoint;
     private IMap<String, Subscription> subscriptions;
-    private IMap<String, Long> alreadySentCache;
-    private final SiriMarshaller siriMarshaller;
-
+    private IMap<Object, Long> alreadySentCache;
     private String hostname;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
-    public SubscriptionManager(IMap<String, Set<String>> subscriptionsPerStopPoint,
-                               IMap<String, Subscription> subscriptions,
-                               IMap<String, Long> alreadySentCache,
-                               SiriMarshaller siriMarshaller) {
+    public SubscriptionManager(@Qualifier("subscriptionIdsPerStopPoint") IMap<String, Set<String>> subscriptionsPerStopPoint,
+                               @Qualifier("subscriptions") IMap<String, Subscription> subscriptions,
+                               @Qualifier("alreadySentCache") IMap<Object, Long> alreadySentCache) {
         this.subscriptionsPerStopPoint = subscriptionsPerStopPoint;
         this.subscriptions = subscriptions;
         this.alreadySentCache = alreadySentCache;
-        this.siriMarshaller = siriMarshaller;
         try {
             hostname = InetAddress.getLocalHost().getHostName();
             logger.info("This nodes hostname is '{}'", hostname);
@@ -77,8 +70,8 @@ public class SubscriptionManager {
         for (Subscription subscription : existingSubscriptions) {
             Subscription clone = clone(subscription);
             //TODO: add authorization so we can list these things...
-            clone.setId("REMOVED");
-            clone.setPushAddress("REMOVED");
+            clone.setId("---hidden---");
+            clone.setPushAddress("---hidden---");
             result.add(clone);
         }
         logger.debug("There are {} subscriptions regarding {} unique stoppoints", result.size(), subscriptionsPerStopPoint.keySet().size());
@@ -104,24 +97,120 @@ public class SubscriptionManager {
         return result;
     }
 
-    public void notify(HashSet<Subscription> subscriptions, EstimatedCall estimatedCall, EstimatedVehicleJourney estimatedVehicleJourney) {
-        String pushMessageName = getPushMessageName(estimatedCall, estimatedVehicleJourney);
-        EstimatedVehicleJourney clone = clone(estimatedVehicleJourney);
-        EstimatedVehicleJourney.EstimatedCalls ec = new EstimatedVehicleJourney.EstimatedCalls();
-        ec.getEstimatedCalls().add(estimatedCall);
-        clone.setEstimatedCalls(ec);            //TODO: Fjerner alle andre EstimatedCalls enn gjeldende for å begrense størrelse (mulig det er dumt...?)
-        clone.setRecordedCalls(null);           //TODO: Fjerner RecordedCalls for å begrense størrelse (mulig det er dumt...?)
-        clone.setIsCompleteStopSequence(null);  //TODO: Fjerner evt IsCompleteStopSequence så det ikke blir feil ihht spec
-        pushMessage(subscriptions, toXMLString(clone), pushMessageName);
+    public void notify(HashSet<Subscription> subscriptions, EstimatedVehicleJourney estimatedVehicleJourney) {
+        for (Subscription subscription : subscriptions) {
+            Set<String> subscribedStops = getAllStops(subscription);
+            EstimatedVehicleJourney clone = clone(estimatedVehicleJourney);
+            //Removes all other estimated calls than those subscribed upon:
+            if (clone.getEstimatedCalls() != null && clone.getEstimatedCalls().getEstimatedCalls() != null) {
+                Iterator<EstimatedCall> iterator = clone.getEstimatedCalls().getEstimatedCalls().iterator();
+                while (iterator.hasNext()) {
+                    EstimatedCall call = iterator.next();
+                    String ref = call.getStopPointRef() == null ? "" : call.getStopPointRef().getValue();
+                    if (!subscribedStops.contains(ref)) {
+                        iterator.remove();
+                    }
+                }
+            }
+            //Removes all other recorded calls than those subscribed upon:
+            if (clone.getRecordedCalls() != null && clone.getRecordedCalls().getRecordedCalls() != null) {
+                Iterator<RecordedCall> iterator = clone.getRecordedCalls().getRecordedCalls().iterator();
+                while (iterator.hasNext()) {
+                    RecordedCall call = iterator.next();
+                    String ref = call.getStopPointRef() == null ? "" : call.getStopPointRef().getValue();
+                    if (!subscribedStops.contains(ref)) {
+                        iterator.remove();
+                    }
+                }
+            }
+            clone.setIsCompleteStopSequence(null); //since we have tampered with the calls!
+            pushMessage(subscription, clone);
+        }
     }
 
     public void notify(HashSet<Subscription> subscriptions, PtSituationElement ptSituationElement) {
-        ptSituationElement = clone(ptSituationElement);
-        ptSituationElement.setAffects(null);//TODO: Fjerner affects for å begrense størrelse (det er litt dumt - mister bla hvilke ruter som er berørt...)
-                                            //TODO: Kanskje vi bare skal fjerne affects som ikke inneholder til-fra stoppoint? Eller fjerne affected journey's uten interessante stop?
-        String xml = toXMLString(ptSituationElement);
-        String pushMessageName = getPushMessageName(ptSituationElement);
-        pushMessage(subscriptions, xml, pushMessageName);
+        for (Subscription subscription : subscriptions) {
+            Set<String> subscribedStops = getAllStops(subscription);
+            PtSituationElement clone = clone(ptSituationElement);
+            AffectsScopeStructure affects = clone.getAffects();
+            if (affects != null) {
+                //make sure elements not covered by the norwegian profile are empty:
+                affects.setAreaOfInterest(null);
+                affects.setExtensions(null);
+                affects.setOperators(null);
+                affects.setPlaces(null);
+                affects.setRoads(null);
+                affects.setStopPoints(null);
+                affects.setVehicles(null);
+                //TODO: networks are part of the profile, but ignored for now
+                affects.setNetworks(null);
+
+                //Removes affected StopPoints not subscribed upon
+                AffectsScopeStructure.StopPoints affectsStopPoints = affects.getStopPoints();
+                if (affectsStopPoints != null && affectsStopPoints.getAffectedStopPoints() != null) {
+                    Iterator<AffectedStopPointStructure> iterator = affectsStopPoints.getAffectedStopPoints().iterator();
+                    while (iterator.hasNext()) {
+                        AffectedStopPointStructure stop = iterator.next();
+                        String ref = stop.getStopPointRef() == null ? "" : stop.getStopPointRef().getValue();
+                        if (!subscribedStops.contains(ref)) {
+                            iterator.remove();
+                        }
+                    }
+                }
+                //Removes affected StopPlaces not subscribed upon
+                AffectsScopeStructure.StopPlaces stopPlaces = affects.getStopPlaces();
+                if (stopPlaces != null && stopPlaces.getAffectedStopPlaces() != null) {
+                    Iterator<AffectedStopPlaceStructure> iterator = stopPlaces.getAffectedStopPlaces().iterator();
+                    while (iterator.hasNext()) {
+                        AffectedStopPlaceStructure stop = iterator.next();
+                        String ref = stop.getStopPlaceRef() == null ? "" : stop.getStopPlaceRef().getValue();
+                        if (!subscribedStops.contains(ref)) {
+                            iterator.remove();
+                        }
+                    }
+                }
+                //Removes affected VehicleJourneys (and unsubscribed stops) without any stops subscribed upon
+                AffectsScopeStructure.VehicleJourneys vehicleJourneys = affects.getVehicleJourneys();
+                if (vehicleJourneys != null && vehicleJourneys.getAffectedVehicleJourneies() != null) {
+                    Iterator<AffectedVehicleJourneyStructure> iterator = vehicleJourneys.getAffectedVehicleJourneies().iterator();
+                    while(iterator.hasNext()) {
+                        AffectedVehicleJourneyStructure journeyStructure = iterator.next();
+                        boolean removeJourney = true;
+                        if (journeyStructure.getRoutes() != null) {
+                            List<AffectedRouteStructure> routes = journeyStructure.getRoutes();
+                            Iterator<AffectedRouteStructure> routeStructureIterator = routes.iterator();
+                            while(routeStructureIterator.hasNext()) {
+                                AffectedRouteStructure routeStructure = routeStructureIterator.next();
+                                AffectedRouteStructure.StopPoints stopPoints = routeStructure.getStopPoints();
+                                if (stopPoints != null && stopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints() != null) {
+                                    List<Serializable> affectedStopPointsAndLinkProjectionToNextStopPoints = stopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints();
+                                    Iterator<Serializable> stops = affectedStopPointsAndLinkProjectionToNextStopPoints.iterator();
+                                    while (stops.hasNext()) {
+                                        Serializable stop = stops.next();
+                                        if (stop instanceof AffectedStopPointStructure) {
+                                            AffectedStopPointStructure affectedStopPoint = (AffectedStopPointStructure) stop;
+                                            String ref = affectedStopPoint.getStopPointRef() == null ? "" : affectedStopPoint.getStopPointRef().getValue();
+                                            if (!subscribedStops.contains(ref)) {
+                                                stops.remove();
+                                            }
+                                        }
+                                    }
+                                    if (affectedStopPointsAndLinkProjectionToNextStopPoints.isEmpty()) {
+                                        routeStructureIterator.remove();
+                                    }
+                                }
+                            }
+                            removeJourney = routes.isEmpty();
+                        }
+                        if (removeJourney) {
+                            iterator.remove();
+                        }
+                    }
+                }
+            }
+
+            pushMessage(subscription, clone);
+        }
     }
 
 
@@ -181,56 +270,72 @@ public class SubscriptionManager {
         return removed;
     }
 
+    private Set<String> getAllStops(Subscription subscription) {
+        Set<String> fromStopPoints = subscription.getFromStopPoints();
+        Set<String> toStopPoints = subscription.getToStopPoints();
+        HashSet<String> result = new HashSet<>();
+        if (fromStopPoints != null) {
+            result.addAll(fromStopPoints);
+        }
+        if (toStopPoints != null) {
+            result.addAll(toStopPoints);
+        }
+        return result;
+    }
 
     private <T extends Serializable> T clone(T toClone) {
         return SerializationUtils.clone(toClone);
     }
 
-    private void pushMessage(HashSet<Subscription> subscriptions, String xml, String pushMessageName) {
+    private void pushMessage(Subscription subscription, Object siriElement) {
 
         //TODO: Denne håndterer ikke de ulike subscriptionene, kun om denne meldingen er sendt til noen, og får dermed ikke med seg nye subscriptions (det er nok ikke noe stort problem for ET meldinger som kommer ofte, men kanskje SX...)
-        Long ifPresent = alreadySentCache.get(xml);
+        Long ifPresent = alreadySentCache.get(siriElement);
         if (ifPresent != null) {
             long diffInSecs = (System.currentTimeMillis() - ifPresent) / 1000;
             logger.debug("skips message since it has already been \"pushed\" {} seconds ago", diffInSecs);
             return;
         }
 
-        alreadySentCache.set(xml, System.currentTimeMillis());
+        alreadySentCache.put(siriElement, System.currentTimeMillis());
 
-        PushMessage pushMessage = new PushMessage();
-        pushMessage.setMessagename(pushMessageName);
-        pushMessage.setXmlPayload(xml);
-        pushMessage.setNode(hostname);
-
-        for (Subscription subscription : subscriptions) {
-            logger.debug("PUSH ({}): to subscription name: {}, pushAddress: {}\n{}",
-                    hostname, subscription.getName(), subscription.getPushAddress(), xml);
-            if (StringUtils.startsWithIgnoreCase(subscription.getPushAddress(), "http://") ) {
-                pushToHttp(subscription, pushMessage);
-            } else {
-                logger.warn("No push address for subscription with id='{}'");
-            }
+        logger.debug("PUSH ({}) {} to subscription name: {}, pushAddress: {}",
+                hostname, siriElement.getClass(), subscription.getName(), subscription.getPushAddress());
+        if (StringUtils.startsWithIgnoreCase(subscription.getPushAddress(), "http://") ) {
+            pushToHttp(subscription, siriElement);
+        } else {
+            logger.warn("No push address for subscription with id='{}'");
         }
     }
 
-    private void pushToHttp(Subscription subscription, PushMessage pushMessage) {
+    private void pushToHttp(Subscription subscription, Object siriElement) {
+        HttpHeaders headers = new HttpHeaders();
+        headers.setContentType(MediaType.APPLICATION_XML);
+        headers.setAccept(Collections.singletonList(MediaType.TEXT_PLAIN));
         RestTemplate restTemplate = new RestTemplate();
-        URI uri = URI.create(subscription.getPushAddress());
-        PushAcknowledge response = null;
+        String pushAddress = subscription.getPushAddress();
+        if (siriElement instanceof EstimatedVehicleJourney) {
+            pushAddress += "/et";
+        } else if (siriElement instanceof PtSituationElement) {
+            pushAddress += "/sx";
+        }
+        URI uri = URI.create(pushAddress);
+        ResponseEntity<String> response = null;
         try {
-            response = restTemplate.postForObject(uri, pushMessage, PushAcknowledge.class);
+            HttpEntity entity = new HttpEntity<>(siriElement, headers);
+            response = restTemplate.postForEntity(uri, entity, String.class);
             logger.debug("Receive {} on push to {} for subscription with id {}",
-                    response, subscription.getPushAddress(), subscription.getId());
+                    response, uri, subscription.getId());
         } catch (Exception e) {
             logger.warn("Could not push to {} for subscription with id {}",
-                    subscription.getPushAddress(), subscription.getId(), e);
+                    uri, subscription.getId(), e);
         }
-        if (response == FORGET_ME) {
-            logger.info("Receive {} on push to {} and removes subscription with id {}",
-                    FORGET_ME, subscription.getPushAddress(), subscription.getId());
+        boolean ok = response != null && response.getStatusCode() == HttpStatus.OK;
+        String responseBody = ok && response.getBody() != null ? response.getBody().trim() : null;
+        if (ok && FORGET_ME.name().equals(responseBody)) {
+            logger.info("Receive {} on push to {} and removes subscription with id {}", FORGET_ME, uri, subscription.getId());
             remove(subscription.getId());
-        } else if (response == OK) {
+        } else if (ok && OK.name().equals(responseBody)) {
             subscription.resetFailedPushCounter();
             subscriptions.put(subscription.getId(), subscription); //to distribute change to other hazelcast nodes
         } else {
@@ -247,31 +352,4 @@ public class SubscriptionManager {
         }
     }
 
-    private final DateTimeFormatter formatter = DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss");
-
-    private String getPushMessageName(EstimatedCall estimatedCall, EstimatedVehicleJourney estimatedVehicleJourney) {
-        List<NaturalLanguageStringStructure> stopPointNames = estimatedCall.getStopPointNames();
-        String name = stopPointNames.isEmpty() ? estimatedCall.getStopPointRef().getValue() : stopPointNames.get(0).getValue();
-        String vehicleJourney = estimatedVehicleJourney.getVehicleRef() == null ? "null" : estimatedVehicleJourney.getVehicleRef().getValue();
-        LineRef lineRef = estimatedVehicleJourney.getLineRef();
-        String line = "null";
-        if (lineRef != null && StringUtils.containsIgnoreCase(lineRef.getValue(), ":Line:")) {
-            line = StringUtils.substringAfterLast(lineRef.getValue(), ":");
-        }
-        return LocalDateTime.now().format(formatter) + " ET " + line + " " + vehicleJourney + " " + name;
-    }
-
-    private String getPushMessageName(PtSituationElement ptSituationElement) {
-        String situationNumber = ptSituationElement.getSituationNumber() == null ? "null" : ptSituationElement.getSituationNumber().getValue();
-        return LocalDateTime.now().format(formatter) + " SX " + situationNumber;
-    }
-
-    private String toXMLString(Object element) {
-        try {
-            return siriMarshaller.prettyPrintNoNamespaces(element);
-        } catch (JAXBException | XMLStreamException e) {
-            logger.warn("Error marshalling object", e);
-            return "ERROR: " + e.getMessage();
-        }
-    }
 }

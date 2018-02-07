@@ -120,8 +120,8 @@ public class NsbSXSubscriptionProcessor implements Processor {
                     AffectedRouteStructure.StopPoints stopPoints = route.getStopPoints();
                     if (stopPoints == null) continue;
                     //TODO: Mulig vi kan sjekke retning på ruta om vi kan stole på rekkefølgen til stoppoint'sa
-                    //TODO: PtSituationElement med SituationNumber som begynner med "status-" gjelder en (/flere?) konkret avgang, og meldingen må kobles til denne for å gi mening:
-                    //TODO: eksempel "Vennligst ta neste eller andre tog."
+                    //TODO: Løsningen under gir mange "falske" treff og unødvendige varslinger
+                    //TODO: Kan uansett sjekke at både et ToStop og et FromStop er med for å minske problemet
                     List<Serializable> affectedStopPointsAndLinkProjectionToNextStopPoints = stopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints();
                     for (Serializable affectedStopPointsAndLinkProjectionToNextStopPoint : affectedStopPointsAndLinkProjectionToNextStopPoints) {
                         if (affectedStopPointsAndLinkProjectionToNextStopPoint instanceof AffectedStopPointStructure) {

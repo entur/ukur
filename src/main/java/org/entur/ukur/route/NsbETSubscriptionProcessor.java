@@ -84,7 +84,7 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
             EstimatedCall estimatedCall = estimatedCallAndSubscriptions.getEstimatedCall();
             HashSet<Subscription> subscriptions = estimatedCallAndSubscriptions.getSubscriptions();
             logger.debug(" - For delayed departure from stopPlace {} there are {} affected subscriptions ", estimatedCall.getStopPointRef().getValue(), subscriptions.size());
-            subscriptionManager.notify(subscriptions, estimatedCall, estimatedVehicleJourney);
+            subscriptionManager.notify(subscriptions, estimatedVehicleJourney);
         }
     }
 
@@ -108,6 +108,7 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
                     - en avgang som nå (forsinket) går(fra-StopPointRef)/ankommer(til-StopPointRef) innenfor tidsrommet
                      */
                 }
+                //TODO: Må skille mellom to og from stops ved å se på arrival og departure status
             }
             if (!subscriptions.isEmpty()) {
                 affectedSubscriptions.add(new EstimatedCallAndSubscriptions(estimatedDelay, subscriptions));
@@ -153,6 +154,7 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
                     logger.debug("Have a delayed EstimatedCall, but can't calculate delay - ignores it");
                 }
             }
+            //TODO: Må også se på  arrivalstatus så vi kan skille mellom to og from stops skikkelig
         }
         return delayed;
     }
