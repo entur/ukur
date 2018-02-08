@@ -15,9 +15,9 @@
 
 package org.entur.ukur.subscription;
 
-import com.hazelcast.core.IMap;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.entur.ukur.xml.SiriMarshaller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -39,20 +39,23 @@ import static org.entur.ukur.subscription.PushAcknowledge.OK;
 @Service
 public class SubscriptionManager {
 
-    private IMap<String, Set<String>> subscriptionsPerStopPoint;
-    private IMap<String, Subscription> subscriptions;
-    private IMap<Object, Long> alreadySentCache;
+    private Map<String, Set<String>> subscriptionsPerStopPoint;
+    private Map<String, Subscription> subscriptions;
+    private Map<Object, Long> alreadySentCache;
+    private SiriMarshaller siriMarshaller;
     private String hostname;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
-    public SubscriptionManager(@Qualifier("subscriptionIdsPerStopPoint") IMap<String, Set<String>> subscriptionsPerStopPoint,
-                               @Qualifier("subscriptions") IMap<String, Subscription> subscriptions,
-                               @Qualifier("alreadySentCache") IMap<Object, Long> alreadySentCache) {
+    public SubscriptionManager(@Qualifier("subscriptionIdsPerStopPoint") Map<String, Set<String>> subscriptionsPerStopPoint,
+                               @Qualifier("subscriptions") Map<String, Subscription> subscriptions,
+                               @Qualifier("alreadySentCache") Map<Object, Long> alreadySentCache,
+                               SiriMarshaller siriMarshaller) {
         this.subscriptionsPerStopPoint = subscriptionsPerStopPoint;
         this.subscriptions = subscriptions;
         this.alreadySentCache = alreadySentCache;
+        this.siriMarshaller = siriMarshaller;
         try {
             hostname = InetAddress.getLocalHost().getHostName();
             logger.info("This nodes hostname is '{}'", hostname);
@@ -295,7 +298,7 @@ public class SubscriptionManager {
 
     private void pushMessage(Subscription subscription, Object siriElement) {
 
-        String alreadySentKey = subscription.getId()+" "+siriElement.hashCode();
+        String alreadySentKey = calculateUniqueKey(subscription, siriElement);
         Long ifPresent = alreadySentCache.get(alreadySentKey);
         if (ifPresent != null) {
             long diffInSecs = (System.currentTimeMillis() - ifPresent) / 1000;
@@ -312,6 +315,18 @@ public class SubscriptionManager {
         } else {
             logger.warn("No push address for subscription with id='{}'");
         }
+    }
+
+    private String calculateUniqueKey(Subscription subscription, Object siriElement) {
+        String content;
+        try {
+            //Can't use the cxf generated objects directly, has to convert it to something we can compare
+            content = siriMarshaller.marshall(siriElement);
+        } catch (Exception e) {
+            logger.warn("Could not marshall {}", e);
+            content = UUID.randomUUID().toString();
+        }
+        return subscription.getId()+content.hashCode();
     }
 
     private void pushToHttp(Subscription subscription, Object siriElement) {

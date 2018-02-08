@@ -24,6 +24,7 @@ import javax.xml.bind.Marshaller;
 import javax.xml.bind.Unmarshaller;
 import javax.xml.stream.*;
 import java.io.InputStream;
+import java.io.StringReader;
 import java.io.StringWriter;
 
 @Component
@@ -42,6 +43,13 @@ public class SiriMarshaller {
         return resultingClass.cast(jaxbUnmarshaller.unmarshal(xmlsr));
     }
 
+    public <T> T unmarhall(String xml, Class<T>resultingClass) throws JAXBException, XMLStreamException {
+        Unmarshaller jaxbUnmarshaller = jaxbContext.createUnmarshaller();
+        XMLInputFactory xmlif = XMLInputFactory.newInstance();
+        XMLStreamReader xmlsr = xmlif.createXMLStreamReader(new StringReader(xml));
+        return resultingClass.cast(jaxbUnmarshaller.unmarshal(xmlsr));
+    }
+
     public String prettyPrintNoNamespaces(Object element) throws JAXBException, XMLStreamException {
         Marshaller jaxbMarshaller = jaxbContext.createMarshaller();
         StringWriter stringWriter = new StringWriter();
@@ -49,5 +57,13 @@ public class SiriMarshaller {
         jaxbMarshaller.marshal(element, new NoNamespaceIndentingXMLStreamWriter(writer));
         return stringWriter.getBuffer().toString();
     }
+
+    public String marshall(Object element) throws JAXBException {
+        Marshaller jaxbMarshaller = jaxbContext.createMarshaller();
+        StringWriter stringWriter = new StringWriter();
+        jaxbMarshaller.marshal(element, stringWriter);
+        return stringWriter.getBuffer().toString();
+    }
+
 
 }
