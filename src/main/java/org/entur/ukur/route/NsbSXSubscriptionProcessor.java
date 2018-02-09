@@ -30,8 +30,7 @@ import uk.org.siri.siri20.*;
 
 import java.io.InputStream;
 import java.io.Serializable;
-import java.util.HashSet;
-import java.util.List;
+import java.util.*;
 
 @Service
 public class NsbSXSubscriptionProcessor implements Processor {
@@ -72,9 +71,18 @@ public class NsbSXSubscriptionProcessor implements Processor {
             return;
         }
         status.handled(PtSituationElement.class);
-        HashSet<String> stopsToNotify = findAffectedStopPointRefs(ptSituationElement);
-        logger.debug("Processes NSB PtSituationElement ({}) - with {} affected stops", ptSituationElement.getSituationNumber().getValue(), stopsToNotify.size());
+        AffectsScopeStructure affects = ptSituationElement.getAffects();
+        if (affects == null) {
+            logger.info("Got PtSituationElement without any effects - nothing to notify");
+            return;
+        }
+        HashSet<String> stopsToNotify = findAffectedStopPointRefs(affects);
+        AffectsScopeStructure.VehicleJourneys vehicleJourneys = affects.getVehicleJourneys();
         HashSet<Subscription> subscriptionsToNotify = new HashSet<>();
+        if (vehicleJourneys != null) {
+            subscriptionsToNotify.addAll(findAffectedSubscriptions(vehicleJourneys));
+        }
+        logger.debug("Processes NSB PtSituationElement ({}) - with {} affected stops", ptSituationElement.getSituationNumber().getValue(), stopsToNotify.size());
         for (String ref : stopsToNotify) {
             subscriptionsToNotify.addAll(subscriptionManager.getSubscriptionsForStopPoint(ref));
         }
@@ -90,10 +98,8 @@ public class NsbSXSubscriptionProcessor implements Processor {
      *  Gå gjennom Affects|StopPlacess og matche StopPlaceRef mot subscriptions <-- Litt usikker på denne, men tar med for nå
 	 *  Gå gjennom Affects|VehicleJourneys|AffectedVehicleJourney|Route|StopPoints|AffectedStopPoint og
      */
-    private HashSet<String> findAffectedStopPointRefs(PtSituationElement ptSituationElement) {
+    private HashSet<String> findAffectedStopPointRefs(AffectsScopeStructure affects) {
         HashSet<String> stopsToNotify = new HashSet<>();
-        AffectsScopeStructure affects = ptSituationElement.getAffects();
-        if (affects == null) return stopsToNotify;
 
         AffectsScopeStructure.StopPoints affectsStopPoints = affects.getStopPoints();
         if (affectsStopPoints != null) {
@@ -103,6 +109,7 @@ public class NsbSXSubscriptionProcessor implements Processor {
                 addStop(stopsToNotify, stopPointRef != null ? stopPointRef.getValue() : null);
             }
         }
+
         AffectsScopeStructure.StopPlaces stopPlaces = affects.getStopPlaces();
         if (stopPlaces != null) {
             List<AffectedStopPlaceStructure> affectedStopPlaces = stopPlaces.getAffectedStopPlaces();
@@ -111,32 +118,63 @@ public class NsbSXSubscriptionProcessor implements Processor {
                 addStop(stopsToNotify, stopPlaceRef != null ? stopPlaceRef.getValue() : null);
             }
         }
-        AffectsScopeStructure.VehicleJourneys vehicleJourneys = affects.getVehicleJourneys();
-        if (vehicleJourneys != null) {
-            List<AffectedVehicleJourneyStructure> affectedVehicleJourneies = vehicleJourneys.getAffectedVehicleJourneies();
-            for (AffectedVehicleJourneyStructure affectedVehicleJourney : affectedVehicleJourneies) {
-                List<AffectedRouteStructure> routes = affectedVehicleJourney.getRoutes();
-                for (AffectedRouteStructure route : routes) {
-                    AffectedRouteStructure.StopPoints stopPoints = route.getStopPoints();
-                    if (stopPoints == null) continue;
-                    //TODO: Mulig vi kan sjekke retning på ruta om vi kan stole på rekkefølgen til stoppoint'sa
-                    //TODO: Løsningen under gir mange "falske" treff og unødvendige varslinger
-                    //TODO: Kan uansett sjekke at både et ToStop og et FromStop er med for å minske problemet
-                    List<Serializable> affectedStopPointsAndLinkProjectionToNextStopPoints = stopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints();
-                    for (Serializable affectedStopPointsAndLinkProjectionToNextStopPoint : affectedStopPointsAndLinkProjectionToNextStopPoints) {
-                        if (affectedStopPointsAndLinkProjectionToNextStopPoint instanceof AffectedStopPointStructure) {
-                            AffectedStopPointStructure affectedStopPoint = (AffectedStopPointStructure) affectedStopPointsAndLinkProjectionToNextStopPoint;
-                            StopPointRef stopPointRef = affectedStopPoint.getStopPointRef();
-                            addStop(stopsToNotify, stopPointRef != null ? stopPointRef.getValue() : null);
+
+        return stopsToNotify;
+    }
+
+    protected HashSet<Subscription> findAffectedSubscriptions(AffectsScopeStructure.VehicleJourneys vehicleJourneys) {
+        HashSet<Subscription> subscriptions = new HashSet<>();
+        List<AffectedVehicleJourneyStructure> affectedVehicleJourneies = vehicleJourneys.getAffectedVehicleJourneies();
+        for (AffectedVehicleJourneyStructure affectedVehicleJourney : affectedVehicleJourneies) {
+            //TODO: if we get route-data from an other source, we can look up a route based on LineRef/VehicleJourneyRef
+            List<AffectedRouteStructure> routes = affectedVehicleJourney.getRoutes();
+            for (AffectedRouteStructure route : routes) {
+                AffectedRouteStructure.StopPoints stopPoints = route.getStopPoints();
+                if (stopPoints == null) continue;
+                List<Serializable> affectedStopPointsAndLinkProjectionToNextStopPoints = stopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints();
+                List<String> orderedListOfStops = new ArrayList<>();
+                for (Serializable affectedStopPointsAndLinkProjectionToNextStopPoint : affectedStopPointsAndLinkProjectionToNextStopPoints) {
+                    if (affectedStopPointsAndLinkProjectionToNextStopPoint instanceof AffectedStopPointStructure) {
+                        AffectedStopPointStructure affectedStopPoint = (AffectedStopPointStructure) affectedStopPointsAndLinkProjectionToNextStopPoint;
+                        StopPointRef stopPointRef = affectedStopPoint.getStopPointRef();
+                        addStop(orderedListOfStops, stopPointRef != null ? stopPointRef.getValue() : null);
+                    }
+                }
+                for (String stop : orderedListOfStops) {
+                    Set<Subscription> subscriptionsForStopPoint = subscriptionManager.getSubscriptionsForStopPoint(stop);
+                    if (Boolean.TRUE.equals(stopPoints.isAffectedOnly())) {
+                        subscriptions.addAll(subscriptionsForStopPoint);
+                        logger.trace("Only affected stops in route, adds all subscriptions on these stops - regardless of direction");
+                    } else {
+                        //TODO: Assumes that the stops are complete and in correct order...
+                        for (Subscription subscription : subscriptionsForStopPoint) {
+                            if (affected(subscription, orderedListOfStops)) {
+                                subscriptions.add(subscription);
+                            }
                         }
                     }
                 }
             }
         }
-        return stopsToNotify;
+        return subscriptions;
     }
 
-    private void addStop(HashSet<String> stopsToNotify, String ref) {
+    private boolean affected(Subscription subscription, List<String> orderedListOfStops) {
+        int from = findIndexOfOne(subscription.getFromStopPoints(), orderedListOfStops);
+        int to = findIndexOfOne(subscription.getToStopPoints(), orderedListOfStops);
+        return from > -1 && to > -1 && from < to;
+    }
+
+    private int findIndexOfOne(Set<String> stops, List<String> orderedListOfStops) {
+        for (int i = 0; i < orderedListOfStops.size(); i++) {
+             if (stops.contains(orderedListOfStops.get(i))) {
+                 return i;
+             }
+        }
+        return -1;
+    }
+
+    private void addStop(Collection<String> stopsToNotify, String ref) {
         if (ref != null && StringUtils.startsWithIgnoreCase(ref, "NSR:")) {
             stopsToNotify.add(ref);
         }
