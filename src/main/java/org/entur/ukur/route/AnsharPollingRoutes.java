@@ -15,12 +15,14 @@
 
 package org.entur.ukur.route;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hazelcast.core.IMap;
 import org.apache.camel.Exchange;
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.Predicate;
 import org.apache.camel.builder.PredicateBuilder;
 import org.apache.camel.builder.xml.Namespaces;
+import org.apache.camel.component.jackson.JacksonDataFormat;
 import org.apache.camel.model.language.XPathExpression;
 import org.apache.camel.model.rest.RestBindingMode;
 import org.entur.ukur.setup.UkurConfiguration;
@@ -29,21 +31,27 @@ import org.entur.ukur.subscription.SubscriptionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.config.ConfigurableBeanFactory;
+import org.springframework.context.annotation.Bean;
+import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.net.InetAddress;
+import java.util.HashMap;
 import java.util.UUID;
 
 @Component
 public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
     public static final String ROUTE_ET_RETRIEVER = "seda:retrieveAnsharET";
     public static final String ROUTE_SX_RETRIEVER = "seda:retrieveAnsharSX";
+    private static final String ROUTE_FLUSHJOURNEYS = "seda:flushOldJourneys";
     private Logger logger = LoggerFactory.getLogger(this.getClass());
     private static final String ROUTEID_SX_RETRIEVER = "SX Retriever";
     private static final String ROUTEID_ET_RETRIEVER = "ET Retriever";
     private static final String MORE_DATA = "MoreData";
     private static final String ROUTEID_ET_TRIGGER = "ET trigger";
     private static final String ROUTEID_SX_TRIGGER = "SX trigger";
+    private static final String ROUTEID_FLUSHJOURNEYS_TRIGGER = "Flush Old Journeys";
     private UkurConfiguration config;
     private final NsbETSubscriptionProcessor nsbETSubscriptionProcessor;
     private NsbSXSubscriptionProcessor nsbSXSubscriptionProcessor;
@@ -91,6 +99,10 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                 .get("/live").to("direct:OK")
                 .get("/ready").to("direct:OK");
 
+        rest("/journeys")
+                .get("/").to("bean:liveRouteService?method=getJourneys()")
+                .get("/{lineref}/").to("bean:liveRouteService?method=getJourneys(${header.lineref})");
+
         rest("/subscription")
                 .post().type(Subscription.class).outType(Subscription.class).to("bean:subscriptionManager?method=add(${body})")
                 .delete("{id}").to("bean:subscriptionManager?method=remove(${header.id})");
@@ -136,6 +148,16 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
         } else {
             logger.warn("SX polling is disabled");
         }
+
+        singletonFrom("quartz2://ukur/flushOldJourneys?fireNow=true&trigger.repeatInterval=" + repatInterval, ROUTEID_FLUSHJOURNEYS_TRIGGER)
+                .filter(e -> isLeader(e.getFromRouteId()))
+                .filter(new NotRunningPredicate(ROUTEID_FLUSHJOURNEYS_TRIGGER))
+                .log(LoggingLevel.DEBUG, "'Flush old journeys' triggered by timer")
+                .to(ROUTE_FLUSHJOURNEYS);
+
+        from(ROUTE_FLUSHJOURNEYS)
+                .routeId("Flush Old Journeys Asynchronously")
+                .to("bean:liveRouteService?method=flushOldJourneys()");
     }
 
     private void createPollingRoutes(String siriETurl, String siriSXurl) {
@@ -189,4 +211,9 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                 .end();
     }
 
+    @Bean(name = "json-jackson")
+    @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
+    public JacksonDataFormat jacksonDataFormat(ObjectMapper objectMapper) {
+        return new JacksonDataFormat(objectMapper, HashMap.class);
+    }
 }

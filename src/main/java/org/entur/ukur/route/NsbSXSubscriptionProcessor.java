@@ -24,6 +24,7 @@ import org.entur.ukur.xml.SiriMarshaller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import uk.org.ifopt.siri20.StopPlaceRef;
 import uk.org.siri.siri20.*;
@@ -38,12 +39,19 @@ public class NsbSXSubscriptionProcessor implements Processor {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
     private SubscriptionManager subscriptionManager;
     private SiriMarshaller siriMarshaller;
+    private FileStorageService fileStorageService;
     private SubscriptionStatus status = new SubscriptionStatus();
+    @Value("${ukur.camel.sx.store.files:false}")
+    private boolean storeMessagesToFile = false;
 
     @Autowired
-    public NsbSXSubscriptionProcessor(SubscriptionManager subscriptionManager, SiriMarshaller siriMarshaller) {
+    public NsbSXSubscriptionProcessor(SubscriptionManager subscriptionManager,
+                                      SiriMarshaller siriMarshaller,
+                                      FileStorageService fileStorageService) {
         this.subscriptionManager = subscriptionManager;
         this.siriMarshaller = siriMarshaller;
+        this.fileStorageService = fileStorageService;
+        logger.debug("Initializes...");
     }
 
     @Override
@@ -54,8 +62,13 @@ public class NsbSXSubscriptionProcessor implements Processor {
         if (ptSituationElement == null) {
             throw new IllegalArgumentException("No PtSituationElement element...");
         }
-        processPtSituationElement(ptSituationElement);
         status.processed(PtSituationElement.class);
+        if (processPtSituationElement(ptSituationElement)) {
+            status.handled(PtSituationElement.class);
+            if (storeMessagesToFile) {
+                fileStorageService.writeToFile(ptSituationElement);
+            }
+        }
     }
 
     @SuppressWarnings("unused") //Used from camel route
@@ -63,18 +76,17 @@ public class NsbSXSubscriptionProcessor implements Processor {
         return status;
     }
 
-    private void processPtSituationElement(PtSituationElement ptSituationElement) {
+    private boolean processPtSituationElement(PtSituationElement ptSituationElement) {
         RequestorRef participantRef = ptSituationElement.getParticipantRef();
         boolean isNSB = participantRef != null && "NSB".equalsIgnoreCase(participantRef.getValue());
         if (!isNSB) {
             logger.trace("Skips estimatedVehicleJourney (not NSB)");
-            return;
+            return false;
         }
-        status.handled(PtSituationElement.class);
         AffectsScopeStructure affects = ptSituationElement.getAffects();
         if (affects == null) {
             logger.info("Got PtSituationElement without any effects - nothing to notify");
-            return;
+            return false;
         }
         HashSet<String> stopsToNotify = findAffectedStopPointRefs(affects);
         AffectsScopeStructure.VehicleJourneys vehicleJourneys = affects.getVehicleJourneys();
@@ -90,7 +102,7 @@ public class NsbSXSubscriptionProcessor implements Processor {
         if (!subscriptionsToNotify.isEmpty()) {
             subscriptionManager.notify(subscriptionsToNotify, ptSituationElement);
         }
-
+        return true;
     }
 
     /**

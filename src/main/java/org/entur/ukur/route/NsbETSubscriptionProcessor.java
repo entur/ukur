@@ -17,6 +17,7 @@ package org.entur.ukur.route;
 
 import org.apache.camel.Exchange;
 import org.apache.commons.lang3.StringUtils;
+import org.entur.ukur.routedata.LiveRouteService;
 import org.entur.ukur.subscription.EstimatedCallAndSubscriptions;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionManager;
@@ -24,6 +25,7 @@ import org.entur.ukur.xml.SiriMarshaller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import uk.org.siri.siri20.*;
 
@@ -41,12 +43,21 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
     private SubscriptionManager subscriptionManager;
     private SubscriptionStatus status = new SubscriptionStatus();
     private SiriMarshaller siriMarshaller;
+    private LiveRouteService liveRouteService;
+    private FileStorageService fileStorageService;
+    @Value("${ukur.camel.et.store.files:false}")
+    private boolean storeMessagesToFile = false;
 
     @Autowired
-    public NsbETSubscriptionProcessor(SubscriptionManager subscriptionManager, SiriMarshaller siriMarshaller) {
+    public NsbETSubscriptionProcessor(SubscriptionManager subscriptionManager,
+                                      SiriMarshaller siriMarshaller,
+                                      LiveRouteService liveRouteService,
+                                      FileStorageService fileStorageService) {
         this.siriMarshaller = siriMarshaller;
-        logger.debug("Initializes...");
+        this.liveRouteService = liveRouteService;
+        this.fileStorageService = fileStorageService;
         this.subscriptionManager = subscriptionManager;
+        logger.debug("Initializes...");
     }
 
     /**
@@ -61,7 +72,12 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
             throw new IllegalArgumentException("No EstimatedVehicleJourney element...");
         }
         status.processed(EstimatedVehicleJourney.class);
-        processEstimatedVehicleJourney(estimatedVehicleJourney);
+        if (processEstimatedVehicleJourney(estimatedVehicleJourney)) {
+            status.handled(EstimatedVehicleJourney.class);
+            if (storeMessagesToFile) {
+                fileStorageService.writeToFile(estimatedVehicleJourney);
+            }
+        }
     }
 
     @SuppressWarnings("unused") //Used from camel route
@@ -69,14 +85,14 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
         return status;
     }
 
-    private void processEstimatedVehicleJourney(EstimatedVehicleJourney estimatedVehicleJourney) {
+    private boolean processEstimatedVehicleJourney(EstimatedVehicleJourney estimatedVehicleJourney) {
         OperatorRefStructure operatorRef = estimatedVehicleJourney.getOperatorRef();
         boolean isNSB = operatorRef != null && "NSB".equalsIgnoreCase(operatorRef.getValue());
         if (!isNSB) {
             logger.trace("Skips estimatedVehicleJourney (not NSB)");
-            return;
+            return false;
         }
-        status.handled(EstimatedVehicleJourney.class);
+        liveRouteService.updateJourney(estimatedVehicleJourney);
         List<EstimatedCall> estimatedDelays = getEstimatedDelaysAndCancellations(estimatedVehicleJourney.getEstimatedCalls());
         logger.debug("Processes NSB estimatedVehicleJourney ({}) - with {} estimated delays", estimatedVehicleJourney.getDatedVehicleJourneyRef().getValue(), estimatedDelays.size());
         List<EstimatedCallAndSubscriptions> affectedSubscriptions = findAffectedSubscriptions(estimatedDelays, estimatedVehicleJourney);
@@ -86,7 +102,9 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
             logger.debug(" - For delayed departure from stopPlace {} there are {} affected subscriptions ", estimatedCall.getStopPointRef().getValue(), subscriptions.size());
             subscriptionManager.notify(subscriptions, estimatedVehicleJourney);
         }
+        return true;
     }
+
 
     private List<EstimatedCallAndSubscriptions> findAffectedSubscriptions(List<EstimatedCall> estimatedDelays, EstimatedVehicleJourney estimatedVehicleJourney) {
         ArrayList<EstimatedCallAndSubscriptions> affectedSubscriptions = new ArrayList<>();

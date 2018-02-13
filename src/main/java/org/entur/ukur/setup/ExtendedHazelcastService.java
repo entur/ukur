@@ -20,6 +20,7 @@ import com.hazelcast.config.MapConfig;
 import com.hazelcast.config.MaxSizeConfig;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IMap;
+import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.subscription.Subscription;
 import org.rutebanken.hazelcasthelper.service.HazelCastService;
 import org.rutebanken.hazelcasthelper.service.KubernetesService;
@@ -64,6 +65,11 @@ public class ExtendedHazelcastService extends HazelCastService {
     @Bean
     public IMap<String, String> sharedProperties() {
         return hazelcast.getMap("ukur.sharedProperties");
+    }
+
+    @Bean
+    public IMap<String, LiveJourney> currentJourneys() {
+        return hazelcast.getMap("ukur.currentJourneys");
     }
 
     @Override

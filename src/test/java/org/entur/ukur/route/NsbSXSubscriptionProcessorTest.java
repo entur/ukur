@@ -30,6 +30,7 @@ import java.util.List;
 
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertTrue;
+import static org.mockito.Mockito.mock;
 
 public class NsbSXSubscriptionProcessorTest {
 
@@ -54,7 +55,7 @@ public class NsbSXSubscriptionProcessorTest {
         subscriptionManager.add(s1);
         subscriptionManager.add(s2);
         subscriptionManager.add(s0);
-        NsbSXSubscriptionProcessor processor = new NsbSXSubscriptionProcessor(subscriptionManager, new SiriMarshaller());
+        NsbSXSubscriptionProcessor processor = new NsbSXSubscriptionProcessor(subscriptionManager, new SiriMarshaller(), mock(FileStorageService.class));
 
         //Only one in correct order
         AffectsScopeStructure.VehicleJourneys vehicleJourneys = createVehicleJourneys(Arrays.asList("1", "2", "3", "4"));

@@ -15,6 +15,7 @@
 
 package org.entur.ukur.route;
 
+import org.entur.ukur.routedata.LiveRouteService;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionManager;
 import org.entur.ukur.xml.SiriMarshaller;
@@ -48,7 +49,8 @@ public class NsbETSubscriptionProcessorTest {
         journey.setRecordedCalls(recordedCalls);
         journey.setEstimatedCalls(estimatedCalls);
 
-        NsbETSubscriptionProcessor processor = new NsbETSubscriptionProcessor(mock(SubscriptionManager.class), new SiriMarshaller());
+        NsbETSubscriptionProcessor processor = new NsbETSubscriptionProcessor(mock(SubscriptionManager.class),
+                new SiriMarshaller(), mock(LiveRouteService.class), mock(FileStorageService.class));
 
         //No errors if no hits...
         assertFalse(processor.validDirection(new Subscription(), journey));
