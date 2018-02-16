@@ -22,10 +22,12 @@ package org.entur.ukur.route;
 public class RouteStatus {
 
     private String hostname;
+    private String nodeStartTime;
     private int numberOfSubscriptions;
+    private boolean isLeaderForJourneyFlush = false;
     private boolean isLeaderForETPolling = false;
-    private SubscriptionStatus etSubscriptionStatus;
     private boolean isLeaderForSXPolling = false;
+    private SubscriptionStatus etSubscriptionStatus;
     private SubscriptionStatus sxSubscriptionStatus;
 
     public boolean isLeaderForETPolling() {
@@ -74,5 +76,21 @@ public class RouteStatus {
 
     public void setNumberOfSubscriptions(int numberOfSubscriptions) {
         this.numberOfSubscriptions = numberOfSubscriptions;
+    }
+
+    public boolean isLeaderForJourneyFlush() {
+        return isLeaderForJourneyFlush;
+    }
+
+    public void setLeaderForJourneyFlush(boolean leaderForJourneyFlush) {
+        isLeaderForJourneyFlush = leaderForJourneyFlush;
+    }
+
+    public void setNodeStartTime(String nodeStartTime) {
+        this.nodeStartTime = nodeStartTime;
+    }
+
+    public String getNodeStartTime() {
+        return nodeStartTime;
     }
 }

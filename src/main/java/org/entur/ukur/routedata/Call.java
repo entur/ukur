@@ -21,6 +21,7 @@ import java.io.Serializable;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.List;
+import java.util.Objects;
 
 public class Call implements Serializable {
 
@@ -162,5 +163,29 @@ public class Call implements Serializable {
 
     public void setDepartureTime(ZonedDateTime departureTime) {
         this.departureTime = departureTime;
+    }
+
+    @Override
+    public boolean equals(Object o) {
+        if (this == o) return true;
+        if (o == null || getClass() != o.getClass()) return false;
+        Call call = (Call) o;
+        return extraCall == call.extraCall &&
+                cancellation == call.cancellation &&
+                estimated == call.estimated &&
+                departureStatus == call.departureStatus &&
+                Objects.equals(aimedArrivalTime, call.aimedArrivalTime) &&
+                Objects.equals(arrivalTime, call.arrivalTime) &&
+                arrivalStatus == call.arrivalStatus &&
+                Objects.equals(aimedDepartureTime, call.aimedDepartureTime) &&
+                Objects.equals(departureTime, call.departureTime) &&
+                Objects.equals(stopPointRef, call.stopPointRef) &&
+                Objects.equals(stopPointName, call.stopPointName);
+    }
+
+    @Override
+    public int hashCode() {
+
+        return Objects.hash(extraCall, cancellation, estimated, departureStatus, aimedArrivalTime, arrivalTime, arrivalStatus, aimedDepartureTime, departureTime, stopPointRef, stopPointName);
     }
 }

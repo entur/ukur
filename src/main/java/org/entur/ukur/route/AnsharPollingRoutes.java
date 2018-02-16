@@ -37,6 +37,8 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 
 import java.net.InetAddress;
+import java.time.LocalDateTime;
+import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.UUID;
 
@@ -57,6 +59,7 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
     private NsbSXSubscriptionProcessor nsbSXSubscriptionProcessor;
     private IMap<String, String> sharedProperties;
     private SubscriptionManager subscriptionManager;
+    private String nodeStarted;
 
     @Autowired
     public AnsharPollingRoutes(UkurConfiguration config,
@@ -69,6 +72,7 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
         this.nsbSXSubscriptionProcessor = nsbSXSubscriptionProcessor;
         this.sharedProperties = sharedProperties;
         this.subscriptionManager = subscriptionManager;
+        nodeStarted = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
     }
 
     @Override
@@ -117,9 +121,11 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                 .routeId("Route Status")
                 .process(exchange -> {
                     RouteStatus status = new RouteStatus();
+                    status.setNodeStartTime(nodeStarted);
                     status.setHostname(InetAddress.getLocalHost().getHostName());
                     status.setLeaderForETPolling(isLeader(ROUTEID_ET_TRIGGER));
                     status.setLeaderForSXPolling(isLeader(ROUTEID_SX_TRIGGER));
+                    status.setLeaderForJourneyFlush(isLeader(ROUTEID_FLUSHJOURNEYS_TRIGGER));
                     status.setEtSubscriptionStatus(nsbETSubscriptionProcessor.getStatus());
                     status.setSxSubscriptionStatus(nsbSXSubscriptionProcessor.getStatus());
                     status.setNumberOfSubscriptions(subscriptionManager.getNoSubscriptions());
@@ -151,7 +157,7 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
 
         singletonFrom("quartz2://ukur/flushOldJourneys?fireNow=true&trigger.repeatInterval=" + repatInterval, ROUTEID_FLUSHJOURNEYS_TRIGGER)
                 .filter(e -> isLeader(e.getFromRouteId()))
-                .filter(new NotRunningPredicate(ROUTEID_FLUSHJOURNEYS_TRIGGER))
+                .filter(new NotRunningPredicate(ROUTE_FLUSHJOURNEYS))
                 .log(LoggingLevel.DEBUG, "'Flush old journeys' triggered by timer")
                 .to(ROUTE_FLUSHJOURNEYS);
 
