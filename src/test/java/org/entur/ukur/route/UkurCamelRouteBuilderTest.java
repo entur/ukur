@@ -43,7 +43,7 @@ import static org.junit.Assert.*;
 @SpringBootTest(webEnvironment= SpringBootTest.WebEnvironment.MOCK, classes = App.class)
 @AutoConfigureWireMock(port = 0)
 @SuppressWarnings("unused")
-public class AnsharPollingRoutesTest extends AbstractJUnit4SpringContextTests {
+public class UkurCamelRouteBuilderTest extends AbstractJUnit4SpringContextTests {
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -59,10 +59,10 @@ public class AnsharPollingRoutesTest extends AbstractJUnit4SpringContextTests {
     @Autowired
     private WiremockTestConfig config;
 
-    @Produce(uri = AnsharPollingRoutes.ROUTE_ET_RETRIEVER)
+    @Produce(uri = UkurCamelRouteBuilder.ROUTE_ET_RETRIEVER)
     private ProducerTemplate etTemplate;
 
-    @Produce(uri = AnsharPollingRoutes.ROUTE_SX_RETRIEVER)
+    @Produce(uri = UkurCamelRouteBuilder.ROUTE_SX_RETRIEVER)
     private ProducerTemplate sxTemplate;
 
     @Test

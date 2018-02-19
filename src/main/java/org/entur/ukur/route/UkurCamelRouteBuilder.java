@@ -23,9 +23,14 @@ import org.apache.camel.Predicate;
 import org.apache.camel.builder.PredicateBuilder;
 import org.apache.camel.builder.xml.Namespaces;
 import org.apache.camel.component.jackson.JacksonDataFormat;
+import org.apache.camel.model.RouteDefinition;
 import org.apache.camel.model.language.XPathExpression;
 import org.apache.camel.model.rest.RestBindingMode;
+import org.apache.camel.spi.RouteContext;
+import org.apache.camel.spi.RoutePolicy;
+import org.apache.camel.spring.SpringRouteBuilder;
 import org.entur.ukur.setup.UkurConfiguration;
+import org.entur.ukur.setup.policy.InterruptibleHazelcastRoutePolicy;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionManager;
 import org.slf4j.Logger;
@@ -40,10 +45,14 @@ import java.net.InetAddress;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.UUID;
 
+import static org.entur.ukur.setup.policy.SingletonRoutePolicyFactory.SINGLETON_ROUTE_DEFINITION_GROUP_NAME;
+
 @Component
-public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
+public class UkurCamelRouteBuilder extends SpringRouteBuilder {
+
     public static final String ROUTE_ET_RETRIEVER = "seda:retrieveAnsharET";
     public static final String ROUTE_SX_RETRIEVER = "seda:retrieveAnsharSX";
     private static final String ROUTE_FLUSHJOURNEYS = "seda:flushOldJourneys";
@@ -62,11 +71,11 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
     private String nodeStarted;
 
     @Autowired
-    public AnsharPollingRoutes(UkurConfiguration config,
-                               NsbETSubscriptionProcessor nsbETSubscriptionProcessor,
-                               NsbSXSubscriptionProcessor nsbSXSubscriptionProcessor,
-                               IMap<String, String> sharedProperties,
-                               SubscriptionManager subscriptionManager) {
+    public UkurCamelRouteBuilder(UkurConfiguration config,
+                                 NsbETSubscriptionProcessor nsbETSubscriptionProcessor,
+                                 NsbSXSubscriptionProcessor nsbSXSubscriptionProcessor,
+                                 IMap<String, String> sharedProperties,
+                                 SubscriptionManager subscriptionManager) {
         this.config = config;
         this.nsbETSubscriptionProcessor = nsbETSubscriptionProcessor;
         this.nsbSXSubscriptionProcessor = nsbSXSubscriptionProcessor;
@@ -84,7 +93,7 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
         String siriETurl = config.getAnsharETCamelUrl(requestorId);
         String siriSXurl = config.getAnsharSXCamelUrl(requestorId);
 
-        createPollingRoutes(siriETurl, siriSXurl);
+        createWorkerRoutes(siriETurl, siriSXurl);
         createRestRoutes(config.getRestPort());
         createQuartzRoutes(config.isEtPollingEnabled(), config.isSxPollingEnabled(), config.getPollingInterval());
 
@@ -161,12 +170,9 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                 .log(LoggingLevel.DEBUG, "'Flush old journeys' triggered by timer")
                 .to(ROUTE_FLUSHJOURNEYS);
 
-        from(ROUTE_FLUSHJOURNEYS)
-                .routeId("Flush Old Journeys Asynchronously")
-                .to("bean:liveRouteService?method=flushOldJourneys()");
     }
 
-    private void createPollingRoutes(String siriETurl, String siriSXurl) {
+    private void createWorkerRoutes(String siriETurl, String siriSXurl) {
 
         Predicate splitComplete = exchangeProperty(Exchange.SPLIT_COMPLETE).isEqualTo(true);
         Predicate moreData = exchangeProperty(MORE_DATA).isEqualToIgnoreCase("true");
@@ -215,6 +221,34 @@ public class AnsharPollingRoutes extends AbstractClusterRouteBuilder {
                 .routeId("SX ActiveMQ Listener")
                 .process(nsbSXSubscriptionProcessor)
                 .end();
+
+        from(ROUTE_FLUSHJOURNEYS)
+                .routeId("Flush Old Journeys Asynchronously")
+                .to("bean:liveRouteService?method=flushOldJourneys()");
+    }
+
+    /**
+     * Create a new singleton route definition from URI. Only one such route should be active throughout the cluster at any time.
+     */
+    private RouteDefinition singletonFrom(String uri, String routeId) {
+        return this.from(uri)
+                .group(SINGLETON_ROUTE_DEFINITION_GROUP_NAME)
+                .routeId(routeId)
+                .autoStartup(true);
+    }
+
+
+    private boolean isLeader(String routeId) {
+        RouteContext routeContext = getContext().getRoute(routeId).getRouteContext();
+        List<RoutePolicy> routePolicyList = routeContext.getRoutePolicyList();
+        if (routePolicyList != null) {
+            for (RoutePolicy routePolicy : routePolicyList) {
+                if (routePolicy instanceof InterruptibleHazelcastRoutePolicy) {
+                    return ((InterruptibleHazelcastRoutePolicy) (routePolicy)).isLeader();
+                }
+            }
+        }
+        return false;
     }
 
     @Bean(name = "json-jackson")
