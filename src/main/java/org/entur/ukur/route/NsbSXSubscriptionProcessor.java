@@ -18,6 +18,9 @@ package org.entur.ukur.route;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.commons.lang3.StringUtils;
+import org.entur.ukur.routedata.Call;
+import org.entur.ukur.routedata.LiveJourney;
+import org.entur.ukur.routedata.LiveRouteService;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionManager;
 import org.entur.ukur.xml.SiriMarshaller;
@@ -32,6 +35,7 @@ import uk.org.siri.siri20.*;
 import java.io.InputStream;
 import java.io.Serializable;
 import java.util.*;
+import java.util.stream.Collectors;
 
 @Service
 public class NsbSXSubscriptionProcessor implements Processor {
@@ -39,6 +43,7 @@ public class NsbSXSubscriptionProcessor implements Processor {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
     private SubscriptionManager subscriptionManager;
     private SiriMarshaller siriMarshaller;
+    private LiveRouteService liveRouteService;
     private FileStorageService fileStorageService;
     private SubscriptionStatus status = new SubscriptionStatus();
     @Value("${ukur.camel.sx.store.files:false}")
@@ -47,9 +52,11 @@ public class NsbSXSubscriptionProcessor implements Processor {
     @Autowired
     public NsbSXSubscriptionProcessor(SubscriptionManager subscriptionManager,
                                       SiriMarshaller siriMarshaller,
+                                      LiveRouteService liveRouteService,
                                       FileStorageService fileStorageService) {
         this.subscriptionManager = subscriptionManager;
         this.siriMarshaller = siriMarshaller;
+        this.liveRouteService = liveRouteService;
         this.fileStorageService = fileStorageService;
         logger.debug("Initializes...");
     }
@@ -135,10 +142,10 @@ public class NsbSXSubscriptionProcessor implements Processor {
     }
 
     protected HashSet<Subscription> findAffectedSubscriptions(AffectsScopeStructure.VehicleJourneys vehicleJourneys) {
+        HashMap<String, LiveJourney> journeys = null;
         HashSet<Subscription> subscriptions = new HashSet<>();
         List<AffectedVehicleJourneyStructure> affectedVehicleJourneies = vehicleJourneys.getAffectedVehicleJourneies();
         for (AffectedVehicleJourneyStructure affectedVehicleJourney : affectedVehicleJourneies) {
-            //TODO: if we get route-data from an other source, we can look up a route based on LineRef/VehicleJourneyRef
             List<AffectedRouteStructure> routes = affectedVehicleJourney.getRoutes();
             for (AffectedRouteStructure route : routes) {
                 AffectedRouteStructure.StopPoints stopPoints = route.getStopPoints();
@@ -152,13 +159,40 @@ public class NsbSXSubscriptionProcessor implements Processor {
                         addStop(orderedListOfStops, stopPointRef != null ? stopPointRef.getValue() : null);
                     }
                 }
+                boolean hasCompleteRoute = !Boolean.TRUE.equals(stopPoints.isAffectedOnly());
+                if (!hasCompleteRoute) {
+                    List<VehicleJourneyRef> vehicleJourneyReves = affectedVehicleJourney.getVehicleJourneyReves();
+                    if (vehicleJourneyReves == null || vehicleJourneyReves.isEmpty()) {
+                        logger.trace("No vehicleJourneyRef in AffectedVehicleJourneyStructure");
+                    } else if (vehicleJourneyReves.size() > 1) {
+                        logger.warn("More than one ({}) vehicleJourneyRef in AffectedVehicleJourneyStructure - 'norsk siri profil' only allows one", vehicleJourneyReves.size());
+                    } else {
+                        String vehicleJourneyRef = vehicleJourneyReves.get(0).getValue();
+                        if (journeys == null) {
+                            //only get journeys once per PtSituationElement since access can be slow (hazelcast)
+                            journeys = new HashMap<>();
+                            for (LiveJourney liveJourney : liveRouteService.getJourneys()) {
+                                journeys.put(liveJourney.getVehicleRef(), liveJourney);
+                            }
+                        }
+                        LiveJourney liveJourney = journeys.get(vehicleJourneyRef);
+                        if (liveJourney == null) {
+                            logger.debug("Has no route data for journey with vehicleJourneyRef: {}", vehicleJourneyRef);
+                        } else {
+                            orderedListOfStops = liveJourney.getCalls().stream()
+                                    .map(Call::getStopPointRef)
+                                    .collect(Collectors.toList());
+                            hasCompleteRoute = true;
+                        }
+                    }
+                }
+
                 for (String stop : orderedListOfStops) {
                     Set<Subscription> subscriptionsForStopPoint = subscriptionManager.getSubscriptionsForStopPoint(stop);
-                    if (Boolean.TRUE.equals(stopPoints.isAffectedOnly())) {
+                    if (!hasCompleteRoute) {
                         subscriptions.addAll(subscriptionsForStopPoint);
-                        logger.trace("Only affected stops in route, adds all subscriptions on these stops - regardless of direction");
+                        logger.trace("Has only affected stops and don't find route in LiveRouteService, adds all subscriptions on these stops - regardless of direction");
                     } else {
-                        //TODO: Assumes that the stops are complete and in correct order...
                         for (Subscription subscription : subscriptionsForStopPoint) {
                             if (affected(subscription, orderedListOfStops)) {
                                 subscriptions.add(subscription);
