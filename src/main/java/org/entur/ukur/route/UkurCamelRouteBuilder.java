@@ -188,7 +188,8 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .to(siriETurl)
                 .convertBodyTo(org.w3c.dom.Document.class)
                 .setProperty(MORE_DATA, moreDataExpression)
-                .split(ns.xpath("//s:EstimatedVehicleJourney"))
+                //TODO: this only selects elements with NSB as operator
+                .split(ns.xpath("//s:EstimatedVehicleJourney[s:OperatorRef/text()='NSB']"))
                 .to("activemq:queue:" + UkurConfiguration.ET_QUEUE)
                 .choice()
                 .when(callAnsharAgain)
@@ -209,7 +210,8 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .to(siriSXurl)
                 .convertBodyTo(org.w3c.dom.Document.class)
                 .setProperty(MORE_DATA, moreDataExpression)
-                .split(ns.xpath("//s:PtSituationElement"))
+                //TODO: this only selects elements with NSB as participant
+                .split(ns.xpath("//s:PtSituationElement[s:ParticipantRef/text()='NSB'])"))
                 .to("activemq:queue:" + UkurConfiguration.SX_QUEUE)
                 .choice()
                 .when(callAnsharAgain)

@@ -78,12 +78,12 @@ public class UkurCamelRouteBuilderTest extends AbstractJUnit4SpringContextTests 
 
         logger.debug("\n\n---START---\n{}\n\n", objectWriter.writeValueAsString(status));
         etTemplate.sendBody("go!");
-        waitUntil(status, EstimatedVehicleJourney.class, 10);
+        waitUntil(status, EstimatedVehicleJourney.class, 1);
         logger.debug("\n\n---END---\n{}\n\n", objectWriter.writeValueAsString(status));
 
         assertNotNull(status.getLastProcessed());
         assertEquals(1, status.getProcessedCounter().size());
-        assertEquals(new Long(10), status.getProcessedCounter().get(EstimatedVehicleJourney.class));
+        assertEquals(new Long(1), status.getProcessedCounter().get(EstimatedVehicleJourney.class));
         assertNotNull(status.getLastHandled());
         assertEquals(new Long(1), status.getHandledCounter().get(EstimatedVehicleJourney.class));
     }
@@ -101,12 +101,12 @@ public class UkurCamelRouteBuilderTest extends AbstractJUnit4SpringContextTests 
 
         logger.debug("\n\n---START---\n{}\n\n", objectWriter.writeValueAsString(status));
         sxTemplate.sendBody("go!");
-        waitUntil(status, PtSituationElement.class, 9);
+        waitUntil(status, PtSituationElement.class, 5);
         logger.debug("\n\n---END---\n{}\n\n", objectWriter.writeValueAsString(status));
 
         assertNotNull(status.getLastProcessed());
         assertEquals(1, status.getProcessedCounter().size());
-        assertEquals(new Long(9), status.getProcessedCounter().get(PtSituationElement.class));
+        assertEquals(new Long(5), status.getProcessedCounter().get(PtSituationElement.class));
         assertNotNull(status.getLastHandled());
         assertEquals(new Long(5), status.getHandledCounter().get(PtSituationElement.class));
     }
@@ -114,8 +114,8 @@ public class UkurCamelRouteBuilderTest extends AbstractJUnit4SpringContextTests 
     private void waitUntil(SubscriptionStatus status, Class keyClass, int expectedCount) throws InterruptedException {
         //things are asynchronous: wait until expected conditions are met (or time out)
         long start = System.currentTimeMillis();
-        while (status.getProcessedCounter().get(keyClass) == null
-                || status.getProcessedCounter().get(keyClass) < expectedCount) {
+        while (status.getHandledCounter().get(keyClass) == null
+                || status.getHandledCounter().get(keyClass) < expectedCount) {
             if ((System.currentTimeMillis() - start) > 5000) {
                 fail("This takes to long...");
             }
