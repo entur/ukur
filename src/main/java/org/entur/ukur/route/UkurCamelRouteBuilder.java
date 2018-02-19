@@ -211,7 +211,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .convertBodyTo(org.w3c.dom.Document.class)
                 .setProperty(MORE_DATA, moreDataExpression)
                 //TODO: this only selects elements with NSB as participant
-                .split(ns.xpath("//s:PtSituationElement[s:ParticipantRef/text()='NSB'])"))
+                .split(ns.xpath("//s:PtSituationElement[s:ParticipantRef/text()='NSB']"))
                 .to("activemq:queue:" + UkurConfiguration.SX_QUEUE)
                 .choice()
                 .when(callAnsharAgain)
