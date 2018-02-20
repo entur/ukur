@@ -15,6 +15,7 @@
 
 package org.entur.ukur.routedata;
 
+import com.hazelcast.core.IMap;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -29,10 +30,10 @@ import java.util.*;
 public class LiveRouteService {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    private Map<String, LiveJourney> currentJourneys;
+    private IMap<String, LiveJourney> currentJourneys;
 
     @Autowired
-    public LiveRouteService(@Qualifier("currentJourneys") Map<String, LiveJourney> currentJourneys) {
+    public LiveRouteService(@Qualifier("currentJourneys") IMap<String, LiveJourney> currentJourneys) {
         this.currentJourneys = currentJourneys;
     }
 
@@ -41,8 +42,12 @@ public class LiveRouteService {
         if (journey != null && journey.getVehicleRef() != null) {
             if (Boolean.TRUE.equals(journey.isIsCompleteStopSequence())) {
                 LiveJourney lj = new LiveJourney(journey);
-                LiveJourney oldJourney = currentJourneys.put(lj.getVehicleRef(), lj);
-                logger.debug("{} journey with VehicleRef={}", oldJourney == null ? "Added" : "Updated", lj.getVehicleRef());
+                if (lj.getLastArrivalTime() == null) {
+                    logger.warn("Got EstimatedVehicleJourney (VehicleRef={}) that we could not read LastArrivalTime from - skips it", journey.getVehicleRef());
+                } else {
+                    currentJourneys.set(lj.getVehicleRef(), lj);
+                    logger.debug("Set journey with VehicleRef={}", lj.getVehicleRef());
+                }
             } else {
                 logger.warn("Got EstimatedVehicleJourney with incomplete StopSequence - skips it... (VehicleRef={})", journey.getVehicleRef().getValue());
             }
@@ -53,14 +58,15 @@ public class LiveRouteService {
     public void flushOldJourneys() {
         HashSet<String> toFlush = new HashSet<>();
         ZonedDateTime now = ZonedDateTime.now().minusMinutes(15);//Keeps journeys 15 minutes after their last arrival
-        for (LiveJourney journey : currentJourneys.values()) {
+        Collection<LiveJourney> values = currentJourneys.values();
+        for (LiveJourney journey : values) {
             if (now.isAfter(journey.getLastArrivalTime())) {
                 toFlush.add(journey.getVehicleRef());
             }
         }
         logger.debug("Will flush {} journeys out of a total of {}", toFlush.size(), currentJourneys.size());
         for (String flush : toFlush) {
-            currentJourneys.remove(flush);
+            currentJourneys.delete(flush);
         }
 
     }
