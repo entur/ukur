@@ -43,7 +43,7 @@ public class LiveRouteService {
             if (Boolean.TRUE.equals(journey.isIsCompleteStopSequence())) {
                 LiveJourney lj = new LiveJourney(journey);
                 if (lj.getLastArrivalTime() == null) {
-                    logger.warn("Got EstimatedVehicleJourney (VehicleRef={}) that we could not read LastArrivalTime from - skips it", journey.getVehicleRef());
+                    logger.info("Got EstimatedVehicleJourney (VehicleRef={}) that we could not read LastArrivalTime from - skips it", journey.getVehicleRef().getValue());
                 } else {
                     currentJourneys.set(lj.getVehicleRef(), lj);
                     logger.debug("Set journey with VehicleRef={}", lj.getVehicleRef());
