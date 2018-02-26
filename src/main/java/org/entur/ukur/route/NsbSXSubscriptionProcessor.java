@@ -117,7 +117,7 @@ public class NsbSXSubscriptionProcessor implements Processor {
      *  Gå gjennom Affects|StopPlacess og matche StopPlaceRef mot subscriptions <-- Litt usikker på denne, men tar med for nå
 	 *  Gå gjennom Affects|VehicleJourneys|AffectedVehicleJourney|Route|StopPoints|AffectedStopPoint og
      */
-    private HashSet<String> findAffectedStopPointRefs(AffectsScopeStructure affects) {
+    protected HashSet<String> findAffectedStopPointRefs(AffectsScopeStructure affects) {
         HashSet<String> stopsToNotify = new HashSet<>();
 
         AffectsScopeStructure.StopPoints affectsStopPoints = affects.getStopPoints();
