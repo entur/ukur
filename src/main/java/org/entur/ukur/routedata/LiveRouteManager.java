@@ -29,13 +29,13 @@ import java.util.Collections;
 import java.util.HashSet;
 
 @Service
-public class LiveRouteService {
+public class LiveRouteManager {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
     private DataStorageService dataStorageService;
 
 
     @Autowired
-    public LiveRouteService(DataStorageService dataStorageService) {
+    public LiveRouteManager(DataStorageService dataStorageService) {
         this.dataStorageService = dataStorageService;
     }
 

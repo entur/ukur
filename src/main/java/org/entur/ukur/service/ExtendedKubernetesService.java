@@ -13,8 +13,9 @@
  * limitations under the Licence.
  */
 
-package org.entur.ukur.setup;
+package org.entur.ukur.service;
 
+import org.entur.ukur.setup.UkurConfiguration;
 import org.rutebanken.hazelcasthelper.service.KubernetesService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Service;

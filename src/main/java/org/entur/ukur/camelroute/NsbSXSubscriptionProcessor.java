@@ -21,7 +21,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.entur.ukur.camelroute.status.SubscriptionStatus;
 import org.entur.ukur.routedata.Call;
 import org.entur.ukur.routedata.LiveJourney;
-import org.entur.ukur.routedata.LiveRouteService;
+import org.entur.ukur.routedata.LiveRouteManager;
 import org.entur.ukur.service.FileStorageService;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionManager;
@@ -45,7 +45,7 @@ public class NsbSXSubscriptionProcessor implements Processor {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
     private SubscriptionManager subscriptionManager;
     private SiriMarshaller siriMarshaller;
-    private LiveRouteService liveRouteService;
+    private LiveRouteManager liveRouteManager;
     private FileStorageService fileStorageService;
     private SubscriptionStatus status = new SubscriptionStatus();
     @Value("${ukur.camel.sx.store.files:false}")
@@ -54,11 +54,11 @@ public class NsbSXSubscriptionProcessor implements Processor {
     @Autowired
     public NsbSXSubscriptionProcessor(SubscriptionManager subscriptionManager,
                                       SiriMarshaller siriMarshaller,
-                                      LiveRouteService liveRouteService,
+                                      LiveRouteManager liveRouteManager,
                                       FileStorageService fileStorageService) {
         this.subscriptionManager = subscriptionManager;
         this.siriMarshaller = siriMarshaller;
-        this.liveRouteService = liveRouteService;
+        this.liveRouteManager = liveRouteManager;
         this.fileStorageService = fileStorageService;
         logger.debug("Initializes...");
     }
@@ -173,7 +173,7 @@ public class NsbSXSubscriptionProcessor implements Processor {
                         if (journeys == null) {
                             //only get journeys once per PtSituationElement since access can be slow (hazelcast)
                             journeys = new HashMap<>();
-                            for (LiveJourney liveJourney : liveRouteService.getJourneys()) {
+                            for (LiveJourney liveJourney : liveRouteManager.getJourneys()) {
                                 journeys.put(liveJourney.getVehicleRef(), liveJourney);
                             }
                         }

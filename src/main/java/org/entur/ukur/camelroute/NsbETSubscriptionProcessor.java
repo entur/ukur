@@ -18,7 +18,7 @@ package org.entur.ukur.camelroute;
 import org.apache.camel.Exchange;
 import org.apache.commons.lang3.StringUtils;
 import org.entur.ukur.camelroute.status.SubscriptionStatus;
-import org.entur.ukur.routedata.LiveRouteService;
+import org.entur.ukur.routedata.LiveRouteManager;
 import org.entur.ukur.service.FileStorageService;
 import org.entur.ukur.subscription.EstimatedCallAndSubscriptions;
 import org.entur.ukur.subscription.Subscription;
@@ -45,7 +45,7 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
     private SubscriptionManager subscriptionManager;
     private SubscriptionStatus status = new SubscriptionStatus();
     private SiriMarshaller siriMarshaller;
-    private LiveRouteService liveRouteService;
+    private LiveRouteManager liveRouteManager;
     private FileStorageService fileStorageService;
     @Value("${ukur.camel.et.store.files:false}")
     private boolean storeMessagesToFile = false;
@@ -53,10 +53,10 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
     @Autowired
     public NsbETSubscriptionProcessor(SubscriptionManager subscriptionManager,
                                       SiriMarshaller siriMarshaller,
-                                      LiveRouteService liveRouteService,
+                                      LiveRouteManager liveRouteManager,
                                       FileStorageService fileStorageService) {
         this.siriMarshaller = siriMarshaller;
-        this.liveRouteService = liveRouteService;
+        this.liveRouteManager = liveRouteManager;
         this.fileStorageService = fileStorageService;
         this.subscriptionManager = subscriptionManager;
         logger.debug("Initializes...");
@@ -94,7 +94,7 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
             logger.trace("Skips estimatedVehicleJourney (not NSB)");
             return false;
         }
-        liveRouteService.updateJourney(estimatedVehicleJourney);
+        liveRouteManager.updateJourney(estimatedVehicleJourney);
         List<EstimatedCall> estimatedDelays = getEstimatedDelaysAndCancellations(estimatedVehicleJourney.getEstimatedCalls());
         logger.debug("Processes NSB estimatedVehicleJourney ({}) - with {} estimated delays", estimatedVehicleJourney.getDatedVehicleJourneyRef().getValue(), estimatedDelays.size());
         List<EstimatedCallAndSubscriptions> affectedSubscriptions = findAffectedSubscriptions(estimatedDelays, estimatedVehicleJourney);

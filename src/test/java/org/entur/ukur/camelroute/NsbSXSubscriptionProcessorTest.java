@@ -18,7 +18,7 @@ package org.entur.ukur.camelroute;
 import com.hazelcast.core.IMap;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
 import org.entur.ukur.routedata.LiveJourney;
-import org.entur.ukur.routedata.LiveRouteService;
+import org.entur.ukur.routedata.LiveRouteManager;
 import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.FileStorageService;
 import org.entur.ukur.subscription.Subscription;
@@ -62,9 +62,9 @@ public class NsbSXSubscriptionProcessorTest {
         subscriptionManager.add(s1);
         subscriptionManager.add(s2);
         subscriptionManager.add(s0);
-        LiveRouteService liveRouteServiceMock = mock(LiveRouteService.class);
+        LiveRouteManager liveRouteManagerMock = mock(LiveRouteManager.class);
         NsbSXSubscriptionProcessor processor = new NsbSXSubscriptionProcessor(subscriptionManager,
-                new SiriMarshaller(), liveRouteServiceMock, mock(FileStorageService.class));
+                new SiriMarshaller(), liveRouteManagerMock, mock(FileStorageService.class));
 
         //Only one in correct order
         HashSet<Subscription> affectedSubscriptions = processor.findAffectedSubscriptions(createVehicleJourneys(Arrays.asList("1", "2", "3", "4"), null, false));
@@ -83,7 +83,7 @@ public class NsbSXSubscriptionProcessorTest {
         assertTrue(names.contains("s0"));
 
         //Only one when we look up the camelroute if not all stops is present in camelroute
-        when(liveRouteServiceMock.getJourneys()).thenReturn(Collections.singletonList(createLiveJourney("123", Arrays.asList("1", "2", "3"))));
+        when(liveRouteManagerMock.getJourneys()).thenReturn(Collections.singletonList(createLiveJourney("123", Arrays.asList("1", "2", "3"))));
         affectedSubscriptions = processor.findAffectedSubscriptions(createVehicleJourneys(Collections.singletonList("2"), "123", true));
         assertEquals(1, affectedSubscriptions.size());
         assertEquals("s1", affectedSubscriptions.iterator().next().getName());
@@ -104,10 +104,10 @@ public class NsbSXSubscriptionProcessorTest {
 
         SubscriptionManager subscriptionManager = createSubscriptionManager();
         subscriptionManager.add(s1);
-        LiveRouteService liveRouteServiceMock = mock(LiveRouteService.class);
+        LiveRouteManager liveRouteManagerMock = mock(LiveRouteManager.class);
         SiriMarshaller siriMarshaller = new SiriMarshaller();
         NsbSXSubscriptionProcessor processor = new NsbSXSubscriptionProcessor(subscriptionManager,
-                siriMarshaller, liveRouteServiceMock, mock(FileStorageService.class));
+                siriMarshaller, liveRouteManagerMock, mock(FileStorageService.class));
 
         String SX_with_one_affected_stop_on_journey =
                 "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n" +
@@ -152,7 +152,7 @@ public class NsbSXSubscriptionProcessorTest {
                 "</PtSituationElement>\n";
         PtSituationElement ptSituationElement = siriMarshaller.unmarhall(SX_with_one_affected_stop_on_journey, PtSituationElement.class);
 
-        when(liveRouteServiceMock.getJourneys()).thenReturn(Collections.singletonList(createLiveJourney("64", Arrays.asList("1", "2", "440"))));
+        when(liveRouteManagerMock.getJourneys()).thenReturn(Collections.singletonList(createLiveJourney("64", Arrays.asList("1", "2", "440"))));
 
         assertNotNull(ptSituationElement);
         assertNotNull(ptSituationElement.getAffects());
