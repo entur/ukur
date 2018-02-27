@@ -13,7 +13,7 @@
  * limitations under the Licence.
  */
 
-package org.entur.ukur.setup.policy;
+package org.entur.ukur.camelroute.policy;
 
 import org.apache.camel.CamelContext;
 import org.apache.camel.model.RouteDefinition;

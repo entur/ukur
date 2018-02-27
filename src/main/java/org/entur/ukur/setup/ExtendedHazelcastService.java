@@ -34,9 +34,7 @@ import java.util.Set;
 @Service
 public class ExtendedHazelcastService extends HazelCastService {
 
-    /**
-     * Evict cache when free heap percentage is below this value
-     */
+    /** Evict cache when free heap percentage is below this value */
     private static final int EVICT_WHEN_FREE_HEAP_PERCENTAGE_BELOW = 25;
 
     public ExtendedHazelcastService(@Autowired KubernetesService kubernetesService, @Autowired UkurConfiguration cfg) {

@@ -13,7 +13,7 @@
  * limitations under the Licence.
  */
 
-package org.entur.ukur.route;
+package org.entur.ukur.camelroute;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hazelcast.core.IMap;
@@ -29,8 +29,9 @@ import org.apache.camel.model.rest.RestBindingMode;
 import org.apache.camel.spi.RouteContext;
 import org.apache.camel.spi.RoutePolicy;
 import org.apache.camel.spring.SpringRouteBuilder;
+import org.entur.ukur.camelroute.status.RouteStatus;
 import org.entur.ukur.setup.UkurConfiguration;
-import org.entur.ukur.setup.policy.InterruptibleHazelcastRoutePolicy;
+import org.entur.ukur.camelroute.policy.InterruptibleHazelcastRoutePolicy;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionManager;
 import org.slf4j.Logger;
@@ -48,7 +49,7 @@ import java.util.HashMap;
 import java.util.List;
 import java.util.UUID;
 
-import static org.entur.ukur.setup.policy.SingletonRoutePolicyFactory.SINGLETON_ROUTE_DEFINITION_GROUP_NAME;
+import static org.entur.ukur.camelroute.policy.SingletonRoutePolicyFactory.SINGLETON_ROUTE_DEFINITION_GROUP_NAME;
 
 @Component
 public class UkurCamelRouteBuilder extends SpringRouteBuilder {
@@ -230,7 +231,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
     }
 
     /**
-     * Create a new singleton route definition from URI. Only one such route should be active throughout the cluster at any time.
+     * Create a new singleton camelroute definition from URI. Only one such camelroute should be active throughout the cluster at any time.
      */
     private RouteDefinition singletonFrom(String uri, String routeId) {
         return this.from(uri)

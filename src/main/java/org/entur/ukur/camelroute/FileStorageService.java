@@ -13,7 +13,7 @@
  * limitations under the Licence.
  */
 
-package org.entur.ukur.route;
+package org.entur.ukur.camelroute;
 
 import org.apache.commons.lang3.StringUtils;
 import org.entur.ukur.xml.SiriMarshaller;

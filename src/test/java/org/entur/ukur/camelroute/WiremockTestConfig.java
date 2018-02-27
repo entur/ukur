@@ -13,7 +13,7 @@
  * limitations under the Licence.
  */
 
-package org.entur.ukur.route;
+package org.entur.ukur.camelroute;
 
 import org.entur.ukur.setup.UkurConfiguration;
 import org.slf4j.Logger;

@@ -13,10 +13,11 @@
  * limitations under the Licence.
  */
 
-package org.entur.ukur.route;
+package org.entur.ukur.camelroute;
 
 import org.apache.camel.Exchange;
 import org.apache.commons.lang3.StringUtils;
+import org.entur.ukur.camelroute.status.SubscriptionStatus;
 import org.entur.ukur.routedata.LiveRouteService;
 import org.entur.ukur.subscription.EstimatedCallAndSubscriptions;
 import org.entur.ukur.subscription.Subscription;
@@ -80,7 +81,7 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
         }
     }
 
-    @SuppressWarnings("unused") //Used from camel route
+    @SuppressWarnings("unused") //Used from camel camelroute
     public SubscriptionStatus getStatus() {
         return status;
     }

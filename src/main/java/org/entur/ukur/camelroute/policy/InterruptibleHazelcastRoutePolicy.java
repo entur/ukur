@@ -13,7 +13,7 @@
  * limitations under the Licence.
  */
 
-package org.entur.ukur.setup.policy;
+package org.entur.ukur.camelroute.policy;
 
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.HazelcastInstanceNotActiveException;

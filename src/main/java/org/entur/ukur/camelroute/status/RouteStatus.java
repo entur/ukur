@@ -13,7 +13,7 @@
  * limitations under the Licence.
  */
 
-package org.entur.ukur.route;
+package org.entur.ukur.camelroute.status;
 
 /**
  * Some route statistics for a single node.

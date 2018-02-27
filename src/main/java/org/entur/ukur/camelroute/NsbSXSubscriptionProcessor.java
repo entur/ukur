@@ -13,11 +13,12 @@
  * limitations under the Licence.
  */
 
-package org.entur.ukur.route;
+package org.entur.ukur.camelroute;
 
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.commons.lang3.StringUtils;
+import org.entur.ukur.camelroute.status.SubscriptionStatus;
 import org.entur.ukur.routedata.Call;
 import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.routedata.LiveRouteService;
@@ -78,7 +79,7 @@ public class NsbSXSubscriptionProcessor implements Processor {
         }
     }
 
-    @SuppressWarnings("unused") //Used from camel route
+    @SuppressWarnings("unused") //Used from camel camelroute
     public SubscriptionStatus getStatus() {
         return status;
     }
@@ -177,7 +178,7 @@ public class NsbSXSubscriptionProcessor implements Processor {
                         }
                         LiveJourney liveJourney = journeys.get(vehicleJourneyRef);
                         if (liveJourney == null) {
-                            logger.debug("Has no route data for journey with vehicleJourneyRef: {}", vehicleJourneyRef);
+                            logger.debug("Has no camelroute data for journey with vehicleJourneyRef: {}", vehicleJourneyRef);
                         } else {
                             orderedListOfStops = liveJourney.getCalls().stream()
                                     .map(Call::getStopPointRef)
@@ -191,7 +192,7 @@ public class NsbSXSubscriptionProcessor implements Processor {
                     Set<Subscription> subscriptionsForStopPoint = subscriptionManager.getSubscriptionsForStopPoint(stop);
                     if (!hasCompleteRoute) {
                         subscriptions.addAll(subscriptionsForStopPoint);
-                        logger.trace("Has only affected stops and don't find route in LiveRouteService, adds all subscriptions on these stops - regardless of direction");
+                        logger.trace("Has only affected stops and don't find camelroute in LiveRouteService, adds all subscriptions on these stops - regardless of direction");
                     } else {
                         for (Subscription subscription : subscriptionsForStopPoint) {
                             if (affected(subscription, orderedListOfStops)) {

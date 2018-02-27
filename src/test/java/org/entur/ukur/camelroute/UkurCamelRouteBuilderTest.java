@@ -13,7 +13,7 @@
  * limitations under the Licence.
  */
 
-package org.entur.ukur.route;
+package org.entur.ukur.camelroute;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.fasterxml.jackson.databind.ObjectWriter;
@@ -21,6 +21,7 @@ import org.apache.camel.Produce;
 import org.apache.camel.ProducerTemplate;
 import org.apache.commons.io.IOUtils;
 import org.entur.ukur.App;
+import org.entur.ukur.camelroute.status.SubscriptionStatus;
 import org.entur.ukur.subscription.SubscriptionManager;
 import org.junit.Test;
 import org.junit.runner.RunWith;

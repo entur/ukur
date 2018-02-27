@@ -13,7 +13,7 @@
  * limitations under the Licence.
  */
 
-package org.entur.ukur.route;
+package org.entur.ukur.camelroute;
 
 import com.fasterxml.jackson.databind.SerializationFeature;
 import org.apache.camel.CamelContext;

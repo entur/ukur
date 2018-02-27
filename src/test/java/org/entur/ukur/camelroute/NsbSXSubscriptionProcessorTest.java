@@ -13,7 +13,7 @@
  * limitations under the Licence.
  */
 
-package org.entur.ukur.route;
+package org.entur.ukur.camelroute;
 
 import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.routedata.LiveRouteService;
@@ -72,14 +72,14 @@ public class NsbSXSubscriptionProcessorTest {
         affectedSubscriptions = processor.findAffectedSubscriptions(createVehicleJourneys(Arrays.asList("4", "3", "2", "1"), null, false));
         assertTrue(affectedSubscriptions.isEmpty());
 
-        //All when we don't know if all stops is present in route
+        //All when we don't know if all stops is present in camelroute
         affectedSubscriptions = processor.findAffectedSubscriptions(createVehicleJourneys(Collections.singletonList("2"), null, true));
         assertEquals(2, affectedSubscriptions.size());
         Set<String> names = affectedSubscriptions.stream().map(Subscription::getName).collect(Collectors.toSet());
         assertTrue(names.contains("s1"));
         assertTrue(names.contains("s0"));
 
-        //Only one when we look up the route if not all stops is present in route
+        //Only one when we look up the camelroute if not all stops is present in camelroute
         when(liveRouteServiceMock.getJourneys()).thenReturn(Collections.singletonList(createLiveJourney("123", Arrays.asList("1", "2", "3"))));
         affectedSubscriptions = processor.findAffectedSubscriptions(createVehicleJourneys(Collections.singletonList("2"), "123", true));
         assertEquals(1, affectedSubscriptions.size());
@@ -153,7 +153,7 @@ public class NsbSXSubscriptionProcessorTest {
         assertEquals(0, affectedStopPointRefs.size());
         HashSet<Subscription> affectedSubscriptions = processor.findAffectedSubscriptions(ptSituationElement.getAffects().getVehicleJourneys());
         assertEquals(0, affectedSubscriptions.size());
-        //modify affected journey so we have no route data
+        //modify affected journey so we have no camelroute data
         List<AffectedVehicleJourneyStructure> affectedVehicleJourneies = ptSituationElement.getAffects().getVehicleJourneys().getAffectedVehicleJourneies();
         List<VehicleJourneyRef> vehicleJourneyReves = affectedVehicleJourneies.get(0).getVehicleJourneyReves();
         vehicleJourneyReves.clear();

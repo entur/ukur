@@ -13,7 +13,7 @@
  * limitations under the Licence.
  */
 
-package org.entur.ukur.route;
+package org.entur.ukur.camelroute.status;
 
 import com.fasterxml.jackson.databind.annotation.JsonSerialize;
 import org.entur.ukur.json.CustomLocalDateTimeSerializer;
