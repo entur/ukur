@@ -17,10 +17,12 @@ package org.entur.ukur.routedata;
 
 import com.hazelcast.core.IMap;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
+import org.entur.ukur.service.DataStorageService;
 import org.junit.Test;
 import uk.org.siri.siri20.*;
 
 import java.time.ZonedDateTime;
+import java.util.HashMap;
 
 import static org.junit.Assert.assertEquals;
 
@@ -29,7 +31,7 @@ public class LiveRouteServiceTest {
     @Test
     public void updateJourney() {
         IMap<String, LiveJourney> liveJourneyIMap = new TestHazelcastInstanceFactory().newHazelcastInstance().getMap("journeys");
-        LiveRouteService service = new LiveRouteService(liveJourneyIMap);
+        LiveRouteService service = new LiveRouteService(new DataStorageService(new HashMap<>(), new HashMap<>(), new HashMap<>(), liveJourneyIMap));
         service.updateJourney(createEstimatedVehicleJourney("1", "NSB:Line:Test1", false, ZonedDateTime.now().plusHours(1)));
         service.updateJourney(createEstimatedVehicleJourney("2", "NSB:Line:Test1", true, ZonedDateTime.now().plusHours(2)));
         service.updateJourney(createEstimatedVehicleJourney("3", "NSB:Line:Test2", false, ZonedDateTime.now()));

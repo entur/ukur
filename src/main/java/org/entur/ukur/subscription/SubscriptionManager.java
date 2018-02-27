@@ -17,11 +17,11 @@ package org.entur.ukur.subscription;
 
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.xml.SiriMarshaller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -39,22 +39,16 @@ import static org.entur.ukur.subscription.PushAcknowledge.OK;
 @Service
 public class SubscriptionManager {
 
-    private Map<String, Set<String>> subscriptionsPerStopPoint;
-    private Map<String, Subscription> subscriptions;
-    private Map<Object, Long> alreadySentCache;
+    private DataStorageService dataStorageService;
     private SiriMarshaller siriMarshaller;
     private String hostname;
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
-    public SubscriptionManager(@Qualifier("subscriptionIdsPerStopPoint") Map<String, Set<String>> subscriptionsPerStopPoint,
-                               @Qualifier("subscriptions") Map<String, Subscription> subscriptions,
-                               @Qualifier("alreadySentCache") Map<Object, Long> alreadySentCache,
+    public SubscriptionManager(DataStorageService dataStorageService,
                                SiriMarshaller siriMarshaller) {
-        this.subscriptionsPerStopPoint = subscriptionsPerStopPoint;
-        this.subscriptions = subscriptions;
-        this.alreadySentCache = alreadySentCache;
+        this.dataStorageService = dataStorageService;
         this.siriMarshaller = siriMarshaller;
         try {
             hostname = InetAddress.getLocalHost().getHostName();
@@ -63,12 +57,12 @@ public class SubscriptionManager {
             hostname = "random_"+new Random().nextInt(10000); //want to separate message producing nodes from each other, this will work as fallback
             logger.error("Cant resolve hostname - use random name '{}' instead to differentiate nodes", hostname, e);
         }
-        logger.info("There are at startup {} subscriptions with totally {} unique stops", subscriptions.size(), subscriptionsPerStopPoint.size());
+        logger.info("There are at startup {} subscriptions with totally {} unique stops", dataStorageService.getNumberOfSubscriptions(), dataStorageService.getNumberOfUniqueStops());
     }
 
     @SuppressWarnings("unused") //Used from camel route
     public Collection<Subscription> listAll() {
-        Collection<Subscription> existingSubscriptions = subscriptions.values();
+        Collection<Subscription> existingSubscriptions = dataStorageService.getSubscriptions();
         Collection<Subscription> result = new ArrayList<>(existingSubscriptions.size());
         for (Subscription subscription : existingSubscriptions) {
             Subscription clone = clone(subscription);
@@ -77,27 +71,16 @@ public class SubscriptionManager {
             clone.setPushAddress("---hidden---");
             result.add(clone);
         }
-        logger.debug("There are {} subscriptions regarding {} unique stoppoints", result.size(), subscriptionsPerStopPoint.keySet().size());
+        logger.debug("There are {} subscriptions regarding {} unique stoppoints", result.size(), dataStorageService.getNumberOfUniqueStops());
         return result;
     }
 
     public int getNoSubscriptions() {
-        return subscriptions.size();
+        return dataStorageService.getNumberOfSubscriptions();
     }
 
     public Set<Subscription> getSubscriptionsForStopPoint(String stopPointRef) {
-        Set<String> subscriptionIds = subscriptionsPerStopPoint.get(stopPointRef);
-        if (subscriptionIds == null) {
-            return Collections.emptySet();
-        }
-        HashSet<Subscription> result = new HashSet<>(subscriptionIds.size());
-        for (String subscriptionId : subscriptionIds) {
-            Subscription subscription = subscriptions.get(subscriptionId);
-            if (subscription != null) {
-                result.add(subscription);
-            }
-        }
-        return result;
+        return dataStorageService.getSubscriptionsForStopPoint(stopPointRef);
     }
 
     public void notify(HashSet<Subscription> subscriptions, EstimatedVehicleJourney estimatedVehicleJourney) {
@@ -233,50 +216,16 @@ public class SubscriptionManager {
             throw new IllegalArgumentException("At least one valid TO stop required");
         }
 
-        String id = UUID.randomUUID().toString();
-        while (subscriptions.containsKey(id)) {
-            logger.warn("Not really possible: New randomUUID already exists (!) - generates a new one....");
-            id = UUID.randomUUID().toString();
-        }
-        logger.info("Adds new subscription - assigns id: {}", id);
-        s.setId(id);
-        subscriptions.put(id, s);
-        HashSet<String> subscribedStops = new HashSet<>();
-        subscribedStops.addAll(s.getFromStopPoints());
-        subscribedStops.addAll(s.getToStopPoints());
-        for (String stoppoint : subscribedStops) {
-            stoppoint = stoppoint.trim();// //TODO: consider make usage of these ids case insensitive, maybe using .toUpperCase();
-            Set<String> subscriptions = subscriptionsPerStopPoint.get(stoppoint);
-            if (subscriptions == null) {
-                subscriptions = new HashSet<>();
-            }
-            subscriptions.add(s.getId());
-            subscriptionsPerStopPoint.put(stoppoint, subscriptions);//cause of hazelcast
-        }
-        Set<String> stopRefs = subscriptionsPerStopPoint.keySet();
-        logger.debug("There are now subscriptions regarding {} unique stoppoints", stopRefs.size());
-
-        return s;
+        Subscription added = dataStorageService.addSubscription(s);
+        logger.info("Adds new subscription - assigns id: {}", added.getId());
+        logger.debug("There are now {} subscriptions regarding {} unique stops", dataStorageService.getNumberOfSubscriptions(), dataStorageService.getNumberOfUniqueStops());
+        return added;
     }
 
     @SuppressWarnings({"unused", "UnusedReturnValue", "WeakerAccess"}) //Used from Camel REST api
     public Subscription remove(String subscriptionId) {
         logger.info("Removes subscription with id {}", subscriptionId);
-        Subscription removed = subscriptions.remove(subscriptionId);
-        if (removed != null) {
-            HashSet<String> subscribedStops = new HashSet<>();
-            subscribedStops.addAll(removed.getFromStopPoints());
-            subscribedStops.addAll(removed.getToStopPoints());
-            logger.debug("Also removes the subscription from these stops: {}", subscribedStops);
-            for (String stoppoint : subscribedStops) {
-                Set<String> subscriptions = subscriptionsPerStopPoint.get(stoppoint);
-                if (subscriptions != null) {
-                    subscriptions.remove(removed.getId());
-                    subscriptionsPerStopPoint.put(stoppoint, subscriptions); //cause of hazelcast
-                }
-            }
-        }
-        return removed;
+        return dataStorageService.removeSubscription(subscriptionId);
     }
 
     private Set<String> getAllStops(Subscription subscription) {
@@ -299,14 +248,16 @@ public class SubscriptionManager {
     private void pushMessage(Subscription subscription, Object siriElement) {
 
         String alreadySentKey = calculateUniqueKey(subscription, siriElement);
-        Long ifPresent = alreadySentCache.get(alreadySentKey);
+        Long ifPresent = dataStorageService.getAlreadySent(alreadySentKey);
+
         if (ifPresent != null) {
             long diffInSecs = (System.currentTimeMillis() - ifPresent) / 1000;
             logger.debug("skips message since it has already been pushed to the same subscription (id={}) {} seconds ago", subscription.getId(), diffInSecs);
             return;
         }
 
-        alreadySentCache.put(alreadySentKey, System.currentTimeMillis());
+        dataStorageService.putAlreadySent(alreadySentKey);
+
 
         logger.debug("PUSH ({}) {} to subscription name: {}, pushAddress: {}",
                 hostname, siriElement.getClass(), subscription.getName(), subscription.getPushAddress());
@@ -358,7 +309,7 @@ public class SubscriptionManager {
             remove(subscription.getId());
         } else if (ok && OK.name().equals(responseBody)) {
             subscription.resetFailedPushCounter();
-            subscriptions.put(subscription.getId(), subscription); //to distribute change to other hazelcast nodes
+            dataStorageService.updateSubscription(subscription);
         } else {
             logger.info("Unexpected response on push '{}' - increase failed push counter for subscription wih id {}",
                     response, subscription.getId());
@@ -368,7 +319,7 @@ public class SubscriptionManager {
                         subscription.getId(), failedPushCounter);
                 remove(subscription.getId());
             } else {
-                subscriptions.put(subscription.getId(), subscription); //to distribute change to other hazelcast nodes
+                dataStorageService.updateSubscription(subscription);
             }
         }
     }

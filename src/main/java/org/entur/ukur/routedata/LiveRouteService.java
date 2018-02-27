@@ -15,26 +15,28 @@
 
 package org.entur.ukur.routedata;
 
-import com.hazelcast.core.IMap;
+import org.entur.ukur.service.DataStorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 import uk.org.siri.siri20.EstimatedVehicleJourney;
 
 import java.time.ZonedDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
 
 @Service
 public class LiveRouteService {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
+    private DataStorageService dataStorageService;
 
-    private IMap<String, LiveJourney> currentJourneys;
 
     @Autowired
-    public LiveRouteService(@Qualifier("currentJourneys") IMap<String, LiveJourney> currentJourneys) {
-        this.currentJourneys = currentJourneys;
+    public LiveRouteService(DataStorageService dataStorageService) {
+        this.dataStorageService = dataStorageService;
     }
 
     public void updateJourney(EstimatedVehicleJourney journey) {
@@ -45,7 +47,7 @@ public class LiveRouteService {
                 if (lj.getLastArrivalTime() == null) {
                     logger.info("Got EstimatedVehicleJourney (VehicleRef={}) that we could not read LastArrivalTime from - skips it", journey.getVehicleRef().getValue());
                 } else {
-                    currentJourneys.set(lj.getVehicleRef(), lj);
+                    dataStorageService.putCurrentJourney(lj);
                     logger.debug("Set journey with VehicleRef={}", lj.getVehicleRef());
                 }
             } else {
@@ -58,15 +60,15 @@ public class LiveRouteService {
     public void flushOldJourneys() {
         HashSet<String> toFlush = new HashSet<>();
         ZonedDateTime now = ZonedDateTime.now().minusMinutes(15);//Keeps journeys 15 minutes after their last arrival
-        Collection<LiveJourney> values = currentJourneys.values();
+        Collection<LiveJourney> values = dataStorageService.getCurrentJourneys();
         for (LiveJourney journey : values) {
             if (now.isAfter(journey.getLastArrivalTime())) {
                 toFlush.add(journey.getVehicleRef());
             }
         }
-        logger.debug("Will flush {} journeys out of a total of {}", toFlush.size(), currentJourneys.size());
+        logger.debug("Will flush {} journeys out of a total of {}", toFlush.size(), values.size());
         for (String flush : toFlush) {
-            currentJourneys.delete(flush);
+            dataStorageService.removeCurrentJourney(flush);
         }
 
     }
@@ -88,7 +90,7 @@ public class LiveRouteService {
 
     @SuppressWarnings({"unused", "WeakerAccess"}) //used from camel rest route
     public Collection<LiveJourney> getJourneys() {
-        Collection<LiveJourney> routes = Collections.unmodifiableCollection(currentJourneys.values());
+        Collection<LiveJourney> routes = Collections.unmodifiableCollection(dataStorageService.getCurrentJourneys());
         logger.debug("There are totally {} routes ", routes.size());
         return routes;
     }

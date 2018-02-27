@@ -15,8 +15,11 @@
 
 package org.entur.ukur.camelroute;
 
+import com.hazelcast.core.IMap;
+import com.hazelcast.test.TestHazelcastInstanceFactory;
 import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.routedata.LiveRouteService;
+import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.FileStorageService;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionManager;
@@ -55,8 +58,7 @@ public class NsbSXSubscriptionProcessorTest {
         s0.addFromStopPoint("NSR:StopPlace:0");
         s0.addToStopPoint("NSR:StopPlace:2");
         s0.setPushAddress("push");
-
-        SubscriptionManager subscriptionManager = new SubscriptionManager(new HashMap<>(), new HashMap<>(), new HashMap<>(), new SiriMarshaller());
+        SubscriptionManager subscriptionManager = createSubscriptionManager();
         subscriptionManager.add(s1);
         subscriptionManager.add(s2);
         subscriptionManager.add(s0);
@@ -87,6 +89,11 @@ public class NsbSXSubscriptionProcessorTest {
         assertEquals("s1", affectedSubscriptions.iterator().next().getName());
     }
 
+    private SubscriptionManager createSubscriptionManager() throws JAXBException {
+        IMap<String, LiveJourney> liveJourneyIMap = new TestHazelcastInstanceFactory().newHazelcastInstance().getMap("journeys");
+        return new SubscriptionManager(new DataStorageService(new HashMap<>(), new HashMap<>(), new HashMap<>(), liveJourneyIMap), new SiriMarshaller());
+    }
+
     @Test
     public void one_affected_unsubscribed_stop_on_journey() throws Exception {
         Subscription s1 = new Subscription();
@@ -95,7 +102,7 @@ public class NsbSXSubscriptionProcessorTest {
         s1.addToStopPoint("NSR:StopPlace:3");
         s1.setPushAddress("push");
 
-        SubscriptionManager subscriptionManager = new SubscriptionManager(new HashMap<>(), new HashMap<>(), new HashMap<>(), new SiriMarshaller());
+        SubscriptionManager subscriptionManager = createSubscriptionManager();
         subscriptionManager.add(s1);
         LiveRouteService liveRouteServiceMock = mock(LiveRouteService.class);
         SiriMarshaller siriMarshaller = new SiriMarshaller();
