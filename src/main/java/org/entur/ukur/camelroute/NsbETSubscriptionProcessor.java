@@ -19,6 +19,7 @@ import org.apache.camel.Exchange;
 import org.apache.commons.lang3.StringUtils;
 import org.entur.ukur.camelroute.status.SubscriptionStatus;
 import org.entur.ukur.routedata.LiveRouteService;
+import org.entur.ukur.service.FileStorageService;
 import org.entur.ukur.subscription.EstimatedCallAndSubscriptions;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionManager;

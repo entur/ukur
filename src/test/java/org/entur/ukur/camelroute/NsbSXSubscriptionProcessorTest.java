@@ -17,6 +17,7 @@ package org.entur.ukur.camelroute;
 
 import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.routedata.LiveRouteService;
+import org.entur.ukur.service.FileStorageService;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionManager;
 import org.entur.ukur.xml.SiriMarshaller;
