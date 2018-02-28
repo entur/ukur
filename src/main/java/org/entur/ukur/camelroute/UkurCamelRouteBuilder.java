@@ -20,6 +20,7 @@ import com.hazelcast.core.IMap;
 import org.apache.camel.Exchange;
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.Predicate;
+import org.apache.camel.Route;
 import org.apache.camel.builder.PredicateBuilder;
 import org.apache.camel.builder.xml.Namespaces;
 import org.apache.camel.component.jackson.JacksonDataFormat;
@@ -114,8 +115,8 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .get("/ready").to("direct:OK");
 
         rest("/journeys")
-                .get("/").to("bean:liveRouteService?method=getJourneys()")
-                .get("/{lineref}/").to("bean:liveRouteService?method=getJourneys(${header.lineref})");
+                .get("/").to("bean:liveRouteManager?method=getJourneys()")
+                .get("/{lineref}/").to("bean:liveRouteManager?method=getJourneys(${header.lineref})");
 
         rest("/subscription")
                 .post().type(Subscription.class).outType(Subscription.class).to("bean:subscriptionManager?method=add(${body})")
@@ -227,7 +228,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
 
         from(ROUTE_FLUSHJOURNEYS)
                 .routeId("Flush Old Journeys Asynchronously")
-                .to("bean:liveRouteService?method=flushOldJourneys()");
+                .to("bean:liveRouteManager?method=flushOldJourneys()");
     }
 
     /**
@@ -242,12 +243,15 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
 
 
     private boolean isLeader(String routeId) {
-        RouteContext routeContext = getContext().getRoute(routeId).getRouteContext();
-        List<RoutePolicy> routePolicyList = routeContext.getRoutePolicyList();
-        if (routePolicyList != null) {
-            for (RoutePolicy routePolicy : routePolicyList) {
-                if (routePolicy instanceof InterruptibleHazelcastRoutePolicy) {
-                    return ((InterruptibleHazelcastRoutePolicy) (routePolicy)).isLeader();
+        Route route = getContext().getRoute(routeId);
+        if (route != null) {
+            RouteContext routeContext = route.getRouteContext();
+            List<RoutePolicy> routePolicyList = routeContext.getRoutePolicyList();
+            if (routePolicyList != null) {
+                for (RoutePolicy routePolicy : routePolicyList) {
+                    if (routePolicy instanceof InterruptibleHazelcastRoutePolicy) {
+                        return ((InterruptibleHazelcastRoutePolicy) (routePolicy)).isLeader();
+                    }
                 }
             }
         }
