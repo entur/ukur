@@ -15,9 +15,11 @@
 
 package org.entur.ukur.subscription;
 
+import com.codahale.metrics.Timer;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.entur.ukur.service.DataStorageService;
+import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.xml.SiriMarshaller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -41,15 +43,17 @@ public class SubscriptionManager {
 
     private DataStorageService dataStorageService;
     private SiriMarshaller siriMarshaller;
+    private MetricsService metricsService;
     private String hostname;
-
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
     public SubscriptionManager(DataStorageService dataStorageService,
-                               SiriMarshaller siriMarshaller) {
+                               SiriMarshaller siriMarshaller,
+                               MetricsService metricsService) {
         this.dataStorageService = dataStorageService;
         this.siriMarshaller = siriMarshaller;
+        this.metricsService = metricsService;
         try {
             hostname = InetAddress.getLocalHost().getHostName();
             logger.info("This nodes hostname is '{}'", hostname);
@@ -281,47 +285,52 @@ public class SubscriptionManager {
     }
 
     private void pushToHttp(Subscription subscription, Object siriElement) {
-        HttpHeaders headers = new HttpHeaders();
-        headers.setContentType(MediaType.APPLICATION_XML);
-        headers.setAccept(Collections.singletonList(MediaType.TEXT_PLAIN));
-        RestTemplate restTemplate = new RestTemplate();
-        String pushAddress = subscription.getPushAddress();
-        if (siriElement instanceof EstimatedVehicleJourney) {
-            pushAddress += "/et";
-        } else if (siriElement instanceof PtSituationElement) {
-            pushAddress += "/sx";
-        }
-        URI uri = URI.create(pushAddress);
-        ResponseEntity<String> response = null;
+        Timer pushToHttp = metricsService.getTimer(MetricsService.TIMER_PUSH);
+        Timer.Context context = pushToHttp.time();
         try {
-            HttpEntity entity = new HttpEntity<>(siriElement, headers);
-            response = restTemplate.postForEntity(uri, entity, String.class);
-            logger.debug("Receive {} on push to {} for subscription with id {}",
-                    response, uri, subscription.getId());
-        } catch (Exception e) {
-            logger.warn("Could not push to {} for subscription with id {}",
-                    uri, subscription.getId(), e);
-        }
-        boolean ok = response != null && response.getStatusCode() == HttpStatus.OK;
-        String responseBody = ok && response.getBody() != null ? response.getBody().trim() : null;
-        if (ok && FORGET_ME.name().equals(responseBody)) {
-            logger.info("Receive {} on push to {} and removes subscription with id {}", FORGET_ME, uri, subscription.getId());
-            remove(subscription.getId());
-        } else if (ok && OK.name().equals(responseBody)) {
-            subscription.resetFailedPushCounter();
-            dataStorageService.updateSubscription(subscription);
-        } else {
-            logger.info("Unexpected response on push '{}' - increase failed push counter for subscription wih id {}",
-                    response, subscription.getId());
-            int failedPushCounter = subscription.increaseFailedPushCounter();
-            if (failedPushCounter > 3) {
-                logger.info("Removes subscription with id {} after {} failed push attempts",
-                        subscription.getId(), failedPushCounter);
-                remove(subscription.getId());
-            } else {
-                dataStorageService.updateSubscription(subscription);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_XML);
+            headers.setAccept(Collections.singletonList(MediaType.TEXT_PLAIN));
+            RestTemplate restTemplate = new RestTemplate();
+            String pushAddress = subscription.getPushAddress();
+            if (siriElement instanceof EstimatedVehicleJourney) {
+                pushAddress += "/et";
+            } else if (siriElement instanceof PtSituationElement) {
+                pushAddress += "/sx";
             }
+            URI uri = URI.create(pushAddress);
+            ResponseEntity<String> response = null;
+            try {
+                HttpEntity entity = new HttpEntity<>(siriElement, headers);
+                response = restTemplate.postForEntity(uri, entity, String.class);
+                logger.debug("Receive {} on push to {} for subscription with id {}",
+                        response, uri, subscription.getId());
+            } catch (Exception e) {
+                logger.warn("Could not push to {} for subscription with id {}",
+                        uri, subscription.getId(), e);
+            }
+            boolean ok = response != null && response.getStatusCode() == HttpStatus.OK;
+            String responseBody = ok && response.getBody() != null ? response.getBody().trim() : null;
+            if (ok && FORGET_ME.name().equals(responseBody)) {
+                logger.info("Receive {} on push to {} and removes subscription with id {}", FORGET_ME, uri, subscription.getId());
+                remove(subscription.getId());
+            } else if (ok && OK.name().equals(responseBody)) {
+                subscription.resetFailedPushCounter();
+                dataStorageService.updateSubscription(subscription);
+            } else {
+                logger.info("Unexpected response on push '{}' - increase failed push counter for subscription wih id {}",
+                        response, subscription.getId());
+                int failedPushCounter = subscription.increaseFailedPushCounter();
+                if (failedPushCounter > 3) {
+                    logger.info("Removes subscription with id {} after {} failed push attempts",
+                            subscription.getId(), failedPushCounter);
+                    remove(subscription.getId());
+                } else {
+                    dataStorageService.updateSubscription(subscription);
+                }
+            }
+        } finally {
+            context.stop();
         }
     }
-
 }

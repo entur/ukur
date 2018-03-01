@@ -15,6 +15,8 @@
 
 package org.entur.ukur.camelroute;
 
+import com.codahale.metrics.Meter;
+import com.codahale.metrics.Timer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hazelcast.core.IMap;
 import org.apache.camel.Exchange;
@@ -31,6 +33,7 @@ import org.apache.camel.spi.RouteContext;
 import org.apache.camel.spi.RoutePolicy;
 import org.apache.camel.spring.SpringRouteBuilder;
 import org.entur.ukur.camelroute.status.RouteStatus;
+import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.setup.UkurConfiguration;
 import org.entur.ukur.camelroute.policy.InterruptibleHazelcastRoutePolicy;
 import org.entur.ukur.subscription.Subscription;
@@ -70,6 +73,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
     private NsbSXSubscriptionProcessor nsbSXSubscriptionProcessor;
     private IMap<String, String> sharedProperties;
     private SubscriptionManager subscriptionManager;
+    private MetricsService metricsService;
     private String nodeStarted;
 
     @Autowired
@@ -77,12 +81,14 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                                  NsbETSubscriptionProcessor nsbETSubscriptionProcessor,
                                  NsbSXSubscriptionProcessor nsbSXSubscriptionProcessor,
                                  IMap<String, String> sharedProperties,
-                                 SubscriptionManager subscriptionManager) {
+                                 SubscriptionManager subscriptionManager,
+                                 MetricsService metricsService) {
         this.config = config;
         this.nsbETSubscriptionProcessor = nsbETSubscriptionProcessor;
         this.nsbSXSubscriptionProcessor = nsbSXSubscriptionProcessor;
         this.sharedProperties = sharedProperties;
         this.subscriptionManager = subscriptionManager;
+        this.metricsService = metricsService;
         nodeStarted = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
     }
 
@@ -96,12 +102,12 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
         String siriSXurl = config.getAnsharSXCamelUrl(requestorId);
 
         createWorkerRoutes(siriETurl, siriSXurl);
-        createRestRoutes(config.getRestPort());
+        createRestRoutes(config.getRestPort(), config.isEtPollingEnabled(), config.isSxPollingEnabled());
         createQuartzRoutes(config.isEtPollingEnabled(), config.isSxPollingEnabled(), config.getPollingInterval());
 
     }
 
-    private void createRestRoutes(int jettyPort) {
+    private void createRestRoutes(int jettyPort, boolean etPollingEnabled, boolean sxPollingEnabled) {
         restConfiguration()
                 .component("jetty")
                 .bindingMode(RestBindingMode.json)
@@ -134,12 +140,19 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                     RouteStatus status = new RouteStatus();
                     status.setNodeStartTime(nodeStarted);
                     status.setHostname(InetAddress.getLocalHost().getHostName());
-                    status.setLeaderForETPolling(isLeader(ROUTEID_ET_TRIGGER));
-                    status.setLeaderForSXPolling(isLeader(ROUTEID_SX_TRIGGER));
-                    status.setLeaderForJourneyFlush(isLeader(ROUTEID_FLUSHJOURNEYS_TRIGGER));
-                    status.setEtSubscriptionStatus(nsbETSubscriptionProcessor.getStatus());
-                    status.setSxSubscriptionStatus(nsbSXSubscriptionProcessor.getStatus());
+                    Timer timer = metricsService.getTimer(MetricsService.TIMER_PUSH);
+                    status.setNumberOfPushedMessages(timer.getCount());
+                    status.setStatusJourneyFlush(routeStatus(ROUTEID_FLUSHJOURNEYS_TRIGGER, null));
+                    status.setStatusETPolling(routeStatus(ROUTEID_ET_TRIGGER, etPollingEnabled));
+                    status.setStatusSXPolling(routeStatus(ROUTEID_SX_TRIGGER, sxPollingEnabled));
                     status.setNumberOfSubscriptions(subscriptionManager.getNoSubscriptions());
+                    for (String name : metricsService.getMeterNames()) {
+                        Meter meter = metricsService.getMeter(name);
+                        status.addMeterCount(name, meter.getCount());
+                        status.addMeterOneMinuteRate(name, meter.getOneMinuteRate());
+                        status.addMeterFiveMinuteRate(name, meter.getFiveMinuteRate());
+                        status.addMeterFifteenMinuteRate(name, meter.getFifteenMinuteRate());
+                    }
                     exchange.getOut().setBody(status);
                 });
     }
@@ -185,13 +198,16 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
 
         from(ROUTE_ET_RETRIEVER)
                 .routeId(ROUTEID_ET_RETRIEVER)
+                .to("metrics:timer:"+MetricsService.TIMER_ET_PULL+"?action=start")
                 .log(LoggingLevel.DEBUG, "About to call Anshar with url: " + siriETurl)
                 .setHeader(Exchange.HTTP_METHOD, constant("GET"))
                 .to(siriETurl)
                 .convertBodyTo(org.w3c.dom.Document.class)
                 .setProperty(MORE_DATA, moreDataExpression)
+                .to("metrics:timer:"+MetricsService.TIMER_ET_PULL+"?action=stop")
                 //TODO: this only selects elements with NSB as operator
                 .split(ns.xpath("//s:EstimatedVehicleJourney[s:OperatorRef/text()='NSB']"))
+                .bean(metricsService, "registerSentMessage('EstimatedVehicleJourney')")
                 .to("activemq:queue:" + UkurConfiguration.ET_QUEUE)
                 .choice()
                 .when(callAnsharAgain)
@@ -207,13 +223,16 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
 
         from(ROUTE_SX_RETRIEVER)
                 .routeId(ROUTEID_SX_RETRIEVER)
+                .to("metrics:timer:"+MetricsService.TIMER_SX_PULL+"?action=start")
                 .log(LoggingLevel.DEBUG, "About to call Anshar with url: " + siriSXurl)
                 .setHeader(Exchange.HTTP_METHOD, constant("GET"))
                 .to(siriSXurl)
                 .convertBodyTo(org.w3c.dom.Document.class)
                 .setProperty(MORE_DATA, moreDataExpression)
+                .to("metrics:timer:"+MetricsService.TIMER_SX_PULL+"?action=stop")
                 //TODO: this only selects elements with NSB as participant
                 .split(ns.xpath("//s:PtSituationElement[s:ParticipantRef/text()='NSB']"))
+                .bean(metricsService, "registerSentMessage('PtSituationElement')")
                 .to("activemq:queue:" + UkurConfiguration.SX_QUEUE)
                 .choice()
                 .when(callAnsharAgain)
@@ -229,6 +248,14 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
         from(ROUTE_FLUSHJOURNEYS)
                 .routeId("Flush Old Journeys Asynchronously")
                 .to("bean:liveRouteManager?method=flushOldJourneys()");
+    }
+
+    private String routeStatus(String routeidSxTrigger, Boolean enabled) {
+        String s = isLeader(routeidSxTrigger) ? "LEADER" : "NOT LEADER";
+        if (Boolean.FALSE.equals(enabled)) {
+            s += " (disabled)";
+        }
+        return s;
     }
 
     /**

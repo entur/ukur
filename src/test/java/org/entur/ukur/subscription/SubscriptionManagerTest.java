@@ -20,6 +20,7 @@ import com.hazelcast.core.IMap;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
 import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.service.DataStorageService;
+import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.xml.SiriMarshaller;
 import org.junit.Before;
 import org.junit.Rule;
@@ -62,8 +63,9 @@ public class SubscriptionManagerTest {
         alreadySentCache =  new HashMap<>();
         siriMarshaller = new SiriMarshaller();
         IMap<String, LiveJourney> liveJourneyIMap = new TestHazelcastInstanceFactory().newHazelcastInstance().getMap("journeys");
+        MetricsService metricsService = new MetricsService(null, 0);
         subscriptionManager = new SubscriptionManager(new DataStorageService(subscriptionsPerStopPoint,
-                subscriptions, alreadySentCache, liveJourneyIMap), siriMarshaller);
+                subscriptions, alreadySentCache, liveJourneyIMap, metricsService), siriMarshaller, metricsService);
     }
 
     @Test

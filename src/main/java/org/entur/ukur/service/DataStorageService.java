@@ -15,6 +15,7 @@
 
 package org.entur.ukur.service;
 
+import com.codahale.metrics.Gauge;
 import com.hazelcast.core.IMap;
 import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.subscription.Subscription;
@@ -24,6 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.stereotype.Service;
 
+import javax.annotation.PostConstruct;
 import java.util.*;
 
 @Service
@@ -35,16 +37,27 @@ public class DataStorageService {
     private final Map<String, Subscription> subscriptions;
     private final Map<Object, Long> alreadySentCache;
     private IMap<String, LiveJourney> currentJourneys;
+    private MetricsService metricsService;
 
     @Autowired
     public DataStorageService(@Qualifier("subscriptionIdsPerStopPoint") Map<String, Set<String>> subscriptionsPerStopPoint,
                               @Qualifier("subscriptions") Map<String, Subscription> subscriptions,
                               @Qualifier("alreadySentCache") Map<Object, Long> alreadySentCache,
-                              @Qualifier("currentJourneys") IMap<String, LiveJourney> currentJourneys) {
+                              @Qualifier("currentJourneys") IMap<String, LiveJourney> currentJourneys,
+                              MetricsService metricsService) {
         this.subscriptionsPerStopPoint = subscriptionsPerStopPoint;
         this.subscriptions = subscriptions;
         this.alreadySentCache = alreadySentCache;
         this.currentJourneys = currentJourneys;
+        this.metricsService = metricsService;
+    }
+
+    @PostConstruct
+    public void registerGauges() {
+        metricsService.registerGauge(MetricsService.GAUGE_SUBSCRIPTIONS,
+                (Gauge<Integer>) () -> subscriptions.size());
+        metricsService.registerGauge(MetricsService.GAUGE_LIVE_JOURNEYS,
+                (Gauge<Integer>) () -> currentJourneys.size());
     }
 
     public int getNumberOfSubscriptions() {

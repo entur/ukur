@@ -18,11 +18,11 @@ package org.entur.ukur.camelroute;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.commons.lang3.StringUtils;
-import org.entur.ukur.camelroute.status.SubscriptionStatus;
 import org.entur.ukur.routedata.Call;
 import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.routedata.LiveRouteManager;
 import org.entur.ukur.service.FileStorageService;
+import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionManager;
 import org.entur.ukur.xml.SiriMarshaller;
@@ -47,7 +47,7 @@ public class NsbSXSubscriptionProcessor implements Processor {
     private SiriMarshaller siriMarshaller;
     private LiveRouteManager liveRouteManager;
     private FileStorageService fileStorageService;
-    private SubscriptionStatus status = new SubscriptionStatus();
+    private MetricsService metricsService;
     @Value("${ukur.camel.sx.store.files:false}")
     private boolean storeMessagesToFile = false;
 
@@ -55,11 +55,13 @@ public class NsbSXSubscriptionProcessor implements Processor {
     public NsbSXSubscriptionProcessor(SubscriptionManager subscriptionManager,
                                       SiriMarshaller siriMarshaller,
                                       LiveRouteManager liveRouteManager,
-                                      FileStorageService fileStorageService) {
+                                      FileStorageService fileStorageService,
+                                      MetricsService metricsService) {
         this.subscriptionManager = subscriptionManager;
         this.siriMarshaller = siriMarshaller;
         this.liveRouteManager = liveRouteManager;
         this.fileStorageService = fileStorageService;
+        this.metricsService = metricsService;
         logger.debug("Initializes...");
     }
 
@@ -71,18 +73,13 @@ public class NsbSXSubscriptionProcessor implements Processor {
         if (ptSituationElement == null) {
             throw new IllegalArgumentException("No PtSituationElement element...");
         }
-        status.processed(PtSituationElement.class);
+        metricsService.registerReceivedMessage(PtSituationElement.class);
         if (processPtSituationElement(ptSituationElement)) {
-            status.handled(PtSituationElement.class);
+            metricsService.registerHandledMessage(PtSituationElement.class);
             if (storeMessagesToFile) {
                 fileStorageService.writeToFile(ptSituationElement);
             }
         }
-    }
-
-    @SuppressWarnings("unused") //Used from camel camelroute
-    public SubscriptionStatus getStatus() {
-        return status;
     }
 
     private boolean processPtSituationElement(PtSituationElement ptSituationElement) {

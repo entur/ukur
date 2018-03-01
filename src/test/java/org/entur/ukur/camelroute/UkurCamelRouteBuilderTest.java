@@ -15,13 +15,12 @@
 
 package org.entur.ukur.camelroute;
 
-import com.fasterxml.jackson.databind.ObjectMapper;
-import com.fasterxml.jackson.databind.ObjectWriter;
+import com.codahale.metrics.Meter;
 import org.apache.camel.Produce;
 import org.apache.camel.ProducerTemplate;
 import org.apache.commons.io.IOUtils;
 import org.entur.ukur.App;
-import org.entur.ukur.camelroute.status.SubscriptionStatus;
+import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.subscription.SubscriptionManager;
 import org.junit.Test;
 import org.junit.runner.RunWith;
@@ -32,8 +31,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cloud.contract.wiremock.AutoConfigureWireMock;
 import org.springframework.test.context.junit4.AbstractJUnit4SpringContextTests;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
-import uk.org.siri.siri20.EstimatedVehicleJourney;
-import uk.org.siri.siri20.PtSituationElement;
 
 import java.io.IOException;
 
@@ -49,10 +46,7 @@ public class UkurCamelRouteBuilderTest extends AbstractJUnit4SpringContextTests 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
-    private NsbETSubscriptionProcessor nsbETSubscriptionProcessor;
-
-    @Autowired
-    private NsbSXSubscriptionProcessor nsbSXSubscriptionProcessor;
+    private MetricsService metricsService;
 
     @Autowired
     private SubscriptionManager subscriptionManager;
@@ -70,53 +64,43 @@ public class UkurCamelRouteBuilderTest extends AbstractJUnit4SpringContextTests 
     public void testETpolling() throws Exception {
         wiremock("/et-pretty.xml", "/et");
 
-        ObjectWriter objectWriter = new ObjectMapper().writerWithDefaultPrettyPrinter();
-        SubscriptionStatus status = nsbETSubscriptionProcessor.getStatus();
-        assertNull(status.getLastProcessed());
-        assertTrue(status.getProcessedCounter().isEmpty());
-        assertNull(status.getLastHandled());
-        assertTrue(status.getHandledCounter().isEmpty());
+        assertNull(metricsService.getMeter("message.received.EstimatedVehicleJourney"));
+        assertNull(metricsService.getMeter("message.handled.EstimatedVehicleJourney"));
 
-        logger.debug("\n\n---START---\n{}\n\n", objectWriter.writeValueAsString(status));
         etTemplate.sendBody("go!");
-        waitUntil(status, EstimatedVehicleJourney.class, 1);
-        logger.debug("\n\n---END---\n{}\n\n", objectWriter.writeValueAsString(status));
+        waitUntil("message.handled.EstimatedVehicleJourney", 1);
 
-        assertNotNull(status.getLastProcessed());
-        assertEquals(1, status.getProcessedCounter().size());
-        assertEquals(new Long(1), status.getProcessedCounter().get(EstimatedVehicleJourney.class));
-        assertNotNull(status.getLastHandled());
-        assertEquals(new Long(1), status.getHandledCounter().get(EstimatedVehicleJourney.class));
+        Meter received = metricsService.getMeter("message.received.EstimatedVehicleJourney");
+        assertNotNull(received);
+        assertEquals(1, received.getCount());
+        Meter handled = metricsService.getMeter("message.handled.EstimatedVehicleJourney");
+        assertNotNull(handled);
+        assertEquals(1, handled.getCount());
     }
 
     @Test
     public void testSXpolling() throws Exception {
         wiremock("/sx-pretty.xml", "/sx");
 
-        ObjectWriter objectWriter = new ObjectMapper().writerWithDefaultPrettyPrinter();
-        SubscriptionStatus status = nsbSXSubscriptionProcessor.getStatus();
-        assertNull(status.getLastProcessed());
-        assertTrue(status.getProcessedCounter().isEmpty());
-        assertNull(status.getLastHandled());
-        assertTrue(status.getHandledCounter().isEmpty());
+        assertNull(metricsService.getMeter("message.received.PtSituationElement"));
+        assertNull(metricsService.getMeter("message.handled.PtSituationElement"));
 
-        logger.debug("\n\n---START---\n{}\n\n", objectWriter.writeValueAsString(status));
         sxTemplate.sendBody("go!");
-        waitUntil(status, PtSituationElement.class, 5);
-        logger.debug("\n\n---END---\n{}\n\n", objectWriter.writeValueAsString(status));
+        waitUntil("message.handled.PtSituationElement", 5);
 
-        assertNotNull(status.getLastProcessed());
-        assertEquals(1, status.getProcessedCounter().size());
-        assertEquals(new Long(5), status.getProcessedCounter().get(PtSituationElement.class));
-        assertNotNull(status.getLastHandled());
-        assertEquals(new Long(5), status.getHandledCounter().get(PtSituationElement.class));
+        Meter received = metricsService.getMeter("message.received.PtSituationElement");
+        assertNotNull(received);
+        assertEquals(5, received.getCount());
+        Meter handled = metricsService.getMeter("message.handled.PtSituationElement");
+        assertNotNull(handled);
+        assertEquals(5, handled.getCount());
     }
 
-    private void waitUntil(SubscriptionStatus status, Class keyClass, int expectedCount) throws InterruptedException {
+    private void waitUntil(String meterName, int expectedCount) throws InterruptedException {
         //things are asynchronous: wait until expected conditions are met (or time out)
         long start = System.currentTimeMillis();
-        while (status.getHandledCounter().get(keyClass) == null
-                || status.getHandledCounter().get(keyClass) < expectedCount) {
+        while (metricsService.getMeter(meterName) == null
+                || metricsService.getMeter(meterName).getCount() < expectedCount) {
             if ((System.currentTimeMillis() - start) > 5000) {
                 fail("This takes to long...");
             }

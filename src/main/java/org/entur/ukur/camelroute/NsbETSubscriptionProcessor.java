@@ -17,9 +17,9 @@ package org.entur.ukur.camelroute;
 
 import org.apache.camel.Exchange;
 import org.apache.commons.lang3.StringUtils;
-import org.entur.ukur.camelroute.status.SubscriptionStatus;
 import org.entur.ukur.routedata.LiveRouteManager;
 import org.entur.ukur.service.FileStorageService;
+import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.subscription.EstimatedCallAndSubscriptions;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionManager;
@@ -43,7 +43,8 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     private SubscriptionManager subscriptionManager;
-    private SubscriptionStatus status = new SubscriptionStatus();
+    private MetricsService metricsService;
+
     private SiriMarshaller siriMarshaller;
     private LiveRouteManager liveRouteManager;
     private FileStorageService fileStorageService;
@@ -54,11 +55,13 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
     public NsbETSubscriptionProcessor(SubscriptionManager subscriptionManager,
                                       SiriMarshaller siriMarshaller,
                                       LiveRouteManager liveRouteManager,
-                                      FileStorageService fileStorageService) {
+                                      FileStorageService fileStorageService,
+                                      MetricsService metricsService) {
         this.siriMarshaller = siriMarshaller;
         this.liveRouteManager = liveRouteManager;
         this.fileStorageService = fileStorageService;
         this.subscriptionManager = subscriptionManager;
+        this.metricsService = metricsService;
         logger.debug("Initializes...");
     }
 
@@ -73,18 +76,13 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
         if (estimatedVehicleJourney == null) {
             throw new IllegalArgumentException("No EstimatedVehicleJourney element...");
         }
-        status.processed(EstimatedVehicleJourney.class);
+        metricsService.registerReceivedMessage(EstimatedVehicleJourney.class);
         if (processEstimatedVehicleJourney(estimatedVehicleJourney)) {
-            status.handled(EstimatedVehicleJourney.class);
+            metricsService.registerHandledMessage(EstimatedVehicleJourney.class);
             if (storeMessagesToFile) {
                 fileStorageService.writeToFile(estimatedVehicleJourney);
             }
         }
-    }
-
-    @SuppressWarnings("unused") //Used from camel camelroute
-    public SubscriptionStatus getStatus() {
-        return status;
     }
 
     private boolean processEstimatedVehicleJourney(EstimatedVehicleJourney estimatedVehicleJourney) {

@@ -21,6 +21,7 @@ import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.routedata.LiveRouteManager;
 import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.FileStorageService;
+import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionManager;
 import org.entur.ukur.xml.SiriMarshaller;
@@ -64,7 +65,7 @@ public class NsbSXSubscriptionProcessorTest {
         subscriptionManager.add(s0);
         LiveRouteManager liveRouteManagerMock = mock(LiveRouteManager.class);
         NsbSXSubscriptionProcessor processor = new NsbSXSubscriptionProcessor(subscriptionManager,
-                new SiriMarshaller(), liveRouteManagerMock, mock(FileStorageService.class));
+                new SiriMarshaller(), liveRouteManagerMock, mock(FileStorageService.class), mock(MetricsService.class));
 
         //Only one in correct order
         HashSet<Subscription> affectedSubscriptions = processor.findAffectedSubscriptions(createVehicleJourneys(Arrays.asList("1", "2", "3", "4"), null, false));
@@ -91,7 +92,8 @@ public class NsbSXSubscriptionProcessorTest {
 
     private SubscriptionManager createSubscriptionManager() throws JAXBException {
         IMap<String, LiveJourney> liveJourneyIMap = new TestHazelcastInstanceFactory().newHazelcastInstance().getMap("journeys");
-        return new SubscriptionManager(new DataStorageService(new HashMap<>(), new HashMap<>(), new HashMap<>(), liveJourneyIMap), new SiriMarshaller());
+        MetricsService metricsServiceMock = mock(MetricsService.class);
+        return new SubscriptionManager(new DataStorageService(new HashMap<>(), new HashMap<>(), new HashMap<>(), liveJourneyIMap, metricsServiceMock), new SiriMarshaller(), metricsServiceMock);
     }
 
     @Test
@@ -107,7 +109,7 @@ public class NsbSXSubscriptionProcessorTest {
         LiveRouteManager liveRouteManagerMock = mock(LiveRouteManager.class);
         SiriMarshaller siriMarshaller = new SiriMarshaller();
         NsbSXSubscriptionProcessor processor = new NsbSXSubscriptionProcessor(subscriptionManager,
-                siriMarshaller, liveRouteManagerMock, mock(FileStorageService.class));
+                siriMarshaller, liveRouteManagerMock, mock(FileStorageService.class), mock(MetricsService.class));
 
         String SX_with_one_affected_stop_on_journey =
                 "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n" +
