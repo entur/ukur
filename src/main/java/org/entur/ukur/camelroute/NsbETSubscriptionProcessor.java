@@ -15,6 +15,7 @@
 
 package org.entur.ukur.camelroute;
 
+import com.codahale.metrics.Timer;
 import org.apache.camel.Exchange;
 import org.apache.commons.lang3.StringUtils;
 import org.entur.ukur.routedata.LiveRouteManager;
@@ -78,7 +79,6 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
         }
         metricsService.registerReceivedMessage(EstimatedVehicleJourney.class);
         if (processEstimatedVehicleJourney(estimatedVehicleJourney)) {
-            metricsService.registerHandledMessage(EstimatedVehicleJourney.class);
             if (storeMessagesToFile) {
                 fileStorageService.writeToFile(estimatedVehicleJourney);
             }
@@ -92,15 +92,21 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
             logger.trace("Skips estimatedVehicleJourney (not NSB)");
             return false;
         }
-        liveRouteManager.updateJourney(estimatedVehicleJourney);
-        List<EstimatedCall> estimatedDelays = getEstimatedDelaysAndCancellations(estimatedVehicleJourney.getEstimatedCalls());
-        logger.debug("Processes NSB estimatedVehicleJourney ({}) - with {} estimated delays", estimatedVehicleJourney.getDatedVehicleJourneyRef().getValue(), estimatedDelays.size());
-        List<EstimatedCallAndSubscriptions> affectedSubscriptions = findAffectedSubscriptions(estimatedDelays, estimatedVehicleJourney);
-        for (EstimatedCallAndSubscriptions estimatedCallAndSubscriptions : affectedSubscriptions) {
-            EstimatedCall estimatedCall = estimatedCallAndSubscriptions.getEstimatedCall();
-            HashSet<Subscription> subscriptions = estimatedCallAndSubscriptions.getSubscriptions();
-            logger.debug(" - For delayed departure from stopPlace {} there are {} affected subscriptions ", estimatedCall.getStopPointRef().getValue(), subscriptions.size());
-            subscriptionManager.notify(subscriptions, estimatedVehicleJourney);
+        Timer timer = metricsService.getTimer(MetricsService.TIMER_ET_PROCESS);
+        Timer.Context time = timer.time();
+        try {
+            liveRouteManager.updateJourney(estimatedVehicleJourney);
+            List<EstimatedCall> estimatedDelays = getEstimatedDelaysAndCancellations(estimatedVehicleJourney.getEstimatedCalls());
+            logger.debug("Processes NSB estimatedVehicleJourney ({}) - with {} estimated delays", estimatedVehicleJourney.getDatedVehicleJourneyRef().getValue(), estimatedDelays.size());
+            List<EstimatedCallAndSubscriptions> affectedSubscriptions = findAffectedSubscriptions(estimatedDelays, estimatedVehicleJourney);
+            for (EstimatedCallAndSubscriptions estimatedCallAndSubscriptions : affectedSubscriptions) {
+                EstimatedCall estimatedCall = estimatedCallAndSubscriptions.getEstimatedCall();
+                HashSet<Subscription> subscriptions = estimatedCallAndSubscriptions.getSubscriptions();
+                logger.debug(" - For delayed departure from stopPlace {} there are {} affected subscriptions ", estimatedCall.getStopPointRef().getValue(), subscriptions.size());
+                subscriptionManager.notify(subscriptions, estimatedVehicleJourney);
+            }
+        } finally {
+            time.stop();
         }
         return true;
     }

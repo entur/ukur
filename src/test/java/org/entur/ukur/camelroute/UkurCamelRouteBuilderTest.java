@@ -15,7 +15,6 @@
 
 package org.entur.ukur.camelroute;
 
-import com.codahale.metrics.Meter;
 import org.apache.camel.Produce;
 import org.apache.camel.ProducerTemplate;
 import org.apache.commons.io.IOUtils;
@@ -35,7 +34,8 @@ import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import java.io.IOException;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(webEnvironment= SpringBootTest.WebEnvironment.MOCK, classes = App.class)
@@ -64,43 +64,34 @@ public class UkurCamelRouteBuilderTest extends AbstractJUnit4SpringContextTests 
     public void testETpolling() throws Exception {
         wiremock("/et-pretty.xml", "/et");
 
-        assertNull(metricsService.getMeter("message.received.EstimatedVehicleJourney"));
-        assertNull(metricsService.getMeter("message.handled.EstimatedVehicleJourney"));
+        assertEquals(0, metricsService.getMeter("message.received.EstimatedVehicleJourney").getCount());
+        assertEquals(0, metricsService.getTimer(MetricsService.TIMER_ET_PROCESS).getCount());
 
         etTemplate.sendBody("go!");
-        waitUntil("message.handled.EstimatedVehicleJourney", 1);
+        waitUntil(MetricsService.TIMER_ET_PROCESS, 1);
 
-        Meter received = metricsService.getMeter("message.received.EstimatedVehicleJourney");
-        assertNotNull(received);
-        assertEquals(1, received.getCount());
-        Meter handled = metricsService.getMeter("message.handled.EstimatedVehicleJourney");
-        assertNotNull(handled);
-        assertEquals(1, handled.getCount());
+        assertEquals(1, metricsService.getMeter("message.received.EstimatedVehicleJourney").getCount());
+        assertEquals(1, metricsService.getTimer(MetricsService.TIMER_ET_PROCESS).getCount());
     }
 
     @Test
     public void testSXpolling() throws Exception {
         wiremock("/sx-pretty.xml", "/sx");
 
-        assertNull(metricsService.getMeter("message.received.PtSituationElement"));
-        assertNull(metricsService.getMeter("message.handled.PtSituationElement"));
+        assertEquals(0, metricsService.getMeter("message.received.PtSituationElement").getCount());
+        assertEquals(0, metricsService.getTimer(MetricsService.TIMER_SX_PROCESS).getCount());
 
         sxTemplate.sendBody("go!");
-        waitUntil("message.handled.PtSituationElement", 5);
+        waitUntil(MetricsService.TIMER_SX_PROCESS, 5);
 
-        Meter received = metricsService.getMeter("message.received.PtSituationElement");
-        assertNotNull(received);
-        assertEquals(5, received.getCount());
-        Meter handled = metricsService.getMeter("message.handled.PtSituationElement");
-        assertNotNull(handled);
-        assertEquals(5, handled.getCount());
+        assertEquals(5, metricsService.getMeter("message.received.PtSituationElement").getCount());
+        assertEquals(5, metricsService.getTimer(MetricsService.TIMER_SX_PROCESS).getCount());
     }
 
-    private void waitUntil(String meterName, int expectedCount) throws InterruptedException {
+    private void waitUntil(String timer, int expectedCount) throws InterruptedException {
         //things are asynchronous: wait until expected conditions are met (or time out)
         long start = System.currentTimeMillis();
-        while (metricsService.getMeter(meterName) == null
-                || metricsService.getMeter(meterName).getCount() < expectedCount) {
+        while (metricsService.getTimer(timer).getCount() < expectedCount) {
             if ((System.currentTimeMillis() - start) > 5000) {
                 fail("This takes to long...");
             }

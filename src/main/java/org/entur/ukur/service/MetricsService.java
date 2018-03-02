@@ -32,23 +32,22 @@ import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.io.IOException;
 import java.net.InetSocketAddress;
-import java.util.Collections;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
 
 @Service
 @Configuration
 public class MetricsService {
-    public static final String TIMER_PUSH    = "timer.pushToHttp";
-    public static final String TIMER_ET_PULL = "timer.pullETFromAnshar";
-    public static final String TIMER_SX_PULL = "timer.pullSXFromAnshar";
+    public static final String TIMER_PUSH       = "timer.push.http";
+    public static final String TIMER_ET_PULL    = "timer.pull.anshar-et";
+    public static final String TIMER_SX_PULL    = "timer.pull.anshar-sx";
+    public static final String TIMER_ET_PROCESS = "timer.process.EstimatedVehicleJourney";
+    public static final String TIMER_SX_PROCESS = "timer.process.PtSituationElement";
     public static final String GAUGE_SUBSCRIPTIONS = "gauge.subscriptions";
     public static final String GAUGE_LIVE_JOURNEYS = "gauge.liveJourneys";
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final MetricRegistry metrics = new MetricRegistry();
     private final boolean graphiteEnabled;
-    private HashSet<String> uniqueMeters = new HashSet<>();
     private GraphiteReporter reporter;
     private Graphite graphite;
 
@@ -102,31 +101,12 @@ public class MetricsService {
     @SuppressWarnings("unused") //Used directly from Camel route
     public void registerSentMessage(String messagetype) {
         String counterName = "message.sent." + messagetype;
-        uniqueMeters.add(counterName);
         metrics.meter(counterName).mark();
     }
 
     public void registerReceivedMessage(Class messageClass) {
         String counterName = "message.received." + messageClass.getSimpleName();
-        uniqueMeters.add(counterName);
         metrics.meter(counterName).mark();
-    }
-
-    public void registerHandledMessage(Class messageClass) {
-        String counterName = "message.handled." + messageClass.getSimpleName();
-        uniqueMeters.add(counterName);
-        metrics.meter(counterName).mark();
-    }
-
-    public Set<String> getMeterNames() {
-        return Collections.unmodifiableSet(uniqueMeters);
-    }
-
-    public Meter getMeter(String meterName) {
-        if (uniqueMeters.contains(meterName)) {
-            return metrics.meter(meterName);
-        }
-        return null;
     }
 
     public Timer getTimer(String name) {
@@ -135,5 +115,21 @@ public class MetricsService {
 
     public void registerGauge(String name, Gauge<Integer> gauge) {
         metrics.register(name, gauge);
+    }
+
+    public SortedMap<String, Timer> getTimers() {
+        return metrics.getTimers();
+    }
+
+    public SortedMap<String, Gauge> getGauges() {
+        return metrics.getGauges();
+    }
+
+    public SortedMap<String, Meter> getMeters() {
+        return metrics.getMeters();
+    }
+
+    public Meter getMeter(String meterName) {
+        return metrics.meter(meterName);
     }
 }

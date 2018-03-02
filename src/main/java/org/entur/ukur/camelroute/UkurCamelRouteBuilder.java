@@ -15,6 +15,7 @@
 
 package org.entur.ukur.camelroute;
 
+import com.codahale.metrics.Gauge;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,12 +33,11 @@ import org.apache.camel.model.rest.RestBindingMode;
 import org.apache.camel.spi.RouteContext;
 import org.apache.camel.spi.RoutePolicy;
 import org.apache.camel.spring.SpringRouteBuilder;
+import org.entur.ukur.camelroute.policy.InterruptibleHazelcastRoutePolicy;
 import org.entur.ukur.camelroute.status.RouteStatus;
 import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.setup.UkurConfiguration;
-import org.entur.ukur.camelroute.policy.InterruptibleHazelcastRoutePolicy;
 import org.entur.ukur.subscription.Subscription;
-import org.entur.ukur.subscription.SubscriptionManager;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -51,6 +51,7 @@ import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.List;
+import java.util.Map;
 import java.util.UUID;
 
 import static org.entur.ukur.camelroute.policy.SingletonRoutePolicyFactory.SINGLETON_ROUTE_DEFINITION_GROUP_NAME;
@@ -72,7 +73,6 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
     private final NsbETSubscriptionProcessor nsbETSubscriptionProcessor;
     private NsbSXSubscriptionProcessor nsbSXSubscriptionProcessor;
     private IMap<String, String> sharedProperties;
-    private SubscriptionManager subscriptionManager;
     private MetricsService metricsService;
     private String nodeStarted;
 
@@ -81,13 +81,11 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                                  NsbETSubscriptionProcessor nsbETSubscriptionProcessor,
                                  NsbSXSubscriptionProcessor nsbSXSubscriptionProcessor,
                                  IMap<String, String> sharedProperties,
-                                 SubscriptionManager subscriptionManager,
                                  MetricsService metricsService) {
         this.config = config;
         this.nsbETSubscriptionProcessor = nsbETSubscriptionProcessor;
         this.nsbSXSubscriptionProcessor = nsbSXSubscriptionProcessor;
         this.sharedProperties = sharedProperties;
-        this.subscriptionManager = subscriptionManager;
         this.metricsService = metricsService;
         nodeStarted = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
     }
@@ -140,18 +138,17 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                     RouteStatus status = new RouteStatus();
                     status.setNodeStartTime(nodeStarted);
                     status.setHostname(InetAddress.getLocalHost().getHostName());
-                    Timer timer = metricsService.getTimer(MetricsService.TIMER_PUSH);
-                    status.setNumberOfPushedMessages(timer.getCount());
                     status.setStatusJourneyFlush(routeStatus(ROUTEID_FLUSHJOURNEYS_TRIGGER, null));
                     status.setStatusETPolling(routeStatus(ROUTEID_ET_TRIGGER, etPollingEnabled));
                     status.setStatusSXPolling(routeStatus(ROUTEID_SX_TRIGGER, sxPollingEnabled));
-                    status.setNumberOfSubscriptions(subscriptionManager.getNoSubscriptions());
-                    for (String name : metricsService.getMeterNames()) {
-                        Meter meter = metricsService.getMeter(name);
-                        status.addMeterCount(name, meter.getCount());
-                        status.addMeterOneMinuteRate(name, meter.getOneMinuteRate());
-                        status.addMeterFiveMinuteRate(name, meter.getFiveMinuteRate());
-                        status.addMeterFifteenMinuteRate(name, meter.getFifteenMinuteRate());
+                    for (Map.Entry<String, Meter> entry : metricsService.getMeters().entrySet()) {
+                        status.addMeter(entry.getKey(), entry.getValue());
+                    }
+                    for (Map.Entry<String, Timer> entry : metricsService.getTimers().entrySet()) {
+                        status.addTimer(entry.getKey(), entry.getValue());
+                    }
+                    for (Map.Entry<String, Gauge> entry : metricsService.getGauges().entrySet()) {
+                        status.addGauge(entry.getKey(), entry.getValue());
                     }
                     exchange.getOut().setBody(status);
                 });

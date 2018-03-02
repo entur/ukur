@@ -15,6 +15,7 @@
 
 package org.entur.ukur.camelroute;
 
+import com.codahale.metrics.Timer;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.commons.lang3.StringUtils;
@@ -75,7 +76,6 @@ public class NsbSXSubscriptionProcessor implements Processor {
         }
         metricsService.registerReceivedMessage(PtSituationElement.class);
         if (processPtSituationElement(ptSituationElement)) {
-            metricsService.registerHandledMessage(PtSituationElement.class);
             if (storeMessagesToFile) {
                 fileStorageService.writeToFile(ptSituationElement);
             }
@@ -94,19 +94,25 @@ public class NsbSXSubscriptionProcessor implements Processor {
             logger.info("Got PtSituationElement without any effects - nothing to notify");
             return false;
         }
-        HashSet<String> stopsToNotify = findAffectedStopPointRefs(affects);
-        AffectsScopeStructure.VehicleJourneys vehicleJourneys = affects.getVehicleJourneys();
-        HashSet<Subscription> subscriptionsToNotify = new HashSet<>();
-        if (vehicleJourneys != null) {
-            subscriptionsToNotify.addAll(findAffectedSubscriptions(vehicleJourneys));
-        }
-        logger.debug("Processes NSB PtSituationElement ({}) - with {} affected stops", ptSituationElement.getSituationNumber().getValue(), stopsToNotify.size());
-        for (String ref : stopsToNotify) {
-            subscriptionsToNotify.addAll(subscriptionManager.getSubscriptionsForStopPoint(ref));
-        }
-        logger.debug("There are {} subscriptions to notify", subscriptionsToNotify.size());
-        if (!subscriptionsToNotify.isEmpty()) {
-            subscriptionManager.notify(subscriptionsToNotify, ptSituationElement);
+        com.codahale.metrics.Timer timer = metricsService.getTimer(MetricsService.TIMER_SX_PROCESS);
+        Timer.Context time = timer.time();
+        try {
+            HashSet<String> stopsToNotify = findAffectedStopPointRefs(affects);
+            AffectsScopeStructure.VehicleJourneys vehicleJourneys = affects.getVehicleJourneys();
+            HashSet<Subscription> subscriptionsToNotify = new HashSet<>();
+            if (vehicleJourneys != null) {
+                subscriptionsToNotify.addAll(findAffectedSubscriptions(vehicleJourneys));
+            }
+            logger.debug("Processes NSB PtSituationElement ({}) - with {} affected stops", ptSituationElement.getSituationNumber().getValue(), stopsToNotify.size());
+            for (String ref : stopsToNotify) {
+                subscriptionsToNotify.addAll(subscriptionManager.getSubscriptionsForStopPoint(ref));
+            }
+            logger.debug("There are {} subscriptions to notify", subscriptionsToNotify.size());
+            if (!subscriptionsToNotify.isEmpty()) {
+                subscriptionManager.notify(subscriptionsToNotify, ptSituationElement);
+            }
+        } finally {
+            time.stop();
         }
         return true;
     }
