@@ -137,16 +137,25 @@ public class RouteStatus {
         meterOneMinuteRates.put(name, meter.getOneMinuteRate());
     }
 
+    public void addGauge(String name, Gauge gauge) {
+        gauges.put(name, gauge.getValue());
+    }
+
     public void addTimer(String name, Timer timer) {
         Snapshot snapshot = timer.getSnapshot();
         timerCounts.put(name, timer.getCount());
         timerOneMinuteRates.put(name, timer.getOneMinuteRate());
-        timerMax_ms.put(name, snapshot.getMax()/1000);
-        timerMean_ms.put(name, Math.round(snapshot.getMean()/1000));
-        timer95thPersentile_ms.put(name, Math.round(snapshot.get95thPercentile()/1000));
+        timerMax_ms.put(name, convertToMilliseconds(snapshot.getMax()));
+        timerMean_ms.put(name, convertToMilliseconds(snapshot.getMean()));
+        timer95thPersentile_ms.put(name, convertToMilliseconds(snapshot.get95thPercentile()));
     }
 
-    public void addGauge(String name, Gauge gauge) {
-        gauges.put(name, gauge.getValue());
+    private long convertToMilliseconds(double nanos) {
+        return convertToMilliseconds(Math.round(nanos));
     }
+
+    private long convertToMilliseconds(long nanos) {
+        return nanos / 1000000;
+    }
+
 }
