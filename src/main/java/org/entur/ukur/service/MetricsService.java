@@ -31,8 +31,11 @@ import org.springframework.stereotype.Service;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.io.IOException;
+import java.net.InetAddress;
 import java.net.InetSocketAddress;
+import java.net.UnknownHostException;
 import java.util.SortedMap;
+import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 @Service
@@ -68,10 +71,18 @@ public class MetricsService {
             logger.info("Setting up local metrics service");
         } else {
             graphiteEnabled = true;
-            logger.info("Setting up metrics service with graphite server: host={} port={}", graphiteHost, graphitePort);
+            String hostName;
+            try {
+                hostName = InetAddress.getLocalHost().getHostName();
+            } catch (UnknownHostException e) {
+                logger.warn("Could not get hostname ", e);
+                hostName = UUID.randomUUID().toString();
+            }
+            String prefix = "app.ukur." + hostName;
+            logger.info("Setting up metrics service with graphite server: host={}, port={}, prefix={}", graphiteHost, graphitePort, prefix);
             graphite = new Graphite(new InetSocketAddress(graphiteHost, graphitePort));
             reporter = GraphiteReporter.forRegistry(metrics)
-                    .prefixedWith("app.ukur")
+                    .prefixedWith(prefix)
                     .convertRatesTo(TimeUnit.SECONDS)
                     .convertDurationsTo(TimeUnit.MILLISECONDS)
                     .filter(MetricFilter.ALL)
