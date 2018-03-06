@@ -30,8 +30,6 @@ public class RouteStatus {
 
     private String hostname;
     private String nodeStartTime;
-    private int numberOfSubscriptions;
-    private long numberOfPushedMessages;
     private String statusJourneyFlush;
     private String statusETPolling;
     private String statusSXPolling;
@@ -50,14 +48,6 @@ public class RouteStatus {
 
     public void setHostname(String hostname) {
         this.hostname = hostname;
-    }
-
-    public int getNumberOfSubscriptions() {
-        return numberOfSubscriptions;
-    }
-
-    public void setNumberOfSubscriptions(int numberOfSubscriptions) {
-        this.numberOfSubscriptions = numberOfSubscriptions;
     }
 
     public void setNodeStartTime(String nodeStartTime) {
@@ -122,14 +112,6 @@ public class RouteStatus {
 
     public void setStatusSXPolling(String statusSXPolling) {
         this.statusSXPolling = statusSXPolling;
-    }
-
-    public long getNumberOfPushedMessages() {
-        return numberOfPushedMessages;
-    }
-
-    public void setNumberOfPushedMessages(long numberOfPushedMessages) {
-        this.numberOfPushedMessages = numberOfPushedMessages;
     }
 
     public void addMeter(String name, Meter meter) {
