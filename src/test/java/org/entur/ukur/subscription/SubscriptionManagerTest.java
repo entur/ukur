@@ -19,7 +19,7 @@ import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import com.hazelcast.core.IMap;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
 import org.entur.ukur.routedata.LiveJourney;
-import org.entur.ukur.service.DataStorageService;
+import org.entur.ukur.service.DataStorageHazelcastService;
 import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.xml.SiriMarshaller;
 import org.junit.Before;
@@ -64,8 +64,8 @@ public class SubscriptionManagerTest {
         siriMarshaller = new SiriMarshaller();
         IMap<String, LiveJourney> liveJourneyIMap = new TestHazelcastInstanceFactory().newHazelcastInstance().getMap("journeys");
         MetricsService metricsService = new MetricsService(null, 0);
-        subscriptionManager = new SubscriptionManager(new DataStorageService(subscriptionsPerStopPoint,
-                subscriptions, alreadySentCache, liveJourneyIMap, metricsService), siriMarshaller, metricsService);
+        subscriptionManager = new SubscriptionManager(new DataStorageHazelcastService(subscriptionsPerStopPoint,
+                subscriptions, liveJourneyIMap), siriMarshaller, metricsService, alreadySentCache);
     }
 
     @Test

@@ -24,6 +24,7 @@ import org.entur.ukur.xml.SiriMarshaller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.*;
 import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
@@ -44,16 +45,19 @@ public class SubscriptionManager {
     private DataStorageService dataStorageService;
     private SiriMarshaller siriMarshaller;
     private MetricsService metricsService;
+    private Map<Object, Long> alreadySentCache;
     private String hostname;
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     @Autowired
     public SubscriptionManager(DataStorageService dataStorageService,
                                SiriMarshaller siriMarshaller,
-                               MetricsService metricsService) {
+                               MetricsService metricsService,
+                               @Qualifier("alreadySentCache") Map<Object, Long> alreadySentCache) {
         this.dataStorageService = dataStorageService;
         this.siriMarshaller = siriMarshaller;
         this.metricsService = metricsService;
+        this.alreadySentCache = alreadySentCache; //TODO: Leave this in hazelcast for now because of easier eviction setup...
         try {
             hostname = InetAddress.getLocalHost().getHostName();
             logger.info("This nodes hostname is '{}'", hostname);
@@ -252,7 +256,7 @@ public class SubscriptionManager {
     private void pushMessage(Subscription subscription, Object siriElement) {
 
         String alreadySentKey = calculateUniqueKey(subscription, siriElement);
-        Long ifPresent = dataStorageService.getAlreadySent(alreadySentKey);
+        Long ifPresent = alreadySentCache.get(alreadySentKey);
 
         if (ifPresent != null) {
             long diffInSecs = (System.currentTimeMillis() - ifPresent) / 1000;
@@ -260,8 +264,7 @@ public class SubscriptionManager {
             return;
         }
 
-        dataStorageService.putAlreadySent(alreadySentKey);
-
+        alreadySentCache.put(alreadySentKey, System.currentTimeMillis());
 
         logger.debug("PUSH ({}) {} to subscription name: {}, pushAddress: {}",
                 hostname, siriElement.getClass(), subscription.getName(), subscription.getPushAddress());

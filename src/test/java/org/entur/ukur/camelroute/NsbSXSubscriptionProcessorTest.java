@@ -19,7 +19,7 @@ import com.hazelcast.core.IMap;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
 import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.routedata.LiveRouteManager;
-import org.entur.ukur.service.DataStorageService;
+import org.entur.ukur.service.DataStorageHazelcastService;
 import org.entur.ukur.service.FileStorageService;
 import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.subscription.Subscription;
@@ -93,7 +93,7 @@ public class NsbSXSubscriptionProcessorTest {
     private SubscriptionManager createSubscriptionManager() throws JAXBException {
         IMap<String, LiveJourney> liveJourneyIMap = new TestHazelcastInstanceFactory().newHazelcastInstance().getMap("journeys");
         MetricsService metricsServiceMock = mock(MetricsService.class);
-        return new SubscriptionManager(new DataStorageService(new HashMap<>(), new HashMap<>(), new HashMap<>(), liveJourneyIMap, metricsServiceMock), new SiriMarshaller(), metricsServiceMock);
+        return new SubscriptionManager(new DataStorageHazelcastService(new HashMap<>(), new HashMap<>(), liveJourneyIMap), new SiriMarshaller(), metricsServiceMock, new HashMap<>());
     }
 
     @Test

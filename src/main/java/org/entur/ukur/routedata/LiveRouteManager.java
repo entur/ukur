@@ -58,19 +58,8 @@ public class LiveRouteManager {
 
     @SuppressWarnings("unused") //used from camel quartz route
     public void flushOldJourneys() {
-        HashSet<String> toFlush = new HashSet<>();
         ZonedDateTime now = ZonedDateTime.now().minusMinutes(15);//Keeps journeys 15 minutes after their last arrival
-        Collection<LiveJourney> values = dataStorageService.getCurrentJourneys();
-        for (LiveJourney journey : values) {
-            if (now.isAfter(journey.getLastArrivalTime())) {
-                toFlush.add(journey.getVehicleRef());
-            }
-        }
-        logger.debug("Will flush {} journeys out of a total of {}", toFlush.size(), values.size());
-        for (String flush : toFlush) {
-            dataStorageService.removeCurrentJourney(flush);
-        }
-
+        dataStorageService.removeJourneysOlderThan(now);
     }
 
     @SuppressWarnings("unused") //used from camel rest route

@@ -15,140 +15,25 @@
 
 package org.entur.ukur.service;
 
-import com.codahale.metrics.Gauge;
-import com.hazelcast.core.IMap;
 import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.subscription.Subscription;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
-import java.util.*;
+import java.time.ZonedDateTime;
+import java.util.Collection;
+import java.util.Set;
 
-@Service
-public class DataStorageService {
+public interface DataStorageService {
 
-    private Logger logger = LoggerFactory.getLogger(this.getClass());
+    Collection<Subscription> getSubscriptions();
+    Set<Subscription> getSubscriptionsForStopPoint(String stopPointRef);
+    Subscription addSubscription(Subscription s);
+    Subscription removeSubscription(String subscriptionId);
+    void updateSubscription(Subscription subscription);
+    int getNumberOfSubscriptions();
+    int getNumberOfUniqueStops();
 
-    private final Map<String, Set<String>> subscriptionsPerStopPoint;
-    private final Map<String, Subscription> subscriptions;
-    private final Map<Object, Long> alreadySentCache;
-    private IMap<String, LiveJourney> currentJourneys;
-    private MetricsService metricsService;
-
-    @Autowired
-    public DataStorageService(@Qualifier("subscriptionIdsPerStopPoint") Map<String, Set<String>> subscriptionsPerStopPoint,
-                              @Qualifier("subscriptions") Map<String, Subscription> subscriptions,
-                              @Qualifier("alreadySentCache") Map<Object, Long> alreadySentCache,
-                              @Qualifier("currentJourneys") IMap<String, LiveJourney> currentJourneys,
-                              MetricsService metricsService) {
-        this.subscriptionsPerStopPoint = subscriptionsPerStopPoint;
-        this.subscriptions = subscriptions;
-        this.alreadySentCache = alreadySentCache;
-        this.currentJourneys = currentJourneys;
-        this.metricsService = metricsService;
-    }
-
-    @PostConstruct
-    public void registerGauges() {
-        metricsService.registerGauge(MetricsService.GAUGE_SUBSCRIPTIONS,
-                (Gauge<Integer>) () -> subscriptions.size());
-        metricsService.registerGauge(MetricsService.GAUGE_LIVE_JOURNEYS,
-                (Gauge<Integer>) () -> currentJourneys.size());
-    }
-
-    public int getNumberOfSubscriptions() {
-        return subscriptions.size();
-    }
-
-    public int getNumberOfUniqueStops() {
-        return subscriptionsPerStopPoint.size();
-    }
-
-    public Collection<Subscription> getSubscriptions() {
-        return subscriptions.values();
-    }
-
-    public Set<Subscription> getSubscriptionsForStopPoint(String stopPointRef) {
-        Set<String> subscriptionIds = subscriptionsPerStopPoint.get(stopPointRef);
-        if (subscriptionIds == null) {
-            return Collections.emptySet();
-        }
-        HashSet<Subscription> result = new HashSet<>(subscriptionIds.size());
-        for (String subscriptionId : subscriptionIds) {
-            Subscription subscription = subscriptions.get(subscriptionId);
-            if (subscription != null) {
-                result.add(subscription);
-            }
-        }
-        return result;
-    }
-
-    public Subscription addSubscription(Subscription s) {
-        String id = UUID.randomUUID().toString();
-        while (subscriptions.containsKey(id)) {
-            logger.warn("Not really possible: New randomUUID already exists (!) - generates a new one....");
-            id = UUID.randomUUID().toString();
-        }
-        s.setId(id);
-        subscriptions.put(id, s);
-        HashSet<String> subscribedStops = new HashSet<>();
-        subscribedStops.addAll(s.getFromStopPoints());
-        subscribedStops.addAll(s.getToStopPoints());
-        for (String stoppoint : subscribedStops) {
-            stoppoint = stoppoint.trim();// //TODO: consider make usage of these ids case insensitive, maybe using .toUpperCase();
-            Set<String> subscriptions = subscriptionsPerStopPoint.get(stoppoint);
-            if (subscriptions == null) {
-                subscriptions = new HashSet<>();
-            }
-            subscriptions.add(s.getId());
-            subscriptionsPerStopPoint.put(stoppoint, subscriptions);//cause of hazelcast
-        }
-        return s;
-    }
-
-    public Subscription removeSubscription(String subscriptionId) {
-        Subscription removed = subscriptions.remove(subscriptionId);
-        if (removed != null) {
-            HashSet<String> subscribedStops = new HashSet<>();
-            subscribedStops.addAll(removed.getFromStopPoints());
-            subscribedStops.addAll(removed.getToStopPoints());
-            logger.debug("Also removes the subscription from these stops: {}", subscribedStops);
-            for (String stoppoint : subscribedStops) {
-                Set<String> subscriptions = subscriptionsPerStopPoint.get(stoppoint);
-                if (subscriptions != null) {
-                    subscriptions.remove(removed.getId());
-                    subscriptionsPerStopPoint.put(stoppoint, subscriptions); //cause of hazelcast
-                }
-            }
-        }
-        return removed;
-    }
-
-    public void updateSubscription(Subscription subscription) {
-        subscriptions.put(subscription.getId(), subscription); //to distribute change to other hazelcast nodes
-    }
-
-    public Long getAlreadySent(String alreadySentKey) {
-        return alreadySentCache.get(alreadySentKey);
-    }
-
-    public void putAlreadySent(String alreadySentKey) {
-        alreadySentCache.put(alreadySentKey, System.currentTimeMillis());
-    }
-
-    public void putCurrentJourney(LiveJourney liveJourney) {
-        currentJourneys.set(liveJourney.getVehicleRef(), liveJourney);
-    }
-
-    public Collection<LiveJourney> getCurrentJourneys() {
-        return currentJourneys.values();
-    }
-
-    public void removeCurrentJourney(String vehicleRef) {
-        currentJourneys.delete(vehicleRef);
-    }
+    void putCurrentJourney(LiveJourney liveJourney);
+    Collection<LiveJourney> getCurrentJourneys();
+    int getNumberOfCurrentJourneys();
+    void removeJourneysOlderThan(ZonedDateTime now);
 }

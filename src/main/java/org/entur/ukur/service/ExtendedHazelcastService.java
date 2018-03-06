@@ -26,6 +26,7 @@ import org.entur.ukur.subscription.Subscription;
 import org.rutebanken.hazelcasthelper.service.HazelCastService;
 import org.rutebanken.hazelcasthelper.service.KubernetesService;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Service;
 
@@ -46,12 +47,10 @@ public class ExtendedHazelcastService extends HazelCastService {
         return hazelcast;
     }
 
-    @Bean
     public IMap<String, Set<String>> subscriptionIdsPerStopPoint() {
         return hazelcast.getMap("ukur.subscriptionIdsPerStop");
     }
 
-    @Bean
     public IMap<String, Subscription> subscriptions() {
         return hazelcast.getMap("ukur.subscriptions");
     }
@@ -66,7 +65,6 @@ public class ExtendedHazelcastService extends HazelCastService {
         return hazelcast.getMap("ukur.sharedProperties");
     }
 
-    @Bean
     public IMap<String, LiveJourney> currentJourneys() {
         return hazelcast.getMap("ukur.currentJourneys");
     }
