@@ -29,12 +29,17 @@ public class Subscription implements Serializable {
     private HashSet<String> fromStopPoints = new HashSet<>();
     private HashSet<String> toStopPoints = new HashSet<>();
     @JsonIgnore
-    private int failedPushCounter = 0;
+    private long failedPushCounter = 0;
 
     //TODO: varslingsdetaljer, gyldighet (fra-til, ukedag), "holdbarhet på subscriptionen"
 
     public Set<String> getFromStopPoints() {
         return Collections.unmodifiableSet(fromStopPoints);
+    }
+
+    public void setFromStopPlaces(Collection<String> fromStopPoints) {
+        this.fromStopPoints.clear();
+        this.fromStopPoints.addAll(fromStopPoints);
     }
 
     public void addFromStopPoint(String stopPointRef) {
@@ -47,6 +52,11 @@ public class Subscription implements Serializable {
 
     public Set<String> getToStopPoints() {
         return Collections.unmodifiableSet(toStopPoints);
+    }
+
+    public void setToStopPlaces(Collection<String> toStopPoints) {
+        this.toStopPoints.clear();
+        this.toStopPoints.addAll(toStopPoints);
     }
 
     public void addToStopPoint(String stopPointRef) {
@@ -99,12 +109,12 @@ public class Subscription implements Serializable {
         failedPushCounter = 0;
     }
 
-    public int increaseFailedPushCounter() {
+    public long increaseFailedPushCounter() {
         failedPushCounter++;
         return failedPushCounter;
     }
 
-    public int getFailedPushCounter() {
+    public long getFailedPushCounter() {
         return failedPushCounter;
     }
 
@@ -123,5 +133,9 @@ public class Subscription implements Serializable {
             }
         }
         return result;
+    }
+
+    public void setFailedPushCounter(long failedPushCounter) {
+        this.failedPushCounter = failedPushCounter;
     }
 }

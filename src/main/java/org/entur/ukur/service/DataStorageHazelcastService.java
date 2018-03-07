@@ -47,13 +47,8 @@ public class DataStorageHazelcastService implements DataStorageService {
     }
 
     @Override
-    public int getNumberOfSubscriptions() {
+    public long getNumberOfSubscriptions() {
         return subscriptions.size();
-    }
-
-    @Override
-    public int getNumberOfUniqueStops() {
-        return subscriptionsPerStopPoint.size();
     }
 
     @Override
@@ -97,7 +92,7 @@ public class DataStorageHazelcastService implements DataStorageService {
     }
 
     @Override
-    public Subscription removeSubscription(String subscriptionId) {
+    public void removeSubscription(String subscriptionId) {
         Subscription removed = subscriptions.remove(subscriptionId);
         if (removed != null) {
             HashSet<String> subscribedStops = new HashSet<>();
@@ -112,7 +107,6 @@ public class DataStorageHazelcastService implements DataStorageService {
                 }
             }
         }
-        return removed;
     }
 
     @Override

@@ -16,35 +16,53 @@
 package org.entur.ukur.setup;
 
 
-import org.entur.ukur.service.DataStorageHazelcastService;
-import org.entur.ukur.service.DataStorageService;
-import org.entur.ukur.service.ExtendedHazelcastService;
-import org.entur.ukur.service.MetricsService;
+import com.google.cloud.datastore.Datastore;
+import com.google.cloud.datastore.DatastoreOptions;
+import org.entur.ukur.service.*;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 
 @Configuration
 public class DataStorageConfiguration {
-
+    private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private final ExtendedHazelcastService extendedHazelcastService;
-    private MetricsService metricsService;
+    private final MetricsService metricsService;
+    private boolean useDatastore;
 
     @Autowired
-    public DataStorageConfiguration(ExtendedHazelcastService extendedHazelcastService, MetricsService metricsService) {
+    public DataStorageConfiguration(ExtendedHazelcastService extendedHazelcastService,
+                                    MetricsService metricsService,
+                                    @Value("${ukur.datastore.useDatastore:false}") boolean useDatastore) {
         this.extendedHazelcastService = extendedHazelcastService;
         this.metricsService = metricsService;
+        this.useDatastore = useDatastore;
     }
 
     @Bean
     public DataStorageService createDataStorageService() {
 
-        DataStorageService dataStorageService = new DataStorageHazelcastService(
-                extendedHazelcastService.subscriptionIdsPerStopPoint(),
-                extendedHazelcastService.subscriptions(),
-                extendedHazelcastService.currentJourneys());
 
+        DataStorageService dataStorageService;
+        if (useDatastore) {
+            logger.info("Creates a DataStorageService on Google Datastore service using Application Default Credentials");
+            //TODO: Consider using LocalDatastoreHelper to run a local emulator when not running in the cloud
+            Datastore service = DatastoreOptions.getDefaultInstance().getService();
+            dataStorageService = new GoogleDatastoreService(
+                    service,
+                    extendedHazelcastService.currentJourneys());
+        } else {
+            logger.info("Creates a DataStorageService only on Hazelcast");
+            dataStorageService = new DataStorageHazelcastService(
+                    extendedHazelcastService.subscriptionIdsPerStopPoint(),
+                    extendedHazelcastService.subscriptions(),
+                    extendedHazelcastService.currentJourneys());
+
+        }
 
         metricsService.registerGauge(MetricsService.GAUGE_SUBSCRIPTIONS, dataStorageService::getNumberOfSubscriptions);
         metricsService.registerGauge(MetricsService.GAUGE_LIVE_JOURNEYS, dataStorageService::getNumberOfCurrentJourneys);

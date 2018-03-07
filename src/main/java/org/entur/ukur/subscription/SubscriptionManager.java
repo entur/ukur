@@ -57,7 +57,7 @@ public class SubscriptionManager {
         this.dataStorageService = dataStorageService;
         this.siriMarshaller = siriMarshaller;
         this.metricsService = metricsService;
-        this.alreadySentCache = alreadySentCache; //TODO: Leave this in hazelcast for now because of easier eviction setup...
+        this.alreadySentCache = alreadySentCache; //TODO: Leaves this in hazelcast for now because of easier eviction setup...
         try {
             hostname = InetAddress.getLocalHost().getHostName();
             logger.info("This nodes hostname is '{}'", hostname);
@@ -65,26 +65,25 @@ public class SubscriptionManager {
             hostname = "random_"+new Random().nextInt(10000); //want to separate message producing nodes from each other, this will work as fallback
             logger.error("Cant resolve hostname - use random name '{}' instead to differentiate nodes", hostname, e);
         }
-        logger.info("There are at startup {} subscriptions with totally {} unique stops", dataStorageService.getNumberOfSubscriptions(), dataStorageService.getNumberOfUniqueStops());
+        logger.info("There are at startup {} subscriptions", dataStorageService.getNumberOfSubscriptions());
     }
 
     @SuppressWarnings("unused") //Used from camel route
     public Collection<Subscription> listAll() {
         Collection<Subscription> existingSubscriptions = dataStorageService.getSubscriptions();
         Collection<Subscription> result = new ArrayList<>(existingSubscriptions.size());
+        HashSet<String> uniqueStops = new HashSet<>();
         for (Subscription subscription : existingSubscriptions) {
             Subscription clone = clone(subscription);
             //TODO: add authorization so we can list these things...
             clone.setId("---hidden---");
             clone.setPushAddress("---hidden---");
             result.add(clone);
+            uniqueStops.addAll(clone.getFromStopPoints());
+            uniqueStops.addAll(clone.getToStopPoints());
         }
-        logger.debug("There are {} subscriptions regarding {} unique stoppoints", result.size(), dataStorageService.getNumberOfUniqueStops());
+        logger.debug("There are {} subscriptions regarding {} unique stoppoints", result.size(), uniqueStops.size());
         return result;
-    }
-
-    public int getNoSubscriptions() {
-        return dataStorageService.getNumberOfSubscriptions();
     }
 
     public Set<Subscription> getSubscriptionsForStopPoint(String stopPointRef) {
@@ -226,14 +225,14 @@ public class SubscriptionManager {
 
         Subscription added = dataStorageService.addSubscription(s);
         logger.info("Adds new subscription - assigns id: {}", added.getId());
-        logger.debug("There are now {} subscriptions regarding {} unique stops", dataStorageService.getNumberOfSubscriptions(), dataStorageService.getNumberOfUniqueStops());
+        logger.debug("There are now {} subscriptions", dataStorageService.getNumberOfSubscriptions());
         return added;
     }
 
     @SuppressWarnings({"unused", "UnusedReturnValue", "WeakerAccess"}) //Used from Camel REST api
-    public Subscription remove(String subscriptionId) {
+    public void remove(String subscriptionId) {
         logger.info("Removes subscription with id {}", subscriptionId);
-        return dataStorageService.removeSubscription(subscriptionId);
+        dataStorageService.removeSubscription(subscriptionId);
     }
 
     private Set<String> getAllStops(Subscription subscription) {
@@ -323,7 +322,7 @@ public class SubscriptionManager {
             } else {
                 logger.info("Unexpected response on push '{}' - increase failed push counter for subscription wih id {}",
                         response, subscription.getId());
-                int failedPushCounter = subscription.increaseFailedPushCounter();
+                long failedPushCounter = subscription.increaseFailedPushCounter();
                 if (failedPushCounter > 3) {
                     logger.info("Removes subscription with id {} after {} failed push attempts",
                             subscription.getId(), failedPushCounter);

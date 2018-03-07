@@ -26,11 +26,10 @@ public interface DataStorageService {
 
     Collection<Subscription> getSubscriptions();
     Set<Subscription> getSubscriptionsForStopPoint(String stopPointRef);
-    Subscription addSubscription(Subscription s);
-    Subscription removeSubscription(String subscriptionId);
+    Subscription addSubscription(Subscription subscription);
+    void removeSubscription(String subscriptionId);
     void updateSubscription(Subscription subscription);
-    int getNumberOfSubscriptions();
-    int getNumberOfUniqueStops();
+    long getNumberOfSubscriptions();
 
     void putCurrentJourney(LiveJourney liveJourney);
     Collection<LiveJourney> getCurrentJourneys();

@@ -124,7 +124,7 @@ public class MetricsService {
         return metrics.timer(name);
     }
 
-    public void registerGauge(String name, Gauge<Integer> gauge) {
+    public void registerGauge(String name, Gauge<?> gauge) {
         metrics.register(name, gauge);
     }
 
