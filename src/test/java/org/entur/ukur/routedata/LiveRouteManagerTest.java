@@ -18,7 +18,6 @@ package org.entur.ukur.routedata;
 import com.hazelcast.core.IMap;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
 import org.entur.ukur.service.DataStorageHazelcastService;
-import org.entur.ukur.service.MetricsService;
 import org.junit.Test;
 import uk.org.siri.siri20.*;
 
@@ -26,7 +25,6 @@ import java.time.ZonedDateTime;
 import java.util.HashMap;
 
 import static org.junit.Assert.assertEquals;
-import static org.mockito.Mockito.mock;
 
 public class LiveRouteManagerTest {
 

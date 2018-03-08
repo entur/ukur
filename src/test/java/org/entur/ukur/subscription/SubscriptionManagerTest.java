@@ -71,9 +71,7 @@ public class SubscriptionManagerTest {
         String url = "/push/ok/et";
         stubFor(post(urlEqualTo(url))
                 .withHeader("Content-Type", equalTo("application/xml"))
-                .willReturn(aResponse()
-                        .withHeader("Content-Type", "text/plain")
-                        .withBody(PushAcknowledge.OK.name())));
+                .willReturn(aResponse()));
 
         Subscription subscription = createSubscription(url);
         subscriptionManager.add(subscription);
@@ -92,9 +90,7 @@ public class SubscriptionManagerTest {
         String url = "/push/forget/et";
         stubFor(post(urlEqualTo(url))
                 .withHeader("Content-Type", equalTo("application/xml"))
-                .willReturn(aResponse()
-                        .withHeader("Content-Type", "text/plain")
-                        .withBody(PushAcknowledge.FORGET_ME.name())));
+                .willReturn(aResponse().withStatus(205)));
 
         Subscription subscription = createSubscription(url);
         subscriptionManager.add(subscription);
@@ -159,9 +155,7 @@ public class SubscriptionManagerTest {
         String url = "/push/duplicates/et";
         stubFor(post(urlEqualTo(url))
                 .withHeader("Content-Type", equalTo("application/xml"))
-                .willReturn(aResponse()
-                        .withHeader("Content-Type", "text/plain")
-                        .withBody(PushAcknowledge.OK.name())));
+                .willReturn(aResponse()));
 
         Subscription subscription = createSubscription(url);
         subscriptionManager.add(subscription);

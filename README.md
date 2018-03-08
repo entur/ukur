@@ -22,8 +22,8 @@ StopPoints are fully qualified national ids on stop places and quays, use
 [Stoppestedsregisteret](https://stoppested.entur.org) to look them up. The SIRI
 messages received from Anshar uses both stop places and quays to identify affected
 stops, so both must be provided to receive all messages regarding a stop (no mapping
-between quays and stop places in Ukur). Unknown stops are ignored (as they never will be
-referenced). 
+between quays and stop places in Ukur - yet...). Stops not following the national id format 
+are ignored (as they never will be referenced). 
 
 ### The push endpoint  
 Ukur will **post** SIRI data as `application/xml` to the per subscription configured pushAddress after 
@@ -31,21 +31,22 @@ adjusting the url somewhat:
 - `/et` is added to the push address for Estimated Timetable messages and an EstimatedVehicleJourney is posted.
 - `/sx` is added to the push address for Situation Exchange messages and a PtSituationElement is posted.
 
-When data is posted, Ukur expects a 200 response with text/plain and `OK` as response. If 
-Ukur posts 4 times in a row for a subscription and receives any other response, the subscription 
-is removed. The push endpoint can also respond 200, text/plain and `FORGET_ME` and Ukur will 
-remove the subscription instantly.
+When data is posted, Ukur expects a 200 response. If Ukur posts 4 times in a row for a subscription and
+receives any other response, the subscription is removed. The push endpoint can also respond 205 
+(RESET-CONTENT) and Ukur will remove the subscription instantly.
 
 ### When and what data is sent
 Ukur polls Anshar for ET and SX data each minute. Currently only ET messaged regarding NSB as operator or SX
 messages from NSB is processed - all operators and producers will be processed in the future.
 
-For SX messages, all messages where one or more stops from a subscription is affected is sent (unless the exact same 
-message has already been sent). The PtSituationElement will have all other stops removed from Affetcs to make the 
-payload smaller, before it is sent to the various subscription endpoints.
+For **SX messages** that reference a VehicleJourney, we attempt to use a route table based on ET messages to 
+determine if the message regards a subscription (correct direction, line, etc) or not. Other SX messages only 
+regards stops and is sent to affected subscriptions (unless the exact same message has already been sent). 
+The PtSituationElement will have all other stops removed from Affects to make the payload smaller, before 
+it is sent to the various subscription endpoints.
 
-For ET messages, the logic is more complex to decide if a message should be pushed. Both a from and a to stop must be 
-present in the correct order in an EstimatedVehicleJourney with one of these deviations:
+For **ET messages**, the logic is more complex to decide if a message should be pushed. Both a from and a to 
+stop must be present in the correct order in an EstimatedVehicleJourney with one of these deviations:
  - DepartureStatus=delayed for an EstimatedCall a subscription has in its from-list
  - ArrivalStatus=delayed for an EstimatedCall a subscription has in its to-list 
  - A subscribed EstimatedCall is marked as cancelled 

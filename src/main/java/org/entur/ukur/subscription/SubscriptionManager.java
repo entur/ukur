@@ -38,9 +38,6 @@ import java.util.*;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-import static org.entur.ukur.subscription.PushAcknowledge.FORGET_ME;
-import static org.entur.ukur.subscription.PushAcknowledge.OK;
-
 @Service
 public class SubscriptionManager {
 
@@ -310,27 +307,22 @@ public class SubscriptionManager {
                 try {
                     HttpEntity entity = new HttpEntity<>(siriElement, headers);
                     response = restTemplate.postForEntity(uri, entity, String.class);
-                    logger.debug("Receive {} on push to {} for subscription with id {}",
-                            response, uri, subscription.getId());
+                    logger.trace("Receive {} on push to {} for subscription with id {}", response, uri, subscription.getId());
                 } catch (Exception e) {
-                    logger.warn("Could not push to {} for subscription with id {}",
-                            uri, subscription.getId(), e);
+                    logger.warn("Could not push to {} for subscription with id {}", uri, subscription.getId(), e);
                 }
-                boolean ok = response != null && response.getStatusCode() == HttpStatus.OK;
-                String responseBody = ok && response.getBody() != null ? response.getBody().trim() : null;
-                if (ok && FORGET_ME.name().equals(responseBody)) {
-                    logger.info("Receive {} on push to {} and removes subscription with id {}", FORGET_ME, uri, subscription.getId());
+                HttpStatus responseStatus = (response != null) ? response.getStatusCode() : null;
+                if (HttpStatus.RESET_CONTENT.equals(responseStatus)) {
+                    logger.info("Receive {} on push to {} and removes subscription with id {}", HttpStatus.RESET_CONTENT, uri, subscription.getId());
                     remove(subscription.getId());
-                } else if (ok && OK.name().equals(responseBody)) {
+                } else if (HttpStatus.OK.equals(responseStatus)) {
                     subscription.resetFailedPushCounter();
                     dataStorageService.updateSubscription(subscription);
                 } else {
-                    logger.info("Unexpected response on push '{}' - increase failed push counter for subscription wih id {}",
-                            response, subscription.getId());
+                    logger.info("Unexpected response on push '{}' - increase failed push counter for subscription wih id {}", response, subscription.getId());
                     long failedPushCounter = subscription.increaseFailedPushCounter();
                     if (failedPushCounter > 3) {
-                        logger.info("Removes subscription with id {} after {} failed push attempts",
-                                subscription.getId(), failedPushCounter);
+                        logger.info("Removes subscription with id {} after {} failed push attempts", subscription.getId(), failedPushCounter);
                         remove(subscription.getId());
                     } else {
                         dataStorageService.updateSubscription(subscription);
