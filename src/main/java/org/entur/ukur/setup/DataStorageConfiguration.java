@@ -18,6 +18,8 @@ package org.entur.ukur.setup;
 
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreOptions;
+import com.google.cloud.datastore.testing.LocalDatastoreHelper;
+import org.apache.commons.lang3.StringUtils;
 import org.entur.ukur.service.*;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -25,6 +27,8 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+
+import java.io.IOException;
 
 
 @Configuration
@@ -37,21 +41,43 @@ public class DataStorageConfiguration {
     @Autowired
     public DataStorageConfiguration(ExtendedHazelcastService extendedHazelcastService,
                                     MetricsService metricsService,
-                                    @Value("${ukur.datastore.useDatastore:false}") boolean useDatastore) {
+                                    @Value("${ukur.datastore.useDatastore:true}") boolean useDatastore) {
         this.extendedHazelcastService = extendedHazelcastService;
         this.metricsService = metricsService;
         this.useDatastore = useDatastore;
     }
 
     @Bean
-    public DataStorageService createDataStorageService() {
+    public DataStorageService createDataStorageService() throws IOException, InterruptedException {
 
 
         DataStorageService dataStorageService;
         if (useDatastore) {
-            logger.info("Creates a DataStorageService on Google Datastore service using Application Default Credentials");
             //TODO: Consider using LocalDatastoreHelper to run a local emulator when not running in the cloud
-            Datastore service = DatastoreOptions.getDefaultInstance().getService();
+            //Forslag: Dersom det finnes en GOOGLE_APPLICATION_CREDENTIALS env variabel gjør vi som under - ellers starter vi en emulator med LocalDatastoreHelper...
+
+            Datastore service;
+            String google_application_credentials = System.getenv("GOOGLE_APPLICATION_CREDENTIALS");
+            if (StringUtils.isNotBlank(google_application_credentials)) {
+                service = DatastoreOptions.getDefaultInstance().getService();
+                logger.info("Found GOOGLE_APPLICATION_CREDENTIALS as environment varable and instantiates a Datastore service based on those!");
+            } else {
+                LocalDatastoreHelper helper = LocalDatastoreHelper.create(1.0);
+                helper.start();
+                service = helper.getOptions().toBuilder().setNamespace("LocalTesting").build().getService();
+                logger.info("Uses LocalDatastoreHelper to emulate a Datastore service");
+                logger.warn("This node is not part of any datastore cluster and data is not persisted");
+                Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+                    try {
+                        logger.info("Shuts down LocalDatastoreHelper...");
+                        helper.stop();
+                        logger.info("...LocalDatastoreHelper is stopped");
+                    } catch (Exception e) {
+                        logger.error("Could not shut down LocalDatastoreHelper", e);
+                    }
+                }));
+            }
+            logger.info("Creates a DataStorageService on Google Datastore");
             dataStorageService = new GoogleDatastoreService(
                     service,
                     extendedHazelcastService.currentJourneys());
