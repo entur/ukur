@@ -16,6 +16,8 @@
 package org.entur.ukur.subscription;
 
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
+import com.github.tomakehurst.wiremock.matching.RequestPatternBuilder;
+import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 import com.hazelcast.core.IMap;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
 import org.entur.ukur.routedata.LiveJourney;
@@ -32,16 +34,11 @@ import uk.org.siri.siri20.OperatorRefStructure;
 
 import javax.xml.bind.JAXBException;
 import javax.xml.stream.XMLStreamException;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.times;
 
@@ -85,7 +82,7 @@ public class SubscriptionManagerTest {
         HashSet<Subscription> subscriptions = new HashSet<>();
         subscriptions.add(subscription);
         subscriptionManager.notify(subscriptions, new EstimatedVehicleJourney());
-        verify(1, postRequestedFor(urlEqualTo(url)));
+        waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
         assertEquals(0, subscription.getFailedPushCounter());
     }
 
@@ -106,7 +103,7 @@ public class SubscriptionManagerTest {
         HashSet<Subscription> subscriptions = new HashSet<>();
         subscriptions.add(subscription);
         subscriptionManager.notify(subscriptions, new EstimatedVehicleJourney());
-        verify(1, postRequestedFor(urlEqualTo(url)));
+        waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
         Mockito.verify(this.subscriptions).remove(subscription.getId());
         assertEquals(0, subscription.getFailedPushCounter());
     }
@@ -131,7 +128,7 @@ public class SubscriptionManagerTest {
 
         EstimatedVehicleJourney estimatedVehicleJourney = new EstimatedVehicleJourney();
         subscriptionManager.notify(subscriptions, estimatedVehicleJourney);
-        verify(1, postRequestedFor(urlEqualTo(url)));
+        waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
         Mockito.verify(this.subscriptions, times(0)).remove(subscription.getId());
         assertEquals(1, subscription.getFailedPushCounter());
 
@@ -139,19 +136,19 @@ public class SubscriptionManagerTest {
         value.setValue("NSB");
         estimatedVehicleJourney.setOperatorRef(value); //must add something so it differs from the previous ones
         subscriptionManager.notify(subscriptions, estimatedVehicleJourney);
-        verify(2, postRequestedFor(urlEqualTo(url)));
+        waitAndVerifyAtLeast(2, postRequestedFor(urlEqualTo(url)));
         Mockito.verify(this.subscriptions, times(0)).remove(subscription.getId());
         assertEquals(2, subscription.getFailedPushCounter());
 
         estimatedVehicleJourney.setCancellation(false); //must add something so it differs from the previous ones
         subscriptionManager.notify(subscriptions, estimatedVehicleJourney);
-        verify(3, postRequestedFor(urlEqualTo(url)));
+        waitAndVerifyAtLeast(3, postRequestedFor(urlEqualTo(url)));
         Mockito.verify(this.subscriptions, times(0)).remove(subscription.getId());
         assertEquals(3, subscription.getFailedPushCounter());
 
         estimatedVehicleJourney.setDataSource("blabla"); //must add something so it differs from the previous ones
         subscriptionManager.notify(subscriptions, estimatedVehicleJourney);
-        verify(4, postRequestedFor(urlEqualTo(url)));
+        waitAndVerifyAtLeast(4, postRequestedFor(urlEqualTo(url)));
         Mockito.verify(this.subscriptions, times(1)).remove(subscription.getId());
         assertEquals(4, subscription.getFailedPushCounter());
     }
@@ -176,7 +173,7 @@ public class SubscriptionManagerTest {
         EstimatedVehicleJourney estimatedVehicleJourney = createEstimatedVehicleJourney();
         //first notify
         subscriptionManager.notify(subscriptions, estimatedVehicleJourney);
-        verify(1, postRequestedFor(urlEqualTo(url)));
+        waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
         assertEquals(0, subscription.getFailedPushCounter());
         assertEquals(1, alreadySentCache.keySet().size());
 
@@ -186,7 +183,7 @@ public class SubscriptionManagerTest {
         assertNotEquals(estimatedVehicleJourney, estimatedVehicleJourney1);
         assertNotEquals(estimatedVehicleJourney.hashCode(), estimatedVehicleJourney1.hashCode());
         subscriptionManager.notify(subscriptions, estimatedVehicleJourney1);
-        verify(1, postRequestedFor(urlEqualTo(url)));
+        waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
         assertEquals(0, subscription.getFailedPushCounter());
         assertEquals(1, alreadySentCache.keySet().size());
 
@@ -195,7 +192,7 @@ public class SubscriptionManagerTest {
         assertEquals("Stop2", notInterestingCall.getStopPointNames().get(0).getValue());
         notInterestingCall.setExpectedDepartureTime(notInterestingCall.getExpectedDepartureTime().plusMinutes(1));
         subscriptionManager.notify(subscriptions, estimatedVehicleJourney);
-        verify(1, postRequestedFor(urlEqualTo(url)));
+        waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
         assertEquals(0, subscription.getFailedPushCounter());
         assertEquals(1, alreadySentCache.keySet().size());
 
@@ -204,7 +201,7 @@ public class SubscriptionManagerTest {
         assertEquals("Stop1", interestingCall.getStopPointNames().get(0).getValue());
         interestingCall.setExpectedDepartureTime(interestingCall.getExpectedDepartureTime().plusMinutes(1));
         subscriptionManager.notify(subscriptions, estimatedVehicleJourney);
-        verify(2, postRequestedFor(urlEqualTo(url)));
+        waitAndVerifyAtLeast(2, postRequestedFor(urlEqualTo(url)));
         assertEquals(0, subscription.getFailedPushCounter());
         assertEquals(2, alreadySentCache.keySet().size());
     }
@@ -273,6 +270,25 @@ public class SubscriptionManagerTest {
         pushAddress = pushAddress.substring(0, pushAddress.length()-3); //last '/et' (or '/sx') is added by the subscription manager
         subscription.setPushAddress("http://localhost:" + wireMockRule.port() + pushAddress);
         return subscription;
+    }
+
+    /**
+     * Since messages are pushed asynchronously, we must allow some waiting before we can verify receival.
+     */
+    private void waitAndVerifyAtLeast(int expected, RequestPatternBuilder requestPatternBuilder) {
+        long start = System.currentTimeMillis();
+        int actual = 0;
+        while (System.currentTimeMillis() - start < 5000) {
+            List<LoggedRequest> all = findAll(requestPatternBuilder);
+            actual = all.size();
+            if (actual > expected) {
+                fail("Expected " + expected + " found " + actual);
+            }
+            if (actual == expected) {
+                return;
+            }
+        }
+        fail("Expected " + expected + " but found only " + actual+" before we timed out...");
     }
 
 }
