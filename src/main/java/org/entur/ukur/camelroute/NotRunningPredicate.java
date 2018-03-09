@@ -32,7 +32,7 @@ public class NotRunningPredicate implements Predicate {
     public boolean matches(Exchange exchange) {
         int size = exchange.getContext().getInflightRepository().size(routeId);
         boolean notRunning = size == 0;
-        logger.debug("Number of running instances of camelroute '{}' is {} - returns {}", routeId, size, notRunning);
+        logger.trace("Number of running instances of camelroute '{}' is {} - returns {}", routeId, size, notRunning);
         return notRunning;
     }
 }

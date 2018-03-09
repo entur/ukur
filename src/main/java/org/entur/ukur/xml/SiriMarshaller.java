@@ -36,14 +36,14 @@ public class SiriMarshaller {
         jaxbContext = JAXBContext.newInstance(Siri.class);
     }
 
-    public <T> T unmarhall(InputStream xml, Class<T>resultingClass) throws JAXBException, XMLStreamException {
+    public <T> T unmarshall(InputStream xml, Class<T>resultingClass) throws JAXBException, XMLStreamException {
         Unmarshaller jaxbUnmarshaller = jaxbContext.createUnmarshaller();
         XMLInputFactory xmlif = XMLInputFactory.newInstance();
         XMLStreamReader xmlsr = xmlif.createXMLStreamReader(xml);
         return resultingClass.cast(jaxbUnmarshaller.unmarshal(xmlsr));
     }
 
-    public <T> T unmarhall(String xml, Class<T>resultingClass) throws JAXBException, XMLStreamException {
+    public <T> T unmarshall(String xml, Class<T>resultingClass) throws JAXBException, XMLStreamException {
         Unmarshaller jaxbUnmarshaller = jaxbContext.createUnmarshaller();
         XMLInputFactory xmlif = XMLInputFactory.newInstance();
         XMLStreamReader xmlsr = xmlif.createXMLStreamReader(new StringReader(xml));

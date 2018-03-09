@@ -72,8 +72,15 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
     @Override
     public void process(Exchange exchange) throws Exception {
         InputStream xml = exchange.getIn().getBody(InputStream.class);
-        logger.trace("Reveived XML with size {} bytes", String.format("%,d", xml.available()));
-        EstimatedVehicleJourney estimatedVehicleJourney = siriMarshaller.unmarhall(xml, EstimatedVehicleJourney.class);
+        logger.debug("Reveived XML with size {} bytes", String.format("%,d", xml.available()));
+        Timer timer = metricsService.getTimer(MetricsService.TIMER_ET_UNMARSHALL);
+        Timer.Context time = timer.time();
+        EstimatedVehicleJourney estimatedVehicleJourney;
+        try {
+            estimatedVehicleJourney = siriMarshaller.unmarshall(xml, EstimatedVehicleJourney.class);
+        } finally {
+            time.stop();
+        }
         if (estimatedVehicleJourney == null) {
             throw new IllegalArgumentException("No EstimatedVehicleJourney element...");
         }
@@ -99,6 +106,7 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
             List<EstimatedCall> estimatedDelays = getEstimatedDelaysAndCancellations(estimatedVehicleJourney.getEstimatedCalls());
             logger.debug("Processes NSB estimatedVehicleJourney ({}) - with {} estimated delays", estimatedVehicleJourney.getDatedVehicleJourneyRef().getValue(), estimatedDelays.size());
             List<EstimatedCallAndSubscriptions> affectedSubscriptions = findAffectedSubscriptions(estimatedDelays, estimatedVehicleJourney);
+            //TODO ROR-193: Her må vi også sjekke andre type subscriptions...
             for (EstimatedCallAndSubscriptions estimatedCallAndSubscriptions : affectedSubscriptions) {
                 EstimatedCall estimatedCall = estimatedCallAndSubscriptions.getEstimatedCall();
                 HashSet<Subscription> subscriptions = estimatedCallAndSubscriptions.getSubscriptions();

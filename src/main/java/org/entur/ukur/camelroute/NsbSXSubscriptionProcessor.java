@@ -69,8 +69,15 @@ public class NsbSXSubscriptionProcessor implements Processor {
     @Override
     public void process(Exchange exchange) throws Exception {
         InputStream xml = exchange.getIn().getBody(InputStream.class);
-        logger.trace("Reveived XML with size {} bytes", String.format("%,d", xml.available()));
-        PtSituationElement ptSituationElement = siriMarshaller.unmarhall(xml, PtSituationElement.class);
+        logger.debug("Reveived XML with size {} bytes", String.format("%,d", xml.available()));
+        Timer timer = metricsService.getTimer(MetricsService.TIMER_SX_UNMARSHALL);
+        Timer.Context time = timer.time();
+        PtSituationElement ptSituationElement;
+        try {
+            ptSituationElement = siriMarshaller.unmarshall(xml, PtSituationElement.class);
+        } finally {
+            time.stop();
+        }
         if (ptSituationElement == null) {
             throw new IllegalArgumentException("No PtSituationElement element...");
         }
@@ -188,6 +195,7 @@ public class NsbSXSubscriptionProcessor implements Processor {
                                     .map(Call::getStopPointRef)
                                     .collect(Collectors.toList());
                             hasCompleteRoute = true;
+                            //TODO ROR-193: Må støtte andre typer subscriptions også!
                         }
                     }
                 }

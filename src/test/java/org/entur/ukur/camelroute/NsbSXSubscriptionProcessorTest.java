@@ -152,7 +152,7 @@ public class NsbSXSubscriptionProcessorTest {
                 "    </VehicleJourneys>\n" +
                 "  </Affects>\n" +
                 "</PtSituationElement>\n";
-        PtSituationElement ptSituationElement = siriMarshaller.unmarhall(SX_with_one_affected_stop_on_journey, PtSituationElement.class);
+        PtSituationElement ptSituationElement = siriMarshaller.unmarshall(SX_with_one_affected_stop_on_journey, PtSituationElement.class);
 
         when(liveRouteManagerMock.getJourneys()).thenReturn(Collections.singletonList(createLiveJourney("64", Arrays.asList("1", "2", "440"))));
 

@@ -72,11 +72,11 @@ public class UkurConfiguration {
     }
 
     public String getAnsharETCamelUrl(String requestorId) {
-        return etURL + "?requestorId=" + requestorId;
+        return etURL + "?requestorId=" + requestorId + "&maxSize=500";
     }
 
     public String getAnsharSXCamelUrl(String requestorId) {
-        return sxURL + "?requestorId=" + requestorId;
+        return sxURL + "?requestorId=" + requestorId + "&maxSize=500";
     }
 
     public boolean isEtPollingEnabled() {

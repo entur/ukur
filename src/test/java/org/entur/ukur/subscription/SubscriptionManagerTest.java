@@ -253,7 +253,7 @@ public class SubscriptionManagerTest {
                 "        </EstimatedCall>\n" +
                 "    </EstimatedCalls>\n" +
                 "</EstimatedVehicleJourney>";
-        return siriMarshaller.unmarhall(xml, EstimatedVehicleJourney.class);
+        return siriMarshaller.unmarshall(xml, EstimatedVehicleJourney.class);
     }
 
     private Subscription createSubscription(String pushAddress) {
