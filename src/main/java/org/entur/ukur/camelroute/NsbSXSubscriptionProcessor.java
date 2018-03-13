@@ -116,7 +116,7 @@ public class NsbSXSubscriptionProcessor implements Processor {
             }
             logger.debug("There are {} subscriptions to notify", subscriptionsToNotify.size());
             if (!subscriptionsToNotify.isEmpty()) {
-                subscriptionManager.notify(subscriptionsToNotify, ptSituationElement);
+                subscriptionManager.notifySubscriptionsOnStops(subscriptionsToNotify, ptSituationElement);
             }
         } finally {
             time.stop();
@@ -196,6 +196,7 @@ public class NsbSXSubscriptionProcessor implements Processor {
                                     .collect(Collectors.toList());
                             hasCompleteRoute = true;
                             //TODO ROR-193: Må støtte andre typer subscriptions også!
+
                         }
                     }
                 }

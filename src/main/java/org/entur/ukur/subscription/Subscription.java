@@ -28,6 +28,8 @@ public class Subscription implements Serializable {
     private String pushAddress;
     private HashSet<String> fromStopPoints = new HashSet<>();
     private HashSet<String> toStopPoints = new HashSet<>();
+    private HashSet<String> lineRefs = new HashSet<>();
+    private HashSet<String> vehicleRefs = new HashSet<>();
     @JsonIgnore
     private long failedPushCounter = 0;
 
@@ -65,6 +67,32 @@ public class Subscription implements Serializable {
 
     public boolean removeToStopPoint(String stopPointRef) {
         return toStopPoints.remove(stopPointRef);
+    }
+
+    public Set<String> getLineRefs() {
+        return Collections.unmodifiableSet(lineRefs);
+    }
+
+    public void setLineRefs(Collection<String> lineRefs) {
+        this.lineRefs.clear();
+        this.lineRefs.addAll(lineRefs);
+    }
+
+    public void addLineRef(String lineref) {
+        lineRefs.add(lineref);
+    }
+
+    public void addVehicleRef(String ref) {
+        vehicleRefs.add(ref);
+    }
+
+    public Set<String> getVehicleRefs() {
+        return Collections.unmodifiableSet(vehicleRefs);
+    }
+
+    public void setVehicleRefs(Collection<String> vehicleRefs) {
+        this.vehicleRefs.clear();
+        this.vehicleRefs.addAll(vehicleRefs);
     }
 
     public String getName() {
@@ -125,9 +153,8 @@ public class Subscription implements Serializable {
 
     private HashSet<String> normalizeAndRemoveIgnoredStops(HashSet<String> set) {
         HashSet<String> result = new HashSet<>();
-        Iterator<String> iterator = set.iterator();
-        while (iterator.hasNext()) {
-            String next = StringUtils.trimToEmpty(iterator.next());
+        for (String aSet : set) {
+            String next = StringUtils.trimToEmpty(aSet);
             if (next.startsWith("NSR:")) {
                 result.add(next);
             }
@@ -137,5 +164,9 @@ public class Subscription implements Serializable {
 
     public void setFailedPushCounter(long failedPushCounter) {
         this.failedPushCounter = failedPushCounter;
+    }
+
+    public boolean hasNoStops() {
+        return fromStopPoints.isEmpty() && toStopPoints.isEmpty();
     }
 }

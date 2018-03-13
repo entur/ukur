@@ -68,6 +68,36 @@ public class DataStorageHazelcastService implements DataStorageService {
     }
 
     @Override
+    public Set<Subscription> getSubscriptionsForLineRefAndNoStops(String lineRef) {
+        if (lineRef == null) {
+            throw new IllegalArgumentException("Null not allowed");
+        }
+        HashSet<Subscription> subscriptionsForLineRef = new HashSet<>();
+        //Simply iterates all subscriptions since it's the datastore implementation we expect to use in production
+        for (Subscription subscription : subscriptions.values()) {
+            if (subscription.getLineRefs().contains(lineRef) && subscription.hasNoStops() ) {
+                subscriptionsForLineRef.add(subscription);
+            }
+        }
+        return subscriptionsForLineRef;
+    }
+
+    @Override
+    public Set<Subscription> getSubscriptionsForvehicleRefAndNoStops(String vehicleRef) {
+        if (vehicleRef == null) {
+            throw new IllegalArgumentException("Null not allowed");
+        }
+        HashSet<Subscription> subscriptionsForVehicleRef = new HashSet<>();
+        //Simply iterates all subscriptions since it's the datastore implementation we expect to use in production
+        for (Subscription subscription : subscriptions.values()) {
+            if (subscription.getVehicleRefs().contains(vehicleRef) && subscription.hasNoStops()) {
+                subscriptionsForVehicleRef.add(subscription);
+            }
+        }
+        return subscriptionsForVehicleRef;
+    }
+
+    @Override
     public Subscription addSubscription(Subscription s) {
         String id = UUID.randomUUID().toString();
         while (subscriptions.containsKey(id)) {

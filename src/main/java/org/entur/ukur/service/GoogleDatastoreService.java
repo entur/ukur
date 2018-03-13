@@ -56,13 +56,27 @@ public class GoogleDatastoreService implements DataStorageService {
     @Override
     public Set<Subscription> getSubscriptionsForStopPoint(String stopPointRef) {
         // De to spørringene under kan muligens erstattes med en composite index
-        Collection<Subscription> toStopPlaces = convertSubscription(findContainingStop("toStopPlaces", stopPointRef));
-        Collection<Subscription> fromStopPlaces = convertSubscription(findContainingStop("fromStopPlaces", stopPointRef));
+        Collection<Subscription> toStopPlaces = convertSubscription(findContaining("toStopPlaces", stopPointRef));
+        Collection<Subscription> fromStopPlaces = convertSubscription(findContaining("fromStopPlaces", stopPointRef));
         HashSet<Subscription> subscriptions = new HashSet<>();
         subscriptions.addAll(toStopPlaces);
         subscriptions.addAll(fromStopPlaces);
-        logger.trace("Found {} unique subscriptions containing '" + stopPointRef + "' ({} in toStopPlaces and {} in fromStopPlaces)",
-                subscriptions.size(), toStopPlaces.size(), fromStopPlaces.size());
+        logger.trace("Found {} unique subscriptions containing '{}' ({} in toStopPlaces and {} in fromStopPlaces)",
+                stopPointRef,subscriptions.size(), toStopPlaces.size(), fromStopPlaces.size());
+        return subscriptions;
+    }
+
+    @Override
+    public Set<Subscription> getSubscriptionsForLineRefAndNoStops(String lineRef) {
+        Set<Subscription> subscriptions = convertSubscription(findContainingWithoutStops("lineRefs", lineRef));
+        logger.trace("Found {} unique subscriptions containing '{}' in lineRefs", lineRef, subscriptions.size());
+        return subscriptions;
+    }
+
+    @Override
+    public Set<Subscription> getSubscriptionsForvehicleRefAndNoStops(String vehicleRef) {
+        Set<Subscription> subscriptions = convertSubscription(findContainingWithoutStops("vehicleRefs", vehicleRef));
+        logger.trace("Found {} unique subscriptions containing '{}' in vehicleRefs", vehicleRef, subscriptions.size());
         return subscriptions;
     }
 
@@ -133,28 +147,39 @@ public class GoogleDatastoreService implements DataStorageService {
         }
     }
 
-    private QueryResults<Entity> findContainingStop(String property, String stopPointRef) {
+    private QueryResults<Entity> findContaining(String property, String value) {
         Query<Entity> query = Query.newEntityQueryBuilder()
                 .setKind(KIND_SUBSCRIPTIONS)
-                .setFilter(StructuredQuery.PropertyFilter.eq(property, stopPointRef))
+                .setFilter(StructuredQuery.PropertyFilter.eq(property, value))
+                .build();
+        return datastore.run(query);
+    }
+
+    private QueryResults<Entity> findContainingWithoutStops(String property, String value) {
+        Query<Entity> query = Query.newEntityQueryBuilder()
+                .setKind(KIND_SUBSCRIPTIONS)
+                .setFilter(StructuredQuery.PropertyFilter.eq(property, value))
+                .setFilter(StructuredQuery.PropertyFilter.isNull("fromStopPlaces"))
+                .setFilter(StructuredQuery.PropertyFilter.isNull("toStopPlaces"))
                 .build();
         return datastore.run(query);
     }
 
     private Entity convertEntity(Subscription s, Key key) {
-        return Entity.newBuilder(key)
+        Entity.Builder builder = Entity.newBuilder(key)
                 .set("created", Timestamp.now())
                 .set("name", StringValue.newBuilder(s.getName()).setExcludeFromIndexes(true).build())
                 .set("pushAddress", StringValue.newBuilder(s.getPushAddress()).setExcludeFromIndexes(true).build())
                 .set("failedPushCounter", LongValue.newBuilder(s.getFailedPushCounter()).setExcludeFromIndexes(true).build())
                 .set("fromStopPlaces", convertStringsToValueList(s.getFromStopPoints()))
                 .set("toStopPlaces", convertStringsToValueList(s.getToStopPoints()))
-                .build();
+                .set("lineRefs", convertStringsToValueList(s.getLineRefs()))
+                .set("vehicleRefs", convertStringsToValueList(s.getVehicleRefs()));
+        return builder.build();
     }
 
-
-    private Collection<Subscription> convertSubscription(Iterator<Entity> subscriptionEntities) {
-        ArrayList<Subscription> subscriptions = new ArrayList<>();
+    private Set<Subscription> convertSubscription(Iterator<Entity> subscriptionEntities) {
+        HashSet<Subscription> subscriptions = new HashSet<>();
         while (subscriptionEntities.hasNext()) {
             subscriptions.add(convertSubscription(subscriptionEntities.next()));
         }
@@ -167,8 +192,10 @@ public class GoogleDatastoreService implements DataStorageService {
         subscription.setName(entity.getString("name"));
         subscription.setPushAddress(entity.getString("pushAddress"));
         subscription.setFailedPushCounter(entity.getLong("failedPushCounter"));
-        subscription.setFromStopPlaces(convertValueListToStrings(entity.getList("fromStopPlaces")));
-        subscription.setToStopPlaces(convertValueListToStrings(entity.getList("toStopPlaces")));
+        subscription.setFromStopPlaces(convertValueListToStrings(entity, "fromStopPlaces"));
+        subscription.setToStopPlaces(convertValueListToStrings(entity, "toStopPlaces"));
+        subscription.setLineRefs(convertValueListToStrings(entity, "lineRefs"));
+        subscription.setVehicleRefs(convertValueListToStrings(entity, "vehicleRefs"));
         return subscription;
     }
 
@@ -176,8 +203,14 @@ public class GoogleDatastoreService implements DataStorageService {
         return stops.stream().map(StringValue::of).collect(Collectors.toList());
     }
 
-    private Set<String> convertValueListToStrings(List<StringValue> stopPlaces) {
-        return stopPlaces.stream().map(StringValue::get).collect(Collectors.toSet());
+    private Set<String> convertValueListToStrings(Entity entity, String property) {
+        if (entity.contains(property)) {
+            List<StringValue> values = entity.getList(property);
+            if (values != null) {
+                return values.stream().map(StringValue::get).collect(Collectors.toSet());
+            }
+        }
+        return Collections.emptySet();
     }
 
 }

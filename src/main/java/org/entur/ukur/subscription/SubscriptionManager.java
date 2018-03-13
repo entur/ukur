@@ -90,7 +90,15 @@ public class SubscriptionManager {
         return dataStorageService.getSubscriptionsForStopPoint(stopPointRef);
     }
 
-    public void notify(HashSet<Subscription> subscriptions, EstimatedVehicleJourney estimatedVehicleJourney) {
+    public Set<Subscription> getSubscriptionsForLineRef(String lineRef) {
+        return dataStorageService.getSubscriptionsForLineRefAndNoStops(lineRef);
+    }
+
+    public Set<Subscription> getSubscriptionsForvehicleRef(String vehicleRef) {
+        return dataStorageService.getSubscriptionsForvehicleRefAndNoStops(vehicleRef);
+    }
+
+    public void notifySubscriptionsOnStops(HashSet<Subscription> subscriptions, EstimatedVehicleJourney estimatedVehicleJourney) {
         for (Subscription subscription : subscriptions) {
             Set<String> subscribedStops = getAllStops(subscription);
             EstimatedVehicleJourney clone = clone(estimatedVehicleJourney);
@@ -120,8 +128,13 @@ public class SubscriptionManager {
             pushMessage(subscription, clone);
         }
     }
+    public void notifySubscriptionsWithFullMessage(HashSet<Subscription> subscriptions, EstimatedVehicleJourney estimatedVehicleJourney) {
+        for (Subscription subscription : subscriptions) {
+            pushMessage(subscription, estimatedVehicleJourney);
+        }
+    }
 
-    public void notify(HashSet<Subscription> subscriptions, PtSituationElement ptSituationElement) {
+    public void notifySubscriptionsOnStops(HashSet<Subscription> subscriptions, PtSituationElement ptSituationElement) {
         for (Subscription subscription : subscriptions) {
             Set<String> subscribedStops = getAllStops(subscription);
             PtSituationElement clone = clone(ptSituationElement);
@@ -333,4 +346,5 @@ public class SubscriptionManager {
             }
         });
     }
+
 }

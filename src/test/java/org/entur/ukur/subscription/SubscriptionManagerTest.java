@@ -79,7 +79,7 @@ public class SubscriptionManagerTest {
         assertEquals(0, subscription.getFailedPushCounter());
         HashSet<Subscription> subscriptions = new HashSet<>();
         subscriptions.add(subscription);
-        subscriptionManager.notify(subscriptions, new EstimatedVehicleJourney());
+        subscriptionManager.notifySubscriptionsOnStops(subscriptions, new EstimatedVehicleJourney());
         waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
         assertEquals(0, subscription.getFailedPushCounter());
     }
@@ -98,7 +98,7 @@ public class SubscriptionManagerTest {
         assertEquals(0, subscription.getFailedPushCounter());
         HashSet<Subscription> subscriptions = new HashSet<>();
         subscriptions.add(subscription);
-        subscriptionManager.notify(subscriptions, new EstimatedVehicleJourney());
+        subscriptionManager.notifySubscriptionsOnStops(subscriptions, new EstimatedVehicleJourney());
         waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
         Mockito.verify(this.subscriptions).remove(subscription.getId());
         assertEquals(0, subscription.getFailedPushCounter());
@@ -123,7 +123,7 @@ public class SubscriptionManagerTest {
         subscriptions.add(subscription);
 
         EstimatedVehicleJourney estimatedVehicleJourney = new EstimatedVehicleJourney();
-        subscriptionManager.notify(subscriptions, estimatedVehicleJourney);
+        subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney);
         waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
         Mockito.verify(this.subscriptions, times(0)).remove(subscription.getId());
         assertEquals(1, subscription.getFailedPushCounter());
@@ -131,19 +131,19 @@ public class SubscriptionManagerTest {
         OperatorRefStructure value = new OperatorRefStructure();
         value.setValue("NSB");
         estimatedVehicleJourney.setOperatorRef(value); //must add something so it differs from the previous ones
-        subscriptionManager.notify(subscriptions, estimatedVehicleJourney);
+        subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney);
         waitAndVerifyAtLeast(2, postRequestedFor(urlEqualTo(url)));
         Mockito.verify(this.subscriptions, times(0)).remove(subscription.getId());
         assertEquals(2, subscription.getFailedPushCounter());
 
         estimatedVehicleJourney.setCancellation(false); //must add something so it differs from the previous ones
-        subscriptionManager.notify(subscriptions, estimatedVehicleJourney);
+        subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney);
         waitAndVerifyAtLeast(3, postRequestedFor(urlEqualTo(url)));
         Mockito.verify(this.subscriptions, times(0)).remove(subscription.getId());
         assertEquals(3, subscription.getFailedPushCounter());
 
         estimatedVehicleJourney.setDataSource("blabla"); //must add something so it differs from the previous ones
-        subscriptionManager.notify(subscriptions, estimatedVehicleJourney);
+        subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney);
         waitAndVerifyAtLeast(4, postRequestedFor(urlEqualTo(url)));
         Mockito.verify(this.subscriptions, times(1)).remove(subscription.getId());
         assertEquals(4, subscription.getFailedPushCounter());
@@ -166,7 +166,7 @@ public class SubscriptionManagerTest {
         subscriptions.add(subscription);
         EstimatedVehicleJourney estimatedVehicleJourney = createEstimatedVehicleJourney();
         //first notify
-        subscriptionManager.notify(subscriptions, estimatedVehicleJourney);
+        subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney);
         waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
         assertEquals(0, subscription.getFailedPushCounter());
         assertEquals(1, alreadySentCache.keySet().size());
@@ -176,7 +176,7 @@ public class SubscriptionManagerTest {
         //to demonstrate that equals and hashcode does not work for cxf generated objects...
         assertNotEquals(estimatedVehicleJourney, estimatedVehicleJourney1);
         assertNotEquals(estimatedVehicleJourney.hashCode(), estimatedVehicleJourney1.hashCode());
-        subscriptionManager.notify(subscriptions, estimatedVehicleJourney1);
+        subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney1);
         waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
         assertEquals(0, subscription.getFailedPushCounter());
         assertEquals(1, alreadySentCache.keySet().size());
@@ -185,7 +185,7 @@ public class SubscriptionManagerTest {
         EstimatedCall notInterestingCall = estimatedVehicleJourney.getEstimatedCalls().getEstimatedCalls().get(1);
         assertEquals("Stop2", notInterestingCall.getStopPointNames().get(0).getValue());
         notInterestingCall.setExpectedDepartureTime(notInterestingCall.getExpectedDepartureTime().plusMinutes(1));
-        subscriptionManager.notify(subscriptions, estimatedVehicleJourney);
+        subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney);
         waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
         assertEquals(0, subscription.getFailedPushCounter());
         assertEquals(1, alreadySentCache.keySet().size());
@@ -194,7 +194,7 @@ public class SubscriptionManagerTest {
         EstimatedCall interestingCall = estimatedVehicleJourney.getEstimatedCalls().getEstimatedCalls().get(0);
         assertEquals("Stop1", interestingCall.getStopPointNames().get(0).getValue());
         interestingCall.setExpectedDepartureTime(interestingCall.getExpectedDepartureTime().plusMinutes(1));
-        subscriptionManager.notify(subscriptions, estimatedVehicleJourney);
+        subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney);
         waitAndVerifyAtLeast(2, postRequestedFor(urlEqualTo(url)));
         assertEquals(0, subscription.getFailedPushCounter());
         assertEquals(2, alreadySentCache.keySet().size());

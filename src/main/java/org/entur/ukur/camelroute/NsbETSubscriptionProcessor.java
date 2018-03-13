@@ -92,7 +92,7 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
         }
     }
 
-    private boolean processEstimatedVehicleJourney(EstimatedVehicleJourney estimatedVehicleJourney) {
+    protected boolean processEstimatedVehicleJourney(EstimatedVehicleJourney estimatedVehicleJourney) {
         OperatorRefStructure operatorRef = estimatedVehicleJourney.getOperatorRef();
         boolean isNSB = operatorRef != null && "NSB".equalsIgnoreCase(operatorRef.getValue());
         if (!isNSB) {
@@ -103,20 +103,53 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
         Timer.Context time = timer.time();
         try {
             liveRouteManager.updateJourney(estimatedVehicleJourney);
-            List<EstimatedCall> estimatedDelays = getEstimatedDelaysAndCancellations(estimatedVehicleJourney.getEstimatedCalls());
-            logger.debug("Processes NSB estimatedVehicleJourney ({}) - with {} estimated delays", estimatedVehicleJourney.getDatedVehicleJourneyRef().getValue(), estimatedDelays.size());
-            List<EstimatedCallAndSubscriptions> affectedSubscriptions = findAffectedSubscriptions(estimatedDelays, estimatedVehicleJourney);
-            //TODO ROR-193: Her må vi også sjekke andre type subscriptions...
-            for (EstimatedCallAndSubscriptions estimatedCallAndSubscriptions : affectedSubscriptions) {
-                EstimatedCall estimatedCall = estimatedCallAndSubscriptions.getEstimatedCall();
-                HashSet<Subscription> subscriptions = estimatedCallAndSubscriptions.getSubscriptions();
-                logger.debug(" - For delayed departure from stopPlace {} there are {} affected subscriptions ", estimatedCall.getStopPointRef().getValue(), subscriptions.size());
-                subscriptionManager.notify(subscriptions, estimatedVehicleJourney);
+            List<EstimatedCall> deviations = getEstimatedDelaysAndCancellations(estimatedVehicleJourney.getEstimatedCalls());
+            if (deviations.isEmpty()) {
+                logger.trace("Processes NSB estimatedVehicleJourney ({}) - no estimated delays or cancellations", estimatedVehicleJourney.getDatedVehicleJourneyRef().getValue());
+            } else {
+                logger.debug("Processes NSB estimatedVehicleJourney ({}) - with {} estimated delays", estimatedVehicleJourney.getDatedVehicleJourneyRef().getValue(), deviations.size());
+                List<EstimatedCallAndSubscriptions> affectedSubscriptions = findAffectedSubscriptions(deviations, estimatedVehicleJourney);
+                String lineRef = estimatedVehicleJourney.getLineRef() == null ? null : estimatedVehicleJourney.getLineRef().getValue();
+                String vehicleRef = estimatedVehicleJourney.getVehicleRef() == null ? null : estimatedVehicleJourney.getVehicleRef().getValue();
+                for (EstimatedCallAndSubscriptions estimatedCallAndSubscriptions : affectedSubscriptions) {
+                    HashSet<Subscription> subscriptions = estimatedCallAndSubscriptions.getSubscriptions();
+                    subscriptions.removeIf(s -> notIncluded(lineRef, s.getLineRefs()) || notIncluded(vehicleRef, s.getVehicleRefs()));
+                    EstimatedCall estimatedCall = estimatedCallAndSubscriptions.getEstimatedCall();
+                    logger.debug(" - For delayed departure from stopPlace {} there are {} affected subscriptions ", estimatedCall.getStopPointRef().getValue(), subscriptions.size());
+                    subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney);
+                }
+                HashSet<Subscription> subscriptionsOnLineOrVehicleRef = findSubscriptionsOnLineOrVehicleRef(lineRef, vehicleRef);
+                if (!subscriptionsOnLineOrVehicleRef.isEmpty()) {
+                    subscriptionManager.notifySubscriptionsWithFullMessage(subscriptionsOnLineOrVehicleRef, estimatedVehicleJourney);
+                }
             }
         } finally {
             time.stop();
         }
         return true;
+    }
+
+    private boolean notIncluded(String value, Set<String> values) {
+        return !values.isEmpty() && StringUtils.isNotBlank(value) && !values.contains(value);
+    }
+
+    private HashSet<Subscription> findSubscriptionsOnLineOrVehicleRef(String lineRef, String vehicleRef) {
+        HashSet<Subscription> subscriptions = new HashSet<>();
+        if (StringUtils.isNotBlank(lineRef)) {
+            Set<Subscription> lineRefSubscriptions = subscriptionManager.getSubscriptionsForLineRef(lineRef);
+            if (StringUtils.isNotBlank(vehicleRef)) {
+                lineRefSubscriptions.removeIf(s->!s.getVehicleRefs().contains(vehicleRef));
+            }
+            subscriptions.addAll(lineRefSubscriptions);
+        }
+        if (StringUtils.isNotBlank(vehicleRef)) {
+            Set<Subscription> vehicleRefSubscriptions = subscriptionManager.getSubscriptionsForvehicleRef(vehicleRef);
+            if (StringUtils.isNotBlank(lineRef)) {
+                vehicleRefSubscriptions.removeIf(s->!s.getVehicleRefs().contains(lineRef));
+            }
+            subscriptions.addAll(vehicleRefSubscriptions);
+        }
+        return subscriptions;
     }
 
 

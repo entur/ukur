@@ -9,9 +9,11 @@ The subscription must contain a logical name, a public reachable push address an
 ```json
 {
    "name" : "Test subscription",
+   "pushAddress": "https://myserver/push",
    "fromStopPoints" : [ "NSR:Quay:551", "NSR:Quay:553", "NSR:Quay:550" ],
    "toStopPoints" : [ "NSR:Quay:695", "NSR:Quay:696" ],
-   "pushAddress": "https://myserver/push"   
+   "lineRefs" : ["NSB:Line:L14", "NSB:Line:R11"],
+   "vehicleRefs" : ["504", "806"]
  }
  ```   
 After successfull creation of the new subscription, Ukur responds with the same object with
@@ -23,7 +25,12 @@ StopPoints are fully qualified national ids on stop places and quays, use
 messages received from Anshar uses both stop places and quays to identify affected
 stops, so both must be provided to receive all messages regarding a stop (no mapping
 between quays and stop places in Ukur - yet...). Stops not following the national id format 
-are ignored (as they never will be referenced). 
+are ignored (as they never will be referenced). Also both from and to StopPoints must be 
+present to receive push messages.
+
+LineRefs and vehicleRefs are used to subscribe on entire lines, vehicles or limit from-to 
+messages to just those regarding one or more lines and/or vehicles. 
+
 
 ### The push endpoint  
 Ukur will **post** SIRI data as `application/xml` to the per subscription configured pushAddress after 
@@ -50,8 +57,10 @@ stop must be present in the correct order in an EstimatedVehicleJourney with one
  - DepartureStatus=delayed for an EstimatedCall a subscription has in its from-list
  - ArrivalStatus=delayed for an EstimatedCall a subscription has in its to-list 
  - A subscribed EstimatedCall is marked as cancelled 
-The EstimatedVehicleJourney will have stops not subscribed upon removed from RecordedCalls 
-and EstimatedCalls to make the payload smaller, before it is sent to the subscriptions push address.
+When a subscription has stops, the EstimatedVehicleJourney will have stops not subscribed upon removed 
+from RecordedCalls and EstimatedCalls to make the payload smaller, before it is sent to the subscriptions 
+push address. If only lineRefs and/or vehicleRefs are present in a subscription, the entire EstimatedVehicleJourney
+will be pushed.
 
 ## More info
 See [Norsk SIRI Profil](https://rutebanken.atlassian.net/wiki/spaces/PUBLIC/pages/13729888/SIRI+profil+Norge) 

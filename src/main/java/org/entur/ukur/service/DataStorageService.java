@@ -26,6 +26,8 @@ public interface DataStorageService {
 
     Collection<Subscription> getSubscriptions();
     Set<Subscription> getSubscriptionsForStopPoint(String stopPointRef);
+    Set<Subscription> getSubscriptionsForLineRefAndNoStops(String lineRef);
+    Set<Subscription> getSubscriptionsForvehicleRefAndNoStops(String vehicleJourneyRef);
     Subscription addSubscription(Subscription subscription);
     void removeSubscription(String subscriptionId);
     void updateSubscription(Subscription subscription);
@@ -35,4 +37,5 @@ public interface DataStorageService {
     Collection<LiveJourney> getCurrentJourneys();
     int getNumberOfCurrentJourneys();
     void removeJourneysOlderThan(ZonedDateTime now);
+
 }

@@ -37,9 +37,7 @@ import java.util.Set;
 import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.*;
 
 public class GoogleDatastoreServiceTest {
     private static final Logger logger = LoggerFactory.getLogger(GoogleDatastoreServiceTest.class);
@@ -90,14 +88,20 @@ public class GoogleDatastoreServiceTest {
         subscription.setName("Test#1");
         subscription.addFromStopPoint("NSR:Quay:1");
         subscription.addToStopPoint("NSR:Quay:2");
+        subscription.addLineRef("NSB:Line:Test1");
+        subscription.addLineRef("NSB:Line:Test2");
+        subscription.addVehicleRef("1234");
 
         //add new
         Subscription addedSubscription = service.addSubscription(subscription);
         assertNotNull(addedSubscription.getId());
+
         assertEquals(subscription.getName(), addedSubscription.getName());
         assertEquals(subscription.getPushAddress(), addedSubscription.getPushAddress());
-        assertThat(subscription.getFromStopPoints(), is(addedSubscription.getFromStopPoints()));
-        assertThat(subscription.getToStopPoints(), is(addedSubscription.getToStopPoints()));
+        assertThat(addedSubscription.getFromStopPoints(), is(subscription.getFromStopPoints()));
+        assertThat(addedSubscription.getToStopPoints(), is(subscription.getToStopPoints()));
+        assertThat(addedSubscription.getVehicleRefs(), is(subscription.getVehicleRefs()));
+        assertThat(addedSubscription.getLineRefs(), is(subscription.getLineRefs()));
 
         //makes sure it's listed
         Collection<Subscription> subscriptions = service.getSubscriptions();
@@ -157,8 +161,34 @@ public class GoogleDatastoreServiceTest {
         subscriptionsForStopPoint = service.getSubscriptionsForStopPoint("NSR:Quay:2");
         assertEquals(2, subscriptionsForStopPoint.size());
 
-        //delete the last subscription
+        //Makes sure lineRefs and vehicleJourneyRefs are found (only new subscription has them set without stops - the first one has them also but with stops)
+        Subscription subscriptionWithOnlyLineAndVehicleJourney = new Subscription();
+        subscriptionWithOnlyLineAndVehicleJourney.setPushAddress("http://someotherhost/test_line_vehiclejourney");
+        subscriptionWithOnlyLineAndVehicleJourney.setName("Test#3");
+        subscriptionWithOnlyLineAndVehicleJourney.addLineRef("NSB:Line:Test1");
+        subscriptionWithOnlyLineAndVehicleJourney.addVehicleRef("1234");
+        subscriptionWithOnlyLineAndVehicleJourney.addVehicleRef("5678");
+        Subscription newSubscription = service.addSubscription(subscriptionWithOnlyLineAndVehicleJourney);
+        assertEquals(3, service.getNumberOfSubscriptions());
+        //Find vehiclejourney
+        Set<Subscription> subscriptionsForvehicleJourneyRef = service.getSubscriptionsForvehicleRefAndNoStops("1234");
+        assertEquals(1, subscriptionsForvehicleJourneyRef.size());
+        assertEquals(newSubscription.getId(), subscriptionsForvehicleJourneyRef.iterator().next().getId());
+        //Find line
+        Set<Subscription> subscriptionsForLineRef = service.getSubscriptionsForLineRefAndNoStops("NSB:Line:Test1");
+        assertEquals(1, subscriptionsForLineRef.size());
+        assertEquals(newSubscription.getId(), subscriptionsForLineRef.iterator().next().getId());
+
+        //delete the second subscription
+        assertEquals(3, service.getNumberOfSubscriptions());
         service.removeSubscription(updatedSubscription.getId());
+        Collection<Subscription> subscriptionList = service.getSubscriptions();
+        assertEquals(2, subscriptionList.size());
+        for (Subscription sub : subscriptionList) {
+            if (updatedSubscription.getId().equals(sub.getId())) {
+                fail("Subscription should have been deleted");
+            }
+        }
 
     }
 }
