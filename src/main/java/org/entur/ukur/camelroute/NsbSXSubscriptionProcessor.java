@@ -116,7 +116,7 @@ public class NsbSXSubscriptionProcessor implements Processor {
             }
             logger.debug("There are {} subscriptions to notify", subscriptionsToNotify.size());
             if (!subscriptionsToNotify.isEmpty()) {
-                subscriptionManager.notifySubscriptionsOnStops(subscriptionsToNotify, ptSituationElement);
+                subscriptionManager.notifySubscriptions(subscriptionsToNotify, ptSituationElement);
             }
         } finally {
             time.stop();
@@ -172,54 +172,99 @@ public class NsbSXSubscriptionProcessor implements Processor {
                     }
                 }
                 boolean hasCompleteRoute = !Boolean.TRUE.equals(stopPoints.isAffectedOnly());
-                if (!hasCompleteRoute) {
-                    List<VehicleJourneyRef> vehicleJourneyReves = affectedVehicleJourney.getVehicleJourneyReves();
-                    if (vehicleJourneyReves == null || vehicleJourneyReves.isEmpty()) {
-                        logger.trace("No vehicleJourneyRef in AffectedVehicleJourneyStructure");
-                    } else if (vehicleJourneyReves.size() > 1) {
-                        logger.warn("More than one ({}) vehicleJourneyRef in AffectedVehicleJourneyStructure - 'norsk siri profil' only allows one", vehicleJourneyReves.size());
-                    } else {
-                        String vehicleJourneyRef = vehicleJourneyReves.get(0).getValue();
+                String lineRef = affectedVehicleJourney.getLineRef() == null ? null : affectedVehicleJourney.getLineRef().getValue();
+                String vehicleJourneyRef = null;
+
+                List<VehicleJourneyRef> vehicleJourneyReves = affectedVehicleJourney.getVehicleJourneyReves();
+                if (vehicleJourneyReves == null || vehicleJourneyReves.isEmpty()) {
+                    logger.trace("No vehicleJourneyRef in AffectedVehicleJourneyStructure");
+                } else if (vehicleJourneyReves.size() > 1) {
+                    logger.warn("More than one ({}) vehicleJourneyRef in AffectedVehicleJourneyStructure - 'norsk siri profil' only allows one", vehicleJourneyReves.size());
+                } else {
+                    vehicleJourneyRef = vehicleJourneyReves.get(0).getValue();
+                    if (!hasCompleteRoute || lineRef == null) {
                         if (journeys == null) {
-                            //only get journeys once per PtSituationElement since access can be slow (hazelcast)
-                            journeys = new HashMap<>();
-                            for (LiveJourney liveJourney : liveRouteManager.getJourneys()) {
-                                journeys.put(liveJourney.getVehicleRef(), liveJourney);
-                            }
+                            journeys = getJourneys();
                         }
                         LiveJourney liveJourney = journeys.get(vehicleJourneyRef);
                         if (liveJourney == null) {
                             logger.debug("Has no camelroute data for journey with vehicleJourneyRef: {}", vehicleJourneyRef);
                         } else {
-                            orderedListOfStops = liveJourney.getCalls().stream()
-                                    .map(Call::getStopPointRef)
-                                    .collect(Collectors.toList());
-                            hasCompleteRoute = true;
-                            //TODO ROR-193: Må støtte andre typer subscriptions også!
-
+                            if (!hasCompleteRoute) {
+                                orderedListOfStops = liveJourney.getCalls().stream()
+                                        .map(Call::getStopPointRef)
+                                        .collect(Collectors.toList());
+                                hasCompleteRoute = true;
+                            }
+                            if (lineRef == null) {
+                                lineRef = liveJourney.getLineRef();
+                                if (StringUtils.isNotBlank(lineRef)) {
+                                    //update the original message with lineref so we later can pick out the relevant part when generating the push message
+                                    LineRef ref = new LineRef();
+                                    ref.setValue(lineRef);
+                                    affectedVehicleJourney.setLineRef(ref);
+                                }
+                            }
                         }
                     }
                 }
 
                 for (String stop : orderedListOfStops) {
                     Set<Subscription> subscriptionsForStopPoint = subscriptionManager.getSubscriptionsForStopPoint(stop);
-                    if (!hasCompleteRoute) {
-                        subscriptions.addAll(subscriptionsForStopPoint);
-                        logger.trace("Has only affected stops and don't find camelroute in LiveRouteService, adds all subscriptions on these stops - regardless of direction");
-                    } else {
-                        for (Subscription subscription : subscriptionsForStopPoint) {
-                            if (affected(subscription, orderedListOfStops)) {
+                    for (Subscription subscription : subscriptionsForStopPoint) {
+                        //TODO: The vehicleJourneyRef usage below is NSB specific (in SX messages from NSB vehicleJourneyRef references vehicleRef in ET messages from BaneNOR)
+                        if (subscribedOrEmpty(lineRef, subscription.getLineRefs()) && subscribedOrEmpty(vehicleJourneyRef, subscription.getVehicleRefs())){
+                            if (!hasCompleteRoute) {
                                 subscriptions.add(subscription);
+                                logger.trace("Has only affected stops and don't find camelroute in LiveRouteService, adds all subscriptions on these stops - regardless of direction");
+                            } else {
+                                if (affected(subscription, orderedListOfStops)) {
+                                    subscriptions.add(subscription);
+                                }
                             }
                         }
                     }
                 }
+                //TODO: The vehicleJourneyRef usage below is NSB specific (in SX messages from NSB vehicleJourneyRef references vehicleRef in ET messages from BaneNOR)
+                subscriptions.addAll(findSubscriptionsOnLineOrVehicle(lineRef, vehicleJourneyRef));
             }
         }
         return subscriptions;
     }
 
-    private boolean affected(Subscription subscription, List<String> orderedListOfStops) {
+    private HashSet<Subscription> findSubscriptionsOnLineOrVehicle(String lineRef, String vehicleRef) {
+        HashSet<Subscription> subscriptions = new HashSet<>();
+        if (StringUtils.isNotBlank(lineRef)) {
+            Set<Subscription> subscriptionsForLineRef = subscriptionManager.getSubscriptionsForLineRef(lineRef);
+            subscriptionsForLineRef.removeIf(s->!subscribedOrEmpty(vehicleRef, s.getVehicleRefs()));
+            logger.trace("Adds {} subscriptions regarding lineRef={}", subscriptionsForLineRef.size(), lineRef);
+            subscriptions.addAll(subscriptionsForLineRef);
+        }
+        if (StringUtils.isNotBlank(vehicleRef)) {
+            Set<Subscription> subscriptionsForvehicleRef = subscriptionManager.getSubscriptionsForvehicleRef(vehicleRef);
+            subscriptionsForvehicleRef.removeIf(s->!subscribedOrEmpty(lineRef, s.getLineRefs()));
+            logger.trace("Adds {} subscriptions regarding vehicleRef={}", subscriptionsForvehicleRef.size(), vehicleRef);
+            subscriptions.addAll(subscriptionsForvehicleRef);
+        }
+        return subscriptions;
+    }
+
+    private boolean subscribedOrEmpty(String value, Set<String> values) {
+        return values.isEmpty() || StringUtils.isBlank(value) || values.contains(value);
+    }
+
+
+    private HashMap<String, LiveJourney> getJourneys() {
+        HashMap<String, LiveJourney> journeys;//only get journeys once per PtSituationElement since access can be slow (hazelcast)
+        journeys = new HashMap<>();
+        for (LiveJourney liveJourney : liveRouteManager.getJourneys()) {
+            //Since SX messages from NSB specify Vehicle
+            journeys.put(liveJourney.getVehicleRef(), liveJourney);
+        }
+        return journeys;
+    }
+
+    protected boolean affected(Subscription subscription, List<String> orderedListOfStops) {
         int from = findIndexOfOne(subscription.getFromStopPoints(), orderedListOfStops);
         int to = findIndexOfOne(subscription.getToStopPoints(), orderedListOfStops);
         return from > -1 && to > -1 && from < to;

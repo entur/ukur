@@ -28,9 +28,7 @@ import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
 import org.mockito.Mockito;
-import uk.org.siri.siri20.EstimatedCall;
-import uk.org.siri.siri20.EstimatedVehicleJourney;
-import uk.org.siri.siri20.OperatorRefStructure;
+import uk.org.siri.siri20.*;
 
 import javax.xml.bind.JAXBException;
 import javax.xml.stream.XMLStreamException;
@@ -66,15 +64,14 @@ public class SubscriptionManagerTest {
     }
 
     @Test
-    public void testPushOk()  {
+    public void testETPushOk()  {
 
         String url = "/push/ok/et";
         stubFor(post(urlEqualTo(url))
                 .withHeader("Content-Type", equalTo("application/xml"))
                 .willReturn(aResponse()));
 
-        Subscription subscription = createSubscription(url);
-        subscriptionManager.add(subscription);
+        Subscription subscription = createSubscription(url, "NSR:Quay:232", "NSR:Quay:125", null);
         verify(0, postRequestedFor(urlEqualTo(url)));
         assertEquals(0, subscription.getFailedPushCounter());
         HashSet<Subscription> subscriptions = new HashSet<>();
@@ -85,15 +82,14 @@ public class SubscriptionManagerTest {
     }
 
     @Test
-    public void testPushForget() {
+    public void testETPushForget() {
 
         String url = "/push/forget/et";
         stubFor(post(urlEqualTo(url))
                 .withHeader("Content-Type", equalTo("application/xml"))
                 .willReturn(aResponse().withStatus(205)));
 
-        Subscription subscription = createSubscription(url);
-        subscriptionManager.add(subscription);
+        Subscription subscription = createSubscription(url, "NSR:Quay:232", "NSR:Quay:125", null);
         verify(0, postRequestedFor(urlEqualTo(url)));
         assertEquals(0, subscription.getFailedPushCounter());
         HashSet<Subscription> subscriptions = new HashSet<>();
@@ -105,7 +101,7 @@ public class SubscriptionManagerTest {
     }
 
     @Test
-    public void testPushError()  {
+    public void testETPushError() {
 
         String url = "/push/error/et";
         stubFor(post(urlEqualTo(url))
@@ -115,8 +111,7 @@ public class SubscriptionManagerTest {
                         .withHeader("Content-Type", "text/plain")
                         .withBody("Internal server error")));
 
-        Subscription subscription = createSubscription(url);
-        subscriptionManager.add(subscription);
+        Subscription subscription = createSubscription(url, "NSR:Quay:232", "NSR:Quay:125", null);
         verify(0, postRequestedFor(urlEqualTo(url)));
         assertEquals(0, subscription.getFailedPushCounter());
         HashSet<Subscription> subscriptions = new HashSet<>();
@@ -126,7 +121,7 @@ public class SubscriptionManagerTest {
         subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney);
         waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
         Mockito.verify(this.subscriptions, times(0)).remove(subscription.getId());
-        assertEquals(1, subscription.getFailedPushCounter());
+        waitAndVerifyFailedPushCounter(1, subscription);
 
         OperatorRefStructure value = new OperatorRefStructure();
         value.setValue("NSB");
@@ -134,31 +129,30 @@ public class SubscriptionManagerTest {
         subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney);
         waitAndVerifyAtLeast(2, postRequestedFor(urlEqualTo(url)));
         Mockito.verify(this.subscriptions, times(0)).remove(subscription.getId());
-        assertEquals(2, subscription.getFailedPushCounter());
+        waitAndVerifyFailedPushCounter(2, subscription);
 
         estimatedVehicleJourney.setCancellation(false); //must add something so it differs from the previous ones
         subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney);
         waitAndVerifyAtLeast(3, postRequestedFor(urlEqualTo(url)));
         Mockito.verify(this.subscriptions, times(0)).remove(subscription.getId());
-        assertEquals(3, subscription.getFailedPushCounter());
+        waitAndVerifyFailedPushCounter(3, subscription);
 
         estimatedVehicleJourney.setDataSource("blabla"); //must add something so it differs from the previous ones
         subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney);
         waitAndVerifyAtLeast(4, postRequestedFor(urlEqualTo(url)));
+        waitAndVerifyFailedPushCounter(4, subscription);
         Mockito.verify(this.subscriptions, times(1)).remove(subscription.getId());
-        assertEquals(4, subscription.getFailedPushCounter());
     }
 
     @Test
-    public void dontPushSameMessageMoreThanOnce() throws JAXBException, XMLStreamException {
+    public void dontPushSameETMessageMoreThanOnce() throws JAXBException, XMLStreamException {
 
         String url = "/push/duplicates/et";
         stubFor(post(urlEqualTo(url))
                 .withHeader("Content-Type", equalTo("application/xml"))
                 .willReturn(aResponse()));
 
-        Subscription subscription = createSubscription(url);
-        subscriptionManager.add(subscription);
+        Subscription subscription = createSubscription(url, "NSR:Quay:232", "NSR:Quay:125", null);
         verify(0, postRequestedFor(urlEqualTo(url)));
         assertEquals(0, subscription.getFailedPushCounter());
         assertTrue(alreadySentCache.keySet().isEmpty());
@@ -198,6 +192,168 @@ public class SubscriptionManagerTest {
         waitAndVerifyAtLeast(2, postRequestedFor(urlEqualTo(url)));
         assertEquals(0, subscription.getFailedPushCounter());
         assertEquals(2, alreadySentCache.keySet().size());
+    }
+
+    @Test
+    public void testSXPushMessagesForSubscriptionWithStops() throws JAXBException, XMLStreamException {
+
+        String urlWithStop = "/push/1/sx";
+        stubFor(post(urlEqualTo(urlWithStop))
+                .withHeader("Content-Type", equalTo("application/xml"))
+                .willReturn(aResponse()));
+        Subscription subscriptionWithStop = createSubscription(urlWithStop, "NSR:StopPlace:1", "NSR:StopPlace:3", "NSB:Line:Line1");
+        subscriptionWithStop.addVehicleRef("1234");
+        HashSet<Subscription> subscriptions = new HashSet<>();
+        subscriptions.add(subscriptionWithStop);
+        subscriptionManager.notifySubscriptions(subscriptions, createPtSituationElement());
+
+        waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(urlWithStop)));
+        PtSituationElement msgForSubsciptionWithStops = getPushedPtSituationElement(urlWithStop);
+        //For subscriptions with should all unsubscribed stops, and journeys with unsubscribed vehiclerefs og linerefs
+        assertNotNull(msgForSubsciptionWithStops.getAffects());
+        assertNotNull(msgForSubsciptionWithStops.getAffects().getVehicleJourneys());
+        List<AffectedVehicleJourneyStructure> affectedVehicleJourneies = msgForSubsciptionWithStops.getAffects().getVehicleJourneys().getAffectedVehicleJourneies();
+        assertNotNull(affectedVehicleJourneies);
+        assertEquals(1, affectedVehicleJourneies.size());
+        AffectedVehicleJourneyStructure affectedVehicleJourney = affectedVehicleJourneies.get(0);
+        assertEquals("NSB:Line:Line1", affectedVehicleJourney.getLineRef().getValue());
+        assertEquals("1234", affectedVehicleJourney.getVehicleJourneyReves().get(0).getValue());
+        AffectedRouteStructure.StopPoints stopPoints = affectedVehicleJourney.getRoutes().get(0).getStopPoints();
+        assertEquals(2, stopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints().size());
+    }
+
+    @Test
+    public void testSXPushMessagesForSubscriptionWithoutStops() throws JAXBException, XMLStreamException {
+
+        String urlWithoutStop = "/push/2/sx";
+        stubFor(post(urlEqualTo(urlWithoutStop))
+                .withHeader("Content-Type", equalTo("application/xml"))
+                .willReturn(aResponse()));
+        Subscription subscriptionWithoutStop = createSubscription(urlWithoutStop, null, null, "NSB:Line:Line1");
+
+        HashSet<Subscription> subscriptions = new HashSet<>();
+        subscriptions.add(subscriptionWithoutStop);
+        subscriptionManager.notifySubscriptions(subscriptions, createPtSituationElement());
+
+
+        waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(urlWithoutStop)));
+        PtSituationElement msgForSubsciptionWithoutStops  = getPushedPtSituationElement(urlWithoutStop);
+        //For subscriptions without stops we remove all journeys not subscribed upon: vehicle(journey)ref og lineref<-added by us from live routes, not the producer
+        assertNotNull(msgForSubsciptionWithoutStops .getAffects());
+        assertNotNull(msgForSubsciptionWithoutStops .getAffects().getVehicleJourneys());
+        List<AffectedVehicleJourneyStructure> affectedJourneies = msgForSubsciptionWithoutStops .getAffects().getVehicleJourneys().getAffectedVehicleJourneies();
+        assertNotNull(affectedJourneies);
+        assertEquals(2, affectedJourneies.size());
+        AffectedVehicleJourneyStructure journey1234;
+        AffectedVehicleJourneyStructure journey2222;
+        if ("1234".equals(affectedJourneies.get(0).getVehicleJourneyReves().get(0).getValue())) {
+            journey1234 = affectedJourneies.get(0);
+            journey2222 = affectedJourneies.get(1);
+        } else {
+            journey2222 = affectedJourneies.get(0);
+            journey1234 = affectedJourneies.get(1);
+        }
+        assertEquals("NSB:Line:Line1", journey1234.getLineRef().getValue());
+        assertEquals("1234", journey1234.getVehicleJourneyReves().get(0).getValue());
+        assertEquals(4, journey1234.getRoutes().get(0).getStopPoints().getAffectedStopPointsAndLinkProjectionToNextStopPoints().size());
+        assertEquals("NSB:Line:Line1", journey2222.getLineRef().getValue());
+        assertEquals("2222", journey2222.getVehicleJourneyReves().get(0).getValue());
+        assertEquals(3, journey2222.getRoutes().get(0).getStopPoints().getAffectedStopPointsAndLinkProjectionToNextStopPoints().size());
+    }
+
+    private PtSituationElement getPushedPtSituationElement(String urlWithStop) throws JAXBException, XMLStreamException {
+        List<LoggedRequest> loggedRequests = findAll(postRequestedFor(urlEqualTo(urlWithStop)));
+        assertEquals(1, loggedRequests.size());
+        LoggedRequest loggedRequest = loggedRequests.get(0);
+        String xml = new String(loggedRequest.getBody());
+        return siriMarshaller.unmarshall(xml, PtSituationElement.class);
+    }
+
+    private PtSituationElement createPtSituationElement() throws JAXBException, XMLStreamException {
+        String xml ="<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n" +
+                "<PtSituationElement xmlns=\"http://www.siri.org.uk/siri\">\n" +
+                "  <CreationTime>2018-01-19T10:01:05+01:00</CreationTime>\n" +
+                "  <ParticipantRef>NSB</ParticipantRef>\n" +
+                "  <SituationNumber>status-167911766</SituationNumber>\n" +
+                "  <Version>1</Version>\n" +
+                "  <Source>\n" +
+                "    <SourceType>web</SourceType>\n" +
+                "  </Source>\n" +
+                "  <Progress>published</Progress>\n" +
+                "  <ValidityPeriod>\n" +
+                "    <StartTime>2018-01-19T00:00:00+01:00</StartTime>\n" +
+                "    <EndTime>2018-01-19T16:54:00+01:00</EndTime>\n" +
+                "  </ValidityPeriod>\n" +
+                "  <UndefinedReason/>\n" +
+                "  <ReportType>incident</ReportType>\n" +
+                "  <Keywords/>\n" +
+                "  <Description xml:lang=\"NO\">Toget er innstilt mellom Oslo S og Drammen. Vennligst benytt neste tog.</Description>\n" +
+                "  <Description xml:lang=\"EN\">The train is cancelled between Oslo S and Drammen. Passengers are requested to take the next train.</Description>\n" +
+                "  <Affects>\n" +
+                "    <VehicleJourneys>\n" +
+                "      <AffectedVehicleJourney>\n" +
+                "        <LineRef>NSB:Line:Line1</LineRef>\n" +
+                "        <VehicleJourneyRef>1234</VehicleJourneyRef>\n" +
+                "        <Route>\n" +
+                "          <StopPoints>\n" +
+                "            <AffectedOnly>true</AffectedOnly>\n" +
+                "            <AffectedStopPoint>\n" +
+                "              <StopPointRef>NSR:StopPlace:1</StopPointRef>\n" +
+                "              <StopPointName>Oslo S</StopPointName>\n" +
+                "            </AffectedStopPoint>\n" +
+                "            <AffectedStopPoint>\n" +
+                "              <StopPointRef>NSR:StopPlace:2</StopPointRef>\n" +
+                "              <StopPointName>Nationaltheatret</StopPointName>\n" +
+                "            </AffectedStopPoint>\n" +
+                "            <AffectedStopPoint>\n" +
+                "              <StopPointRef>NSR:StopPlace:3</StopPointRef>\n" +
+                "              <StopPointName>Skøyen</StopPointName>\n" +
+                "            </AffectedStopPoint>\n" +
+                "            <AffectedStopPoint>\n" +
+                "              <StopPointRef>NSR:StopPlace:4</StopPointRef>\n" +
+                "              <StopPointName>Lysaker</StopPointName>\n" +
+                "            </AffectedStopPoint>\n" +
+                "          </StopPoints>\n" +
+                "        </Route>\n" +
+                "      </AffectedVehicleJourney>\n" +
+                "      <AffectedVehicleJourney>\n" +
+                "        <LineRef>NSB:Line:Line1</LineRef>\n" +
+                "        <VehicleJourneyRef>2222</VehicleJourneyRef>\n" +
+                "        <Route>\n" +
+                "          <StopPoints>\n" +
+                "            <AffectedOnly>true</AffectedOnly>\n" +
+                "            <AffectedStopPoint>\n" +
+                "              <StopPointRef>NSR:StopPlace:1</StopPointRef>\n" +
+                "              <StopPointName>Oslo S</StopPointName>\n" +
+                "            </AffectedStopPoint>\n" +
+                "            <AffectedStopPoint>\n" +
+                "              <StopPointRef>NSR:StopPlace:2</StopPointRef>\n" +
+                "              <StopPointName>Nationaltheatret</StopPointName>\n" +
+                "            </AffectedStopPoint>\n" +
+                "            <AffectedStopPoint>\n" +
+                "              <StopPointRef>NSR:StopPlace:3</StopPointRef>\n" +
+                "              <StopPointName>Skøyen</StopPointName>\n" +
+                "            </AffectedStopPoint>\n" +
+                "          </StopPoints>\n" +
+                "        </Route>\n" +
+                "      </AffectedVehicleJourney>\n" +
+                "      <AffectedVehicleJourney>\n" +
+                "        <LineRef>NSB:Line:Line2</LineRef>\n" +
+                "        <VehicleJourneyRef>4444</VehicleJourneyRef>\n" +
+                "        <Route>\n" +
+                "          <StopPoints>\n" +
+                "            <AffectedOnly>true</AffectedOnly>\n" +
+                "            <AffectedStopPoint>\n" +
+                "              <StopPointRef>NSR:StopPlace:2</StopPointRef>\n" +
+                "              <StopPointName>Nationaltheatret</StopPointName>\n" +
+                "            </AffectedStopPoint>\n" +
+                "          </StopPoints>\n" +
+                "        </Route>\n" +
+                "      </AffectedVehicleJourney>\n" +
+                "    </VehicleJourneys>\n" +
+                "  </Affects>\n" +
+                "</PtSituationElement>";
+        return siriMarshaller.unmarshall(xml, PtSituationElement.class);
     }
 
     private EstimatedVehicleJourney createEstimatedVehicleJourney() throws JAXBException, XMLStreamException {
@@ -256,14 +412,30 @@ public class SubscriptionManagerTest {
         return siriMarshaller.unmarshall(xml, EstimatedVehicleJourney.class);
     }
 
-    private Subscription createSubscription(String pushAddress) {
+    private Subscription createSubscription(String pushAddress, String from, String to, String line) {
         Subscription subscription = new Subscription();
-        subscription.addFromStopPoint("NSR:Quay:232");
-        subscription.addToStopPoint("NSR:Quay:125");
+        if (from != null) subscription.addFromStopPoint(from);
+        if (to != null) subscription.addToStopPoint(to);
+        if (line != null) subscription.addLineRef(line);
         subscription.setName("Push over http test");
         pushAddress = pushAddress.substring(0, pushAddress.length()-3); //last '/et' (or '/sx') is added by the subscription manager
         subscription.setPushAddress("http://localhost:" + wireMockRule.port() + pushAddress);
-        return subscription;
+        return subscriptionManager.add(subscription);
+    }
+
+    private void waitAndVerifyFailedPushCounter(int expected, Subscription subscription) {
+        long start = System.currentTimeMillis();
+        long actual = 0;
+        while (System.currentTimeMillis() - start < 5000) {
+            actual = subscription.getFailedPushCounter();
+            if (actual > expected) {
+                fail("Expected " + expected + " found " + actual);
+            }
+            if (actual == expected) {
+                return;
+            }
+        }
+        fail("Expected " + expected + " but found only " + actual+" before we timed out...");
     }
 
     /**

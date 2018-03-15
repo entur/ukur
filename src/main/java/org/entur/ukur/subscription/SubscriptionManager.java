@@ -134,7 +134,7 @@ public class SubscriptionManager {
         }
     }
 
-    public void notifySubscriptionsOnStops(HashSet<Subscription> subscriptions, PtSituationElement ptSituationElement) {
+    public void notifySubscriptions(HashSet<Subscription> subscriptions, PtSituationElement ptSituationElement) {
         for (Subscription subscription : subscriptions) {
             Set<String> subscribedStops = getAllStops(subscription);
             PtSituationElement clone = clone(ptSituationElement);
@@ -145,64 +145,58 @@ public class SubscriptionManager {
                 affects.setExtensions(null);
                 affects.setOperators(null);
                 affects.setPlaces(null);
-                affects.setRoads(null);
                 affects.setStopPoints(null);
+                affects.setRoads(null);
                 affects.setVehicles(null);
-                //TODO: networks are part of the profile, but ignored for now
-                affects.setNetworks(null);
+                affects.setNetworks(null); //TODO: networks are part of the profile, but ignored for now
 
-                //Removes affected StopPoints not subscribed upon
-                AffectsScopeStructure.StopPoints affectsStopPoints = affects.getStopPoints();
-                if (affectsStopPoints != null && affectsStopPoints.getAffectedStopPoints() != null) {
-                    Iterator<AffectedStopPointStructure> iterator = affectsStopPoints.getAffectedStopPoints().iterator();
-                    while (iterator.hasNext()) {
-                        AffectedStopPointStructure stop = iterator.next();
-                        String ref = stop.getStopPointRef() == null ? "" : stop.getStopPointRef().getValue();
-                        if (!subscribedStops.contains(ref)) {
-                            iterator.remove();
+                if (!subscription.hasNoStops()) {
+                    //Removes affected StopPlaces not subscribed upon
+                    AffectsScopeStructure.StopPlaces stopPlaces = affects.getStopPlaces();
+                    if (stopPlaces != null && stopPlaces.getAffectedStopPlaces() != null) {
+                        Iterator<AffectedStopPlaceStructure> iterator = stopPlaces.getAffectedStopPlaces().iterator();
+                        while (iterator.hasNext()) {
+                            AffectedStopPlaceStructure stop = iterator.next();
+                            String ref = stop.getStopPlaceRef() == null ? "" : stop.getStopPlaceRef().getValue();
+                            if (!subscribedStops.contains(ref)) {
+                                iterator.remove();
+                            }
                         }
                     }
+                } else {
+                    //Mulig dette ikke er helt riktig...
+                    affects.setStopPlaces(null);
                 }
-                //Removes affected StopPlaces not subscribed upon
-                AffectsScopeStructure.StopPlaces stopPlaces = affects.getStopPlaces();
-                if (stopPlaces != null && stopPlaces.getAffectedStopPlaces() != null) {
-                    Iterator<AffectedStopPlaceStructure> iterator = stopPlaces.getAffectedStopPlaces().iterator();
-                    while (iterator.hasNext()) {
-                        AffectedStopPlaceStructure stop = iterator.next();
-                        String ref = stop.getStopPlaceRef() == null ? "" : stop.getStopPlaceRef().getValue();
-                        if (!subscribedStops.contains(ref)) {
-                            iterator.remove();
-                        }
-                    }
-                }
-                //Removes affected VehicleJourneys (and unsubscribed stops) without any stops subscribed upon
+                //Removes affected VehicleJourneys (and unsubscribed stops) without any stops, lines or vehicles subscribed upon
                 AffectsScopeStructure.VehicleJourneys vehicleJourneys = affects.getVehicleJourneys();
                 if (vehicleJourneys != null && vehicleJourneys.getAffectedVehicleJourneies() != null) {
                     Iterator<AffectedVehicleJourneyStructure> iterator = vehicleJourneys.getAffectedVehicleJourneies().iterator();
-                    while(iterator.hasNext()) {
+                    while (iterator.hasNext()) {
                         AffectedVehicleJourneyStructure journeyStructure = iterator.next();
                         boolean removeJourney = true;
-                        if (journeyStructure.getRoutes() != null) {
+                        if (isSubscribed(subscription, journeyStructure) && journeyStructure.getRoutes() != null) {
                             List<AffectedRouteStructure> routes = journeyStructure.getRoutes();
-                            Iterator<AffectedRouteStructure> routeStructureIterator = routes.iterator();
-                            while(routeStructureIterator.hasNext()) {
-                                AffectedRouteStructure routeStructure = routeStructureIterator.next();
-                                AffectedRouteStructure.StopPoints stopPoints = routeStructure.getStopPoints();
-                                if (stopPoints != null && stopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints() != null) {
-                                    List<Serializable> affectedStopPointsAndLinkProjectionToNextStopPoints = stopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints();
-                                    Iterator<Serializable> stops = affectedStopPointsAndLinkProjectionToNextStopPoints.iterator();
-                                    while (stops.hasNext()) {
-                                        Serializable stop = stops.next();
-                                        if (stop instanceof AffectedStopPointStructure) {
-                                            AffectedStopPointStructure affectedStopPoint = (AffectedStopPointStructure) stop;
-                                            String ref = affectedStopPoint.getStopPointRef() == null ? "" : affectedStopPoint.getStopPointRef().getValue();
-                                            if (!subscribedStops.contains(ref)) {
-                                                stops.remove();
+                            if (!subscription.hasNoStops()) {
+                                Iterator<AffectedRouteStructure> routeStructureIterator = routes.iterator();
+                                while (routeStructureIterator.hasNext()) {
+                                    AffectedRouteStructure routeStructure = routeStructureIterator.next();
+                                    AffectedRouteStructure.StopPoints stopPoints = routeStructure.getStopPoints();
+                                    if (stopPoints != null && stopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints() != null) {
+                                        List<Serializable> affectedStopPointsAndLinkProjectionToNextStopPoints = stopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints();
+                                        Iterator<Serializable> stops = affectedStopPointsAndLinkProjectionToNextStopPoints.iterator();
+                                        while (stops.hasNext()) {
+                                            Serializable stop = stops.next();
+                                            if (stop instanceof AffectedStopPointStructure) {
+                                                AffectedStopPointStructure affectedStopPoint = (AffectedStopPointStructure) stop;
+                                                String ref = affectedStopPoint.getStopPointRef() == null ? "" : affectedStopPoint.getStopPointRef().getValue();
+                                                if (!subscribedStops.contains(ref)) {
+                                                    stops.remove();
+                                                }
                                             }
                                         }
-                                    }
-                                    if (affectedStopPointsAndLinkProjectionToNextStopPoints.isEmpty()) {
-                                        routeStructureIterator.remove();
+                                        if (affectedStopPointsAndLinkProjectionToNextStopPoints.isEmpty()) {
+                                            routeStructureIterator.remove();
+                                        }
                                     }
                                 }
                             }
@@ -219,6 +213,26 @@ public class SubscriptionManager {
         }
     }
 
+    private boolean isSubscribed(Subscription subscription, AffectedVehicleJourneyStructure journey) {
+        if (!subscription.getLineRefs().isEmpty() && journey.getLineRef() != null) {
+            String lineref = journey.getLineRef().getValue();
+            if (StringUtils.isNotBlank(lineref) && !subscription.getLineRefs().contains(lineref)) {
+                return false;
+            }
+        }
+        if (!subscription.getVehicleRefs().isEmpty() && journey.getVehicleJourneyReves() != null) {
+            boolean vehicleRefOk = true;
+            for (VehicleJourneyRef vehicleJourneyRef : journey.getVehicleJourneyReves()) {
+                String value = vehicleJourneyRef.getValue();
+                if (StringUtils.isNotBlank(value) && !subscription.getVehicleRefs().contains(value)) {
+                    vehicleRefOk = false;
+                }
+            }
+            return vehicleRefOk;
+        }
+        return true;
+    }
+
 
     @SuppressWarnings({"unused", "UnusedReturnValue"}) //Used from Camel REST api
     public Subscription add(Subscription s) {
@@ -229,11 +243,15 @@ public class SubscriptionManager {
             throw new IllegalArgumentException("PushAddress is required");
         }
         s.normalizeAndRemoveIgnoredStops();
-        if (s.getFromStopPoints() == null || s.getFromStopPoints().isEmpty()) {
-            throw new IllegalArgumentException("At least one valid FROM stop required");
+        boolean noToStops = s.getToStopPoints().isEmpty();
+        boolean noFromStops = s.getFromStopPoints().isEmpty();
+        boolean noVehicleRefs = s.getVehicleRefs().isEmpty();
+        boolean noLineRefs = s.getLineRefs().isEmpty();
+        if (noToStops && noFromStops && noVehicleRefs && noLineRefs) {
+            throw new IllegalArgumentException("No criterias given, must have at least one lineRef, one vehicleRef or a fromStop and a toStop");
         }
-        if (s.getToStopPoints() == null || s.getToStopPoints().isEmpty()) {
-            throw new IllegalArgumentException("At least one valid TO stop required");
+        if ( (noFromStops && !noToStops) || (noToStops && !noFromStops)) {
+            throw new IllegalArgumentException("Must have both TO and FROM stops");
         }
 
         Subscription added = dataStorageService.addSubscription(s);

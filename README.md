@@ -31,6 +31,12 @@ present to receive push messages.
 LineRefs and vehicleRefs are used to subscribe on entire lines, vehicles or limit from-to 
 messages to just those regarding one or more lines and/or vehicles. 
 
+StopPoints (fromStopPoints and toStopPoints is treated as one group), lineRefs and vehicleRefs
+is combined to an AND criteria. But we only require one 'hit' from each of them, so inside them
+the values are treated as an OR criteria. The json example above will result in a pushmessage only 
+if it involves a stop from ("NSR:Quay:551" OR "NSR:Quay:553" OR "NSR:Quay:550") AND to ("NSR:Quay:695" OR
+"NSR:Quay:696") AND lineRefs is ("NSB:Line:L14" OR "NSB:Line:R11"]) AND vehicleRefs is ("504" OR "806").
+
 
 ### The push endpoint  
 Ukur will **post** SIRI data as `application/xml` to the per subscription configured pushAddress after 
@@ -49,8 +55,9 @@ messages from NSB is processed - all operators and producers will be processed i
 For **SX messages** that reference a VehicleJourney, we attempt to use a route table based on ET messages to 
 determine if the message regards a subscription (correct direction, line, etc) or not. Other SX messages only 
 regards stops and is sent to affected subscriptions (unless the exact same message has already been sent). 
-The PtSituationElement will have all other stops removed from Affects to make the payload smaller, before 
-it is sent to the various subscription endpoints.
+For subscriptions that contains stops, the PtSituationElement will have all other stops removed from Affects 
+to make the payload smaller, before it is sent to the various subscription endpoints. We will also remove
+affected journeys not matching the subscriptions constraint on lines and vehicles.
 
 For **ET messages**, the logic is more complex to decide if a message should be pushed. Both a from and a to 
 stop must be present in the correct order in an EstimatedVehicleJourney with one of these deviations:

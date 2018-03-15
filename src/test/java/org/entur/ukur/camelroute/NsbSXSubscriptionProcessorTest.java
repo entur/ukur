@@ -17,6 +17,7 @@ package org.entur.ukur.camelroute;
 
 import com.hazelcast.core.IMap;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
+import org.apache.commons.lang3.StringUtils;
 import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.routedata.LiveRouteManager;
 import org.entur.ukur.service.DataStorageHazelcastService;
@@ -25,10 +26,12 @@ import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionManager;
 import org.entur.ukur.xml.SiriMarshaller;
+import org.junit.Before;
 import org.junit.Test;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
 import uk.org.siri.siri20.*;
 
-import javax.xml.bind.JAXBException;
 import java.io.Serializable;
 import java.time.ZonedDateTime;
 import java.util.*;
@@ -39,33 +42,33 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 public class NsbSXSubscriptionProcessorTest {
+    private final Logger logger = LoggerFactory.getLogger(getClass());
+
+    private SubscriptionManager subscriptionManager;
+    private NsbSXSubscriptionProcessor processor;
+    private LiveRouteManager liveRouteManagerMock;
+    private SiriMarshaller siriMarshaller;
+
+    @Before
+    public void setUp() throws Exception {
+        IMap<String, LiveJourney> liveJourneyIMap = new TestHazelcastInstanceFactory().newHazelcastInstance().getMap("journeys");
+        MetricsService metricsServiceMock = mock(MetricsService.class);
+        siriMarshaller = new SiriMarshaller();
+        subscriptionManager = new SubscriptionManager(new DataStorageHazelcastService(new HashMap<>(), new HashMap<>(), liveJourneyIMap), siriMarshaller, metricsServiceMock, new HashMap<>());
+        liveRouteManagerMock = mock(LiveRouteManager.class);
+        processor = new NsbSXSubscriptionProcessor(subscriptionManager, siriMarshaller, liveRouteManagerMock, mock(FileStorageService.class), mock(MetricsService.class));
+    }
 
     @Test
-    public void findAffectedSubscriptions() throws JAXBException {
-        Subscription s1 = new Subscription();
-        s1.setName("s1");
-        s1.addFromStopPoint("NSR:StopPlace:2");
-        s1.addToStopPoint("NSR:StopPlace:3");
-        s1.setPushAddress("push");
+    public void findAffectedSubscriptionOnStopsOnly()  {
+        Subscription s1 = createSubscription("s2", "NSR:StopPlace:2", "NSR:StopPlace:3");
+        s1.addFromStopPoint("NSR:StopPlace:22");
+        s1.addFromStopPoint("NSR:StopPlace:222");
+        s1.addToStopPoint("NSR:StopPlace:33");
+        s1.addToStopPoint("NSR:StopPlace:333");
 
-        Subscription s2 = new Subscription();
-        s2.setName("s2");
-        s2.addFromStopPoint("NSR:StopPlace:3");
-        s2.addToStopPoint("NSR:StopPlace:5");
-        s2.setPushAddress("push");
-
-        Subscription s0 = new Subscription();
-        s0.setName("s0");
-        s0.addFromStopPoint("NSR:StopPlace:0");
-        s0.addToStopPoint("NSR:StopPlace:2");
-        s0.setPushAddress("push");
-        SubscriptionManager subscriptionManager = createSubscriptionManager();
-        subscriptionManager.add(s1);
-        subscriptionManager.add(s2);
-        subscriptionManager.add(s0);
-        LiveRouteManager liveRouteManagerMock = mock(LiveRouteManager.class);
-        NsbSXSubscriptionProcessor processor = new NsbSXSubscriptionProcessor(subscriptionManager,
-                new SiriMarshaller(), liveRouteManagerMock, mock(FileStorageService.class), mock(MetricsService.class));
+        createSubscription("s2", "NSR:StopPlace:3", "NSR:StopPlace:5");
+        Subscription s0 = createSubscription("s0", "NSR:StopPlace:0", "NSR:StopPlace:2");
 
         //Only one in correct order
         HashSet<Subscription> affectedSubscriptions = processor.findAffectedSubscriptions(createVehicleJourneys(Arrays.asList("1", "2", "3", "4"), null, false));
@@ -77,39 +80,16 @@ public class NsbSXSubscriptionProcessorTest {
         assertTrue(affectedSubscriptions.isEmpty());
 
         //All when we don't know if all stops is present in camelroute
-        affectedSubscriptions = processor.findAffectedSubscriptions(createVehicleJourneys(Collections.singletonList("2"), null, true));
-        assertEquals(2, affectedSubscriptions.size());
-        Set<String> names = affectedSubscriptions.stream().map(Subscription::getName).collect(Collectors.toSet());
-        assertTrue(names.contains("s1"));
-        assertTrue(names.contains("s0"));
+        assertPresent(Arrays.asList(s1, s0), processor.findAffectedSubscriptions(createVehicleJourneys(Collections.singletonList("2"), null, true)));
 
         //Only one when we look up the camelroute if not all stops is present in camelroute
-        when(liveRouteManagerMock.getJourneys()).thenReturn(Collections.singletonList(createLiveJourney("123", Arrays.asList("1", "2", "3"))));
-        affectedSubscriptions = processor.findAffectedSubscriptions(createVehicleJourneys(Collections.singletonList("2"), "123", true));
-        assertEquals(1, affectedSubscriptions.size());
-        assertEquals("s1", affectedSubscriptions.iterator().next().getName());
-    }
-
-    private SubscriptionManager createSubscriptionManager() throws JAXBException {
-        IMap<String, LiveJourney> liveJourneyIMap = new TestHazelcastInstanceFactory().newHazelcastInstance().getMap("journeys");
-        MetricsService metricsServiceMock = mock(MetricsService.class);
-        return new SubscriptionManager(new DataStorageHazelcastService(new HashMap<>(), new HashMap<>(), liveJourneyIMap), new SiriMarshaller(), metricsServiceMock, new HashMap<>());
+        when(liveRouteManagerMock.getJourneys()).thenReturn(Collections.singletonList(createLiveJourney("line#1", "123", Arrays.asList("1", "2", "3"))));
+        assertPresent(Collections.singletonList(s1), processor.findAffectedSubscriptions(createVehicleJourneys(Collections.singletonList("2"), "123", true)));
     }
 
     @Test
     public void one_affected_unsubscribed_stop_on_journey() throws Exception {
-        Subscription s1 = new Subscription();
-        s1.setName("test");
-        s1.addFromStopPoint("NSR:StopPlace:2");
-        s1.addToStopPoint("NSR:StopPlace:3");
-        s1.setPushAddress("push");
-
-        SubscriptionManager subscriptionManager = createSubscriptionManager();
-        subscriptionManager.add(s1);
-        LiveRouteManager liveRouteManagerMock = mock(LiveRouteManager.class);
-        SiriMarshaller siriMarshaller = new SiriMarshaller();
-        NsbSXSubscriptionProcessor processor = new NsbSXSubscriptionProcessor(subscriptionManager,
-                siriMarshaller, liveRouteManagerMock, mock(FileStorageService.class), mock(MetricsService.class));
+        createSubscription("test", "NSR:StopPlace:2", "NSR:StopPlace:3");
 
         String SX_with_one_affected_stop_on_journey =
                 "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n" +
@@ -154,7 +134,7 @@ public class NsbSXSubscriptionProcessorTest {
                 "</PtSituationElement>\n";
         PtSituationElement ptSituationElement = siriMarshaller.unmarshall(SX_with_one_affected_stop_on_journey, PtSituationElement.class);
 
-        when(liveRouteManagerMock.getJourneys()).thenReturn(Collections.singletonList(createLiveJourney("64", Arrays.asList("1", "2", "440"))));
+        when(liveRouteManagerMock.getJourneys()).thenReturn(Collections.singletonList(createLiveJourney("line#1", "64", Arrays.asList("1", "2", "440"))));
 
         assertNotNull(ptSituationElement);
         assertNotNull(ptSituationElement.getAffects());
@@ -172,24 +152,158 @@ public class NsbSXSubscriptionProcessorTest {
         vehicleJourneyReves.add(journeyRef);
         affectedSubscriptions = processor.findAffectedSubscriptions(ptSituationElement.getAffects().getVehicleJourneys());
         assertEquals(0, affectedSubscriptions.size());
-
     }
 
-    private LiveJourney createLiveJourney(String vehicleJourneyRef, List<String> stops) {
+    @Test
+    public void testSubscriptionsWithLineAndVehicleAndStops() {
+        /*
+        Test these subscription variants (with both hits and no hits)
+        - from-to (already tested above)
+        - from-to-vehicle
+        - from-to-line
+        - from-to-line-vehicle
+        - line-vehicle
+        - line
+        - vehicle
+         */
+
+        //These are supposed to be found
+        Subscription s_stops_vehicle = createSubscription("from-to-vehicle", "NSR:StopPlace:10", "NSR:StopPlace:20", null, "vehicle#1");
+        Subscription s_stops_line = createSubscription("from-to-line", "NSR:StopPlace:10", "NSR:StopPlace:20", "line#1", null);
+        Subscription s_stops_line_vehicle = createSubscription("from-to-line-vehicle", "NSR:StopPlace:10", "NSR:StopPlace:20", "line#1", "vehicle#1");
+        Subscription s_line_vehicle = createSubscription("line-vehicle", null, null, "line#1", "vehicle#1");
+        Subscription s_line = createSubscription("line", null, null, "line#1", null);
+        Subscription s_vehicle = createSubscription("vehicle", null, null, null, "vehicle#1");
+        List<Subscription> expectedSubscriptions = Arrays.asList(s_stops_vehicle, s_stops_line, s_stops_line_vehicle, s_line_vehicle, s_line, s_vehicle);
+        //These are not supposed to be found as they have one or more conditions set that doesn't match:
+        createSubscription("NOHIT1-from-to-vehicle", "NSR:StopPlace:40", "NSR:StopPlace:30", null, "vehicle#1");
+        createSubscription("NOHIT2-from-to-vehicle", "NSR:StopPlace:10", "NSR:StopPlace:20", null, "vehicle#2");
+        createSubscription("NOHIT3-from-to-line", "NSR:StopPlace:40", "NSR:StopPlace:30", "line#1", null);
+        createSubscription("NOHIT4-from-to-line", "NSR:StopPlace:10", "NSR:StopPlace:20", "line#2", null);
+        createSubscription("NOHIT5-from-to-line-vehicle", "NSR:StopPlace:40", "NSR:StopPlace:30", "line#1", "vehicle#1");
+        createSubscription("NOHIT6-line-vehicle", null, null, "line#1", "vehicle#2");
+        createSubscription("NOHIT7-line-vehicle", null, null, "line#2", "vehicle#1");
+        createSubscription("NOHIT8-line", null, null, "line#2", null);
+        createSubscription("NOHIT9-vehicle", null, null, null, "vehicle#2");
+
+        ArrayList<LiveJourney> testRouteData = new ArrayList<>();
+        testRouteData.add(createLiveJourney("line#1", "vehicle#1", Arrays.asList("10", "20", "30", "40")));
+        testRouteData.add(createLiveJourney("line#x", "vehicle#x", Arrays.asList("10", "20", "30", "40")));
+        when(liveRouteManagerMock.getJourneys()).thenReturn(testRouteData);
+
+        AffectsScopeStructure.VehicleJourneys vehiclejourney = new AffectsScopeStructure.VehicleJourneys();
+        AffectedVehicleJourneyStructure affectedVehicleJourneyStructure = new AffectedVehicleJourneyStructure();
+        vehiclejourney.getAffectedVehicleJourneies().add(affectedVehicleJourneyStructure);
+        VehicleJourneyRef vehicleJourneyRef = new VehicleJourneyRef();
+        vehicleJourneyRef.setValue("vehicle#1");
+        affectedVehicleJourneyStructure.getVehicleJourneyReves().add(vehicleJourneyRef);
+        AffectedRouteStructure routeStructure = new AffectedRouteStructure();
+        affectedVehicleJourneyStructure.getRoutes().add(routeStructure);
+        AffectedRouteStructure.StopPoints stopPoints = new AffectedRouteStructure.StopPoints();
+        routeStructure.setStopPoints(stopPoints);
+        stopPoints.setAffectedOnly(true);
+        stopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints().add(createAffectedStopPointStructure("NSR:StopPlace:10"));
+        stopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints().add(createAffectedStopPointStructure("NSR:StopPlace:20"));
+        assertPresent(expectedSubscriptions, processor.findAffectedSubscriptions(vehiclejourney));
+
+        stopPoints.setAffectedOnly(false); //<-- Set to false, since it effects how the live route is used
+        stopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints().add(createAffectedStopPointStructure("NSR:StopPlace:30"));
+        stopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints().add(createAffectedStopPointStructure("NSR:StopPlace:40"));
+        assertPresent(expectedSubscriptions, processor.findAffectedSubscriptions(vehiclejourney));
+    }
+
+    private void assertPresent(List<Subscription> expectedSubscriptions, Collection<Subscription> actualSubscriptions) {
+        logger.debug("Found these subscriptions: {} ", actualSubscriptions.stream().map(Subscription::getName).collect(Collectors.toList()));
+        ArrayList<Subscription> missing = new ArrayList<>();
+        for (Subscription expectedSubscription : expectedSubscriptions) {
+            if (!actualSubscriptions.contains(expectedSubscription)) {
+                missing.add(expectedSubscription);
+            }
+        }
+        ArrayList<Subscription> toMany = new ArrayList<>();
+        for (Subscription actualSubscription : actualSubscriptions) {
+            if (!expectedSubscriptions.contains(actualSubscription)) {
+                toMany.add(actualSubscription);
+            }
+        }
+        String errorMessage = "";
+        if (expectedSubscriptions.size() != actualSubscriptions.size()) {
+            errorMessage = "Expected "+expectedSubscriptions.size()+" subscriptions, but found "+actualSubscriptions.size()+". ";
+        }
+        if (!missing.isEmpty()) {
+            errorMessage += "Missing subscriptions: "+Arrays.toString(missing.stream().map(Subscription::getName).toArray())+". ";
+        }
+        if (!toMany.isEmpty()) {
+            errorMessage += "Unexpected subscriptions: "+Arrays.toString(toMany.stream().map(Subscription::getName).toArray())+". ";
+        }
+        if (StringUtils.isNotBlank(errorMessage)) {
+            fail(errorMessage);
+        }
+    }
+
+    private AffectedStopPointStructure createAffectedStopPointStructure(String s2) {
+        AffectedStopPointStructure stop1 = new AffectedStopPointStructure();
+        stop1.setStopPointRef(createStopPointRef(s2));
+        return stop1;
+    }
+
+    @Test
+    public void testAffectMethod() {
+        List<String> orderedListOfStops = Arrays.asList("NSR:StopPlace:1", "NSR:StopPlace:2", "NSR:StopPlace:3");
+        assertTrue(processor.affected(createSubscription("correct direction", "NSR:StopPlace:1", "NSR:StopPlace:2"), orderedListOfStops));
+        assertFalse(processor.affected(createSubscription("opposite direction", "NSR:StopPlace:2", "NSR:StopPlace:1"), orderedListOfStops));
+    }
+
+    private EstimatedCall createEstimatedCall(String s2) {
+        EstimatedCall estimatedCall1 = new EstimatedCall();
+        estimatedCall1.setStopPointRef(createStopPointRef(s2));
+        return estimatedCall1;
+    }
+
+    private StopPointRef createStopPointRef(String value) {
+        StopPointRef stopPointRef = new StopPointRef();
+        stopPointRef.setValue(value);
+        return stopPointRef;
+    }
+
+    private int subscriptionCounter = 0;
+
+    private Subscription createSubscription(String name, String fromStop, String toStop, String line, String vehicle) {
+        Subscription s = new Subscription();
+        s.setId(Integer.toString(subscriptionCounter++));
+        s.setPushAddress("push");
+        if (name != null) s.setName(name);
+        if (fromStop != null) s.addFromStopPoint(fromStop);
+        if (toStop != null) s.addToStopPoint(toStop);
+        if (line != null) s.addLineRef(line);
+        if (vehicle != null) s.addVehicleRef(vehicle);
+        subscriptionManager.add(s);
+        return s;
+    }
+
+    private Subscription createSubscription(String name, String fromStop, String toStop) {
+        return createSubscription(name, fromStop, toStop, null, null);
+    }
+
+    private LiveJourney createLiveJourney(String line, String vehicleRef, List<String> stops) {
         EstimatedVehicleJourney someJourney = new EstimatedVehicleJourney();
-        VehicleRef value = new VehicleRef();
-        value.setValue(vehicleJourneyRef);
-        someJourney.setVehicleRef(value);
+        if (vehicleRef != null) {
+            VehicleRef value = new VehicleRef();
+            value.setValue(vehicleRef);
+            someJourney.setVehicleRef(value);
+        }
+        if (line != null) {
+            LineRef lineRef = new LineRef();
+            lineRef.setValue(line);
+            someJourney.setLineRef(lineRef);
+        }
         EstimatedVehicleJourney.EstimatedCalls estimatedCalls = new EstimatedVehicleJourney.EstimatedCalls();
         someJourney.setEstimatedCalls(estimatedCalls);
         List<EstimatedCall> calls = estimatedCalls.getEstimatedCalls();
         ZonedDateTime now = ZonedDateTime.now();
         for (String stop : stops) {
             now = now.plusMinutes(10);
-            EstimatedCall call = new EstimatedCall();
-            StopPointRef stopPointRef = new StopPointRef();
-            stopPointRef.setValue("NSR:StopPlace:"+stop);
-            call.setStopPointRef(stopPointRef);
+            EstimatedCall call = createEstimatedCall("NSR:StopPlace:" + stop);
             call.getStopPointNames();
             call.setAimedArrivalTime(now);
             call.setExpectedArrivalTime(now);
@@ -220,10 +334,7 @@ public class NsbSXSubscriptionProcessorTest {
         }
         List<Serializable> affectedStopPointsAndLinkProjectionToNextStopPoints = stopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints();
         for (String stop : stops) {
-            AffectedStopPointStructure affectedStopPointStructure = new AffectedStopPointStructure();
-            StopPointRef stopPointRef = new StopPointRef();
-            stopPointRef.setValue("NSR:StopPlace:"+stop);
-            affectedStopPointStructure.setStopPointRef(stopPointRef);
+            AffectedStopPointStructure affectedStopPointStructure = createAffectedStopPointStructure("NSR:StopPlace:" + stop);
             affectedStopPointsAndLinkProjectionToNextStopPoints.add(affectedStopPointStructure);
         }
 
