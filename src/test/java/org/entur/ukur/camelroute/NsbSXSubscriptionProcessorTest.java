@@ -210,6 +210,22 @@ public class NsbSXSubscriptionProcessorTest {
         stopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints().add(createAffectedStopPointStructure("NSR:StopPlace:30"));
         stopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints().add(createAffectedStopPointStructure("NSR:StopPlace:40"));
         assertPresent(expectedSubscriptions, processor.findAffectedSubscriptions(vehiclejourney));
+
+        AffectsScopeStructure.VehicleJourneys unsubscribedVehiclejourney = new AffectsScopeStructure.VehicleJourneys();
+        AffectedVehicleJourneyStructure unsubscribedAffectedVehicleJourneyStructure = new AffectedVehicleJourneyStructure();
+        unsubscribedVehiclejourney.getAffectedVehicleJourneies().add(unsubscribedAffectedVehicleJourneyStructure);
+        VehicleJourneyRef unsubscribedVehicleJourneyRef = new VehicleJourneyRef();
+        unsubscribedVehicleJourneyRef.setValue("unsubscribed");
+        unsubscribedAffectedVehicleJourneyStructure.getVehicleJourneyReves().add(unsubscribedVehicleJourneyRef);
+        AffectedRouteStructure unsubscribedRouteStructure = new AffectedRouteStructure();
+        unsubscribedAffectedVehicleJourneyStructure.getRoutes().add(unsubscribedRouteStructure);
+        AffectedRouteStructure.StopPoints unsubscribedStopPoints = new AffectedRouteStructure.StopPoints();
+        unsubscribedRouteStructure.setStopPoints(unsubscribedStopPoints);
+        unsubscribedStopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints().add(createAffectedStopPointStructure("NSB:StopPlace:111"));
+        unsubscribedStopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints().add(createAffectedStopPointStructure("NSB:StopPlace:112"));
+        unsubscribedStopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints().add(createAffectedStopPointStructure("NSB:StopPlace:113"));
+        unsubscribedStopPoints.setAffectedOnly(true);
+        assertPresent(Collections.emptyList(), processor.findAffectedSubscriptions(unsubscribedVehiclejourney));
     }
 
     private void assertPresent(List<Subscription> expectedSubscriptions, Collection<Subscription> actualSubscriptions) {
@@ -266,19 +282,15 @@ public class NsbSXSubscriptionProcessorTest {
         return stopPointRef;
     }
 
-    private int subscriptionCounter = 0;
-
     private Subscription createSubscription(String name, String fromStop, String toStop, String line, String vehicle) {
         Subscription s = new Subscription();
-        s.setId(Integer.toString(subscriptionCounter++));
         s.setPushAddress("push");
         if (name != null) s.setName(name);
         if (fromStop != null) s.addFromStopPoint(fromStop);
         if (toStop != null) s.addToStopPoint(toStop);
         if (line != null) s.addLineRef(line);
         if (vehicle != null) s.addVehicleRef(vehicle);
-        subscriptionManager.add(s);
-        return s;
+        return subscriptionManager.add(s);
     }
 
     private Subscription createSubscription(String name, String fromStop, String toStop) {

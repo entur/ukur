@@ -189,6 +189,26 @@ public class GoogleDatastoreServiceTest {
                 fail("Subscription should have been deleted");
             }
         }
+    }
 
+    @Test
+    public void testLineOnlySubscription() {
+        IMap<String, LiveJourney> liveJourneyIMap = new TestHazelcastInstanceFactory().newHazelcastInstance().getMap("journeys");
+        GoogleDatastoreService service = new GoogleDatastoreService(datastore, liveJourneyIMap);
+        Subscription subscription = new Subscription();
+        subscription.setPushAddress("http://somehost/test");
+        subscription.setName("Test#1");
+        String line = "NSB:Line:L1";
+        subscription.addLineRef(line);
+        service.addSubscription(subscription);
+        int unexistingVehicleRef1 = service.getSubscriptionsForvehicleRefAndNoStops("unexisting").size();
+        int unexistingVehicleRef2 = service.getSubscriptionsForvehicleRefAndNoStops(line).size();
+        int unexistingLineRef = service.getSubscriptionsForLineRefAndNoStops("unexisting").size();
+        int existingLineRef = service.getSubscriptionsForLineRefAndNoStops(line).size();
+        logger.debug("Found {} with vehicleref=unexisting, {} with vechicleref={}, {} with lineref=unexisting and {} with lineref={}", unexistingVehicleRef1, unexistingVehicleRef2, line, unexistingLineRef, existingLineRef, line);
+        assertEquals(0, unexistingVehicleRef1);
+        assertEquals(0, unexistingVehicleRef2);
+        assertEquals(0, unexistingLineRef);
+        assertEquals(1, existingLineRef);
     }
 }

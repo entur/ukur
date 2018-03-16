@@ -158,9 +158,10 @@ public class GoogleDatastoreService implements DataStorageService {
     private QueryResults<Entity> findContainingWithoutStops(String property, String value) {
         Query<Entity> query = Query.newEntityQueryBuilder()
                 .setKind(KIND_SUBSCRIPTIONS)
-                .setFilter(StructuredQuery.PropertyFilter.eq(property, value))
-                .setFilter(StructuredQuery.PropertyFilter.isNull("fromStopPlaces"))
-                .setFilter(StructuredQuery.PropertyFilter.isNull("toStopPlaces"))
+                .setFilter(StructuredQuery.CompositeFilter.and(
+                        StructuredQuery.PropertyFilter.eq(property, value),
+                        StructuredQuery.PropertyFilter.isNull("fromStopPlaces"),
+                        StructuredQuery.PropertyFilter.isNull("toStopPlaces")))
                 .build();
         return datastore.run(query);
     }
