@@ -426,7 +426,7 @@ public class SubscriptionManagerTest {
     private void waitAndVerifyFailedPushCounter(int expected, Subscription subscription) {
         long start = System.currentTimeMillis();
         long actual = 0;
-        while (System.currentTimeMillis() - start < 5000) {
+        while (System.currentTimeMillis() - start < 10000) {
             actual = subscription.getFailedPushCounter();
             if (actual > expected) {
                 fail("Expected " + expected + " found " + actual);
@@ -444,7 +444,7 @@ public class SubscriptionManagerTest {
     private void waitAndVerifyAtLeast(int expected, RequestPatternBuilder requestPatternBuilder) {
         long start = System.currentTimeMillis();
         int actual = 0;
-        while (System.currentTimeMillis() - start < 5000) {
+        while (System.currentTimeMillis() - start < 10000) {
             List<LoggedRequest> all = findAll(requestPatternBuilder);
             actual = all.size();
             if (actual > expected) {
