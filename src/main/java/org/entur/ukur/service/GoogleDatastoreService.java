@@ -154,11 +154,25 @@ public class GoogleDatastoreService implements DataStorageService {
     @Override
     public void updateStopsAndQuaysMap(Map<String, Collection<String>> hashMap) {
         for (Map.Entry<String, Collection<String>> stopPlaceEntry : hashMap.entrySet()) {
-            Entity task = Entity.newBuilder(stopPlacekeyFactory.newKey(stopPlaceEntry.getKey()))
-                    .set("quayIds", convertStringsToValueList(stopPlaceEntry.getValue()))
-                    .build();
-            datastore.put(task);
+            //since reads are cheap and writes are slow (combined with the fact that stopplace data seldom change...) we compare to what we have before anything is written
+            Collection<String> storedQuays = mapStopPlaceToQuays(stopPlaceEntry.getKey());
+            if (!sameContent(stopPlaceEntry.getValue(), storedQuays)) {
+                Entity task = Entity.newBuilder(stopPlacekeyFactory.newKey(stopPlaceEntry.getKey()))
+                        .set("quayIds", convertStringsToValueList(stopPlaceEntry.getValue()))
+                        .build();
+                datastore.put(task);
+            }
         }
+    }
+
+    private boolean sameContent(Collection<String> collection1, Collection<String> collection2) {
+        if (collection1 == null) {
+            return collection2 == null || collection2.isEmpty();
+        }
+        if (collection2 == null) {
+            return collection1.isEmpty();
+        }
+        return collection1.size() == collection2.size() && collection1.containsAll(collection2);
     }
 
     @Override
@@ -179,14 +193,8 @@ public class GoogleDatastoreService implements DataStorageService {
 
     @Override
     public Collection<String> mapStopPlaceToQuays(String stopPlaceId) {
-        Query<Entity> query = Query.newEntityQueryBuilder()
-                .setKind(KIND_STOPPLACES)
-                .setFilter(StructuredQuery.PropertyFilter.eq("__key__", stopPlacekeyFactory.newKey(stopPlaceId)))
-                .build();
-        QueryResults<Entity> queryResults = datastore.run(query);
-        if (queryResults.hasNext()) {
-            //Expects only one entity
-            Entity entity = queryResults.next();
+        Entity entity = datastore.get(stopPlacekeyFactory.newKey(stopPlaceId));
+        if (entity != null) {
             return convertValueListToStrings(entity, "quayIds");
         }
         logger.warn("Did not find any stopPlace with stopPlaceId '{}'", stopPlaceId);
@@ -209,12 +217,7 @@ public class GoogleDatastoreService implements DataStorageService {
             logger.error("Could not get size of {}", KIND_STOPPLACES, e);
             return -2;
         }
-        return -1;
-        //TODO: This query takes a long time running in a local emulator (59.000 stops > 250sec!):
-//        KeyQuery query = Query.newKeyQueryBuilder().setKind(KIND_STOPPLACES).build();
-//        QueryResults<Key> result = datastore.run(query);
-//        Key[] keys = Iterators.toArray(result, Key.class);
-//        return keys.length;
+        return -1; //When running locally __Stat_Kind__ it not generated and we get this
     }
 
     private QueryResults<Entity> findContaining(String property, String value) {
