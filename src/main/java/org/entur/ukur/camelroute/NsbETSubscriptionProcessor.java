@@ -19,6 +19,7 @@ import com.codahale.metrics.Timer;
 import org.apache.camel.Exchange;
 import org.apache.commons.lang3.StringUtils;
 import org.entur.ukur.routedata.LiveRouteManager;
+import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.FileStorageService;
 import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.subscription.EstimatedCallAndSubscriptions;
@@ -45,6 +46,7 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
 
     private SubscriptionManager subscriptionManager;
     private MetricsService metricsService;
+    private DataStorageService dataStorageService;
 
     private SiriMarshaller siriMarshaller;
     private LiveRouteManager liveRouteManager;
@@ -57,12 +59,14 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
                                       SiriMarshaller siriMarshaller,
                                       LiveRouteManager liveRouteManager,
                                       FileStorageService fileStorageService,
-                                      MetricsService metricsService) {
+                                      MetricsService metricsService,
+                                      DataStorageService dataStorageService) {
         this.siriMarshaller = siriMarshaller;
         this.liveRouteManager = liveRouteManager;
         this.fileStorageService = fileStorageService;
         this.subscriptionManager = subscriptionManager;
         this.metricsService = metricsService;
+        this.dataStorageService = dataStorageService;
         logger.debug("Initializes...");
     }
 
@@ -154,6 +158,7 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
 
 
     private List<EstimatedCallAndSubscriptions> findAffectedSubscriptions(List<EstimatedCall> estimatedDelays, EstimatedVehicleJourney estimatedVehicleJourney) {
+        HashMap<String, StopData> stops = getStopData(estimatedVehicleJourney);
         ArrayList<EstimatedCallAndSubscriptions> affectedSubscriptions = new ArrayList<>();
         for (EstimatedCall estimatedDelay : estimatedDelays) {
             HashSet<Subscription> subscriptions = new HashSet<>();
@@ -162,10 +167,9 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
                 //Bryr oss kun om stopPointRef på "nasjonalt format"
                 Set<Subscription> subs = subscriptionManager.getSubscriptionsForStopPoint(stopPointRef.getValue());
                 for (Subscription sub : subs) {
-                    if (validDirection(sub, estimatedVehicleJourney)) {
+                    if (validDirection(sub, stops)) {
                         subscriptions.add(sub);
                     }
-                    //TODO: Vi bør sjekke hvor stor forsinkelse og ha en nedre grense - mulig hver subscription skal ha det? Ved cancellation er ikke det relevant.
                     /*
                     TODO: For nå holder vi gyldighet på subscriptions utenfor...
                     Men hva vil egentlig trigge et "treff"?
@@ -182,27 +186,41 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
         return affectedSubscriptions;
     }
 
-    protected boolean validDirection(Subscription subscription, EstimatedVehicleJourney journey) {
+    protected boolean validDirection(Subscription subscription, HashMap<String, StopData> stops) {
+        ZonedDateTime fromTime = findOne(stops, subscription.getFromStopPoints(), DIRECTION_FROM);
+        ZonedDateTime toTime = findOne(stops, subscription.getToStopPoints(), DIRECTION_TO);
+        //TODO: Tror kanskje denne logikken vil ha problemer med feks tbane-ringen...
+        return fromTime != null && toTime != null && fromTime.isBefore(toTime);
+    }
+
+    protected HashMap<String, StopData> getStopData(EstimatedVehicleJourney journey) {
         HashMap<String, StopData> stops = new HashMap<>();
         if (journey.getRecordedCalls() != null && journey.getRecordedCalls().getRecordedCalls() != null) {
             for (RecordedCall call : journey.getRecordedCalls().getRecordedCalls()) {
                 if (call.getStopPointRef() != null) {
-                    stops.put(call.getStopPointRef().getValue(), new StopData(call.getAimedDepartureTime()));
+                    StopData data = new StopData(call.getAimedDepartureTime());
+                    String stopPointRef = call.getStopPointRef().getValue();
+                    stops.put(stopPointRef, data);
+                    if (stopPointRef.startsWith("NSR:Quay:")) {
+                        dataStorageService.mapQuayToStopPlace(stopPointRef);
+                    }
                 }
             }
         }
         if (journey.getEstimatedCalls() != null && journey.getEstimatedCalls().getEstimatedCalls() != null) {
             for (EstimatedCall call : journey.getEstimatedCalls().getEstimatedCalls()) {
                 if (call.getStopPointRef() != null) {
-                    stops.put(call.getStopPointRef().getValue(), new StopData(call.getAimedDepartureTime(),
-                            call.getArrivalBoardingActivity(), call.getDepartureBoardingActivity()));
+                    StopData data = new StopData(call.getAimedDepartureTime(),
+                            call.getArrivalBoardingActivity(), call.getDepartureBoardingActivity());
+                    String stopPointRef = call.getStopPointRef().getValue();
+                    stops.put(stopPointRef, data);
+                    if (stopPointRef.startsWith("NSR:Quay:")) {
+                        dataStorageService.mapQuayToStopPlace(stopPointRef);
+                    }
                 }
             }
         }
-        ZonedDateTime fromTime = findOne(stops, subscription.getFromStopPoints(), DIRECTION_FROM);
-        ZonedDateTime toTime = findOne(stops, subscription.getToStopPoints(), DIRECTION_TO);
-        //TODO: Tror kanskje denne logikken vil ha problemer med feks tbane-ringen...
-        return fromTime != null && toTime != null && fromTime.isBefore(toTime);
+        return stops;
     }
 
     private List<EstimatedCall> getEstimatedDelaysAndCancellations(EstimatedVehicleJourney.EstimatedCalls estimatedCalls) {
@@ -251,7 +269,7 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
         return null;
     }
 
-    private class StopData {
+    class StopData {
         private final ZonedDateTime aimedDepartureTime;
         private final ArrivalBoardingActivityEnumeration arrivalBoardingActivity;
         private final DepartureBoardingActivityEnumeration departureBoardingActivity;

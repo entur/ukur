@@ -16,6 +16,7 @@
 package org.entur.ukur.camelroute;
 
 import org.entur.ukur.routedata.LiveRouteManager;
+import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.FileStorageService;
 import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.subscription.Subscription;
@@ -29,6 +30,7 @@ import javax.xml.bind.JAXBException;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
@@ -55,28 +57,30 @@ public class NsbETSubscriptionProcessorTest {
         journey.setEstimatedCalls(estimatedCalls);
 
         NsbETSubscriptionProcessor processor = new NsbETSubscriptionProcessor(mock(SubscriptionManager.class),
-                new SiriMarshaller(), mock(LiveRouteManager.class), mock(FileStorageService.class), mock(MetricsService.class));
+                new SiriMarshaller(), mock(LiveRouteManager.class), mock(FileStorageService.class),
+                mock(MetricsService.class), mock(DataStorageService.class));
 
+        HashMap<String, NsbETSubscriptionProcessor.StopData> stopData = processor.getStopData(journey);
         //No errors if no hits...
-        assertFalse(processor.validDirection(new Subscription(), journey));
+        assertFalse(processor.validDirection(new Subscription(), stopData));
 
         //Only to in journey
-        assertFalse(processor.validDirection(createSubscription("X", "E2"), journey));
+        assertFalse(processor.validDirection(createSubscription("X", "E2"), stopData));
 
         //Only from in journey
-        assertFalse(processor.validDirection(createSubscription("E2", "X"), journey));
+        assertFalse(processor.validDirection(createSubscription("E2", "X"), stopData));
 
         //To and from in correct order in estimated calls
-        assertTrue(processor.validDirection(createSubscription("E1", "E2"), journey));
+        assertTrue(processor.validDirection(createSubscription("E1", "E2"), stopData));
 
         //To and from in opposite order in estimated calls
-        assertFalse(processor.validDirection(createSubscription("E2", "E1"), journey));
+        assertFalse(processor.validDirection(createSubscription("E2", "E1"), stopData));
 
         //correct order: to in estimated calls, from in recorded calls
-        assertTrue(processor.validDirection(createSubscription("R1", "E2"), journey));
+        assertTrue(processor.validDirection(createSubscription("R1", "E2"), stopData));
 
         //opposite order: to in estimated calls, from in recorded calls
-        assertFalse(processor.validDirection(createSubscription("E1", "R1"), journey));
+        assertFalse(processor.validDirection(createSubscription("E1", "R1"), stopData));
 
     }
 
@@ -127,7 +131,8 @@ public class NsbETSubscriptionProcessorTest {
         when((subscriptionManagerMock.getSubscriptionsForvehicleRef("1234"))).thenReturn(new HashSet<>(Arrays.asList(s_l_v, s_v, s_lx_v)));
 
         NsbETSubscriptionProcessor processor = new NsbETSubscriptionProcessor(subscriptionManagerMock,
-                new SiriMarshaller(), mock(LiveRouteManager.class), mock(FileStorageService.class), new MetricsService(null, 0));
+                new SiriMarshaller(), mock(LiveRouteManager.class), mock(FileStorageService.class),
+                new MetricsService(null, 0), mock(DataStorageService.class));
 
         ArgumentCaptor<HashSet> subscriptionsOnStopsCaptor= ArgumentCaptor.forClass(HashSet.class);
         ArgumentCaptor<HashSet> subscriptionsOnLineOrVehicleJourneyCaptor= ArgumentCaptor.forClass(HashSet.class);

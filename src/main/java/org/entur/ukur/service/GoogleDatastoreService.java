@@ -212,6 +212,7 @@ public class GoogleDatastoreService implements DataStorageService {
 
     @Override
     public long getNumberOfStopPlaces() {
+        //TODO: This gives wrong size as statistics is produced only once a day or so...
         EntityQuery query = Query.newEntityQueryBuilder()
                 .setKind("__Stat_Kind__")
                 .setFilter(StructuredQuery.PropertyFilter.eq("kind_name", KIND_STOPPLACES))
