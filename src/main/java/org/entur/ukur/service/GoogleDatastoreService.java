@@ -153,6 +153,7 @@ public class GoogleDatastoreService implements DataStorageService {
 
     @Override
     public void updateStopsAndQuaysMap(Map<String, Collection<String>> hashMap) {
+        ArrayList<Entity> tasks = new ArrayList<>();
         for (Map.Entry<String, Collection<String>> stopPlaceEntry : hashMap.entrySet()) {
             //since reads are cheap and writes are slow (combined with the fact that stopplace data seldom change...) we compare to what we have before anything is written
             Collection<String> storedQuays = mapStopPlaceToQuays(stopPlaceEntry.getKey());
@@ -160,8 +161,16 @@ public class GoogleDatastoreService implements DataStorageService {
                 Entity task = Entity.newBuilder(stopPlacekeyFactory.newKey(stopPlaceEntry.getKey()))
                         .set("quayIds", convertStringsToValueList(stopPlaceEntry.getValue()))
                         .build();
-                datastore.put(task);
+                tasks.add(task);
             }
+            if (tasks.size() > 100) {
+                datastore.put(tasks.toArray(new Entity[tasks.size()]));
+                tasks.clear();
+            }
+        }
+        if (!tasks.isEmpty()) {
+            datastore.put(tasks.toArray(new Entity[tasks.size()]));
+            tasks.clear();
         }
     }
 

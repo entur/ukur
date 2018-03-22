@@ -43,7 +43,7 @@ public class TiamatStopPlaceQuaysProcessor implements Processor {
     public void process(Exchange exchange) throws IOException {
 
         InputStream json = exchange.getIn().getBody(InputStream.class);
-        logger.debug("Reveived inputstream with size {} bytes", String.format("%,d", json.available()));
+        logger.debug("Received inputstream with size {} bytes", String.format("%,d", json.available()));
 
         ObjectMapper mapper = new ObjectMapper();
         //noinspection unchecked

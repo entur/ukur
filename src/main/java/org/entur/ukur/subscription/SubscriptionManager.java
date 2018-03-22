@@ -87,7 +87,19 @@ public class SubscriptionManager {
     }
 
     public Set<Subscription> getSubscriptionsForStopPoint(String stopPointRef) {
-        return dataStorageService.getSubscriptionsForStopPoint(stopPointRef);
+        HashSet<Subscription> subscriptions = new HashSet<>();
+        if (stopPointRef.startsWith("NSR:Quay:")) {
+            String stopPlace = dataStorageService.mapQuayToStopPlace(stopPointRef);
+            if (StringUtils.isNotBlank(stopPlace)) {
+                Set<Subscription> subscriptionsForStopPlace = dataStorageService.getSubscriptionsForStopPoint(stopPlace);
+                logger.trace("Found {} subscriptions for stopPlace {} which quay {} is part of", subscriptionsForStopPlace.size(), stopPlace, stopPointRef);
+                subscriptions.addAll(subscriptionsForStopPlace);
+            }
+        }
+        Set<Subscription> subscriptionsForStopPoint = dataStorageService.getSubscriptionsForStopPoint(stopPointRef);
+        logger.trace("Found {} subscriptions for {}", subscriptionsForStopPoint.size(), stopPointRef);
+        subscriptions.addAll(subscriptionsForStopPoint);
+        return subscriptions;
     }
 
     public Set<Subscription> getSubscriptionsForLineRef(String lineRef) {
