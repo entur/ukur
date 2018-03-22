@@ -54,7 +54,7 @@ public class NsbSXSubscriptionProcessorTest {
         IMap<String, LiveJourney> liveJourneyIMap = new TestHazelcastInstanceFactory().newHazelcastInstance().getMap("journeys");
         MetricsService metricsServiceMock = mock(MetricsService.class);
         siriMarshaller = new SiriMarshaller();
-        subscriptionManager = new SubscriptionManager(new DataStorageHazelcastService(new HashMap<>(), new HashMap<>(), liveJourneyIMap), siriMarshaller, metricsServiceMock, new HashMap<>());
+        subscriptionManager = new SubscriptionManager(new DataStorageHazelcastService(new HashMap<>(), new HashMap<>(), liveJourneyIMap, new HashMap<>(), new HashMap<>()), siriMarshaller, metricsServiceMock, new HashMap<>());
         liveRouteManagerMock = mock(LiveRouteManager.class);
         processor = new NsbSXSubscriptionProcessor(subscriptionManager, siriMarshaller, liveRouteManagerMock, mock(FileStorageService.class), mock(MetricsService.class));
     }
@@ -79,10 +79,10 @@ public class NsbSXSubscriptionProcessorTest {
         affectedSubscriptions = processor.findAffectedSubscriptions(createVehicleJourneys(Arrays.asList("4", "3", "2", "1"), null, false));
         assertTrue(affectedSubscriptions.isEmpty());
 
-        //All when we don't know if all stops is present in camelroute
+        //All when we don't know if all stops is present in route
         assertPresent(Arrays.asList(s1, s0), processor.findAffectedSubscriptions(createVehicleJourneys(Collections.singletonList("2"), null, true)));
 
-        //Only one when we look up the camelroute if not all stops is present in camelroute
+        //Only one when we look up the camelroute if not all stops is present in route
         when(liveRouteManagerMock.getJourneys()).thenReturn(Collections.singletonList(createLiveJourney("line#1", "123", Arrays.asList("1", "2", "3"))));
         assertPresent(Collections.singletonList(s1), processor.findAffectedSubscriptions(createVehicleJourneys(Collections.singletonList("2"), "123", true)));
     }
@@ -143,7 +143,7 @@ public class NsbSXSubscriptionProcessorTest {
         assertEquals(0, affectedStopPointRefs.size());
         HashSet<Subscription> affectedSubscriptions = processor.findAffectedSubscriptions(ptSituationElement.getAffects().getVehicleJourneys());
         assertEquals(0, affectedSubscriptions.size());
-        //modify affected journey so we have no camelroute data
+        //modify affected journey so we have no route data
         List<AffectedVehicleJourneyStructure> affectedVehicleJourneies = ptSituationElement.getAffects().getVehicleJourneys().getAffectedVehicleJourneies();
         List<VehicleJourneyRef> vehicleJourneyReves = affectedVehicleJourneies.get(0).getVehicleJourneyReves();
         vehicleJourneyReves.clear();

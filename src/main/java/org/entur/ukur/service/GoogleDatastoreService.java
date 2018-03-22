@@ -31,15 +31,18 @@ import java.util.stream.Collectors;
 public class GoogleDatastoreService implements DataStorageService {
 
     private static final String KIND_SUBSCRIPTIONS = "Ukur-subscriptions";
+    private static final String KIND_STOPPLACES = "Ukur-stopplaces";
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private final Datastore datastore;
-    private final KeyFactory keyFactory;
+    private final KeyFactory subscriptionkeyFactory;
+    private final KeyFactory stopPlacekeyFactory;
     private final IMap<String, LiveJourney> currentJourneys; //TODO: replace with datastore entity with children....
 
     public GoogleDatastoreService(Datastore datastore,
                                   IMap<String, LiveJourney> currentJourneys) {
         this.datastore = datastore;
-        keyFactory = datastore.newKeyFactory().setKind(KIND_SUBSCRIPTIONS);
+        subscriptionkeyFactory = datastore.newKeyFactory().setKind(KIND_SUBSCRIPTIONS);
+        stopPlacekeyFactory = datastore.newKeyFactory().setKind(KIND_STOPPLACES);
         this.currentJourneys = currentJourneys;
     }
 
@@ -82,7 +85,7 @@ public class GoogleDatastoreService implements DataStorageService {
 
     @Override
     public Subscription addSubscription(Subscription subscription) {
-        Key key = datastore.allocateId(keyFactory.newKey());
+        Key key = datastore.allocateId(subscriptionkeyFactory.newKey());
         Entity task = convertEntity(subscription, key);
         //No need for a transaction when adding
         datastore.put(task);
@@ -91,12 +94,12 @@ public class GoogleDatastoreService implements DataStorageService {
 
     @Override
     public void removeSubscription(String subscriptionId) {
-        datastore.delete(keyFactory.newKey(Long.parseLong(subscriptionId)));
+        datastore.delete(subscriptionkeyFactory.newKey(Long.parseLong(subscriptionId)));
     }
 
     @Override
     public void updateSubscription(Subscription subscription) {
-        Key key = keyFactory.newKey(Long.parseLong(subscription.getId()));
+        Key key = subscriptionkeyFactory.newKey(Long.parseLong(subscription.getId()));
         Entity task = convertEntity(subscription, key);
         Transaction transaction = datastore.newTransaction();
         try {
@@ -110,6 +113,7 @@ public class GoogleDatastoreService implements DataStorageService {
 
     @Override
     public long getNumberOfSubscriptions() {
+        //TODO: This query takes forever (at least locally) when there are many subscriptions
         KeyQuery query = Query.newKeyQueryBuilder().setKind(KIND_SUBSCRIPTIONS).build();
         QueryResults<Key> result = datastore.run(query);
         Key[] keys = Iterators.toArray(result, Key.class);
@@ -145,6 +149,72 @@ public class GoogleDatastoreService implements DataStorageService {
         for (String flush : toFlush) {
             currentJourneys.delete(flush);
         }
+    }
+
+    @Override
+    public void updateStopsAndQuaysMap(Map<String, Collection<String>> hashMap) {
+        for (Map.Entry<String, Collection<String>> stopPlaceEntry : hashMap.entrySet()) {
+            Entity task = Entity.newBuilder(stopPlacekeyFactory.newKey(stopPlaceEntry.getKey()))
+                    .set("quayIds", convertStringsToValueList(stopPlaceEntry.getValue()))
+                    .build();
+            datastore.put(task);
+        }
+    }
+
+    @Override
+    public String mapQuayToStopPlace(String quayId) {
+        KeyQuery query = Query.newKeyQueryBuilder()
+            .setKind(KIND_STOPPLACES)
+            .setFilter(StructuredQuery.PropertyFilter.eq("quayIds", quayId))
+            .build();
+        QueryResults<Key> queryResults = datastore.run(query);
+        if (queryResults.hasNext()) {
+            //Expects only one entity
+            Key key = queryResults.next();
+            return key.getName();
+        }
+        logger.warn("Did not find quayId '{}' on any stopplace", quayId);
+        return null;
+    }
+
+    @Override
+    public Collection<String> mapStopPlaceToQuays(String stopPlaceId) {
+        Query<Entity> query = Query.newEntityQueryBuilder()
+                .setKind(KIND_STOPPLACES)
+                .setFilter(StructuredQuery.PropertyFilter.eq("__key__", stopPlacekeyFactory.newKey(stopPlaceId)))
+                .build();
+        QueryResults<Entity> queryResults = datastore.run(query);
+        if (queryResults.hasNext()) {
+            //Expects only one entity
+            Entity entity = queryResults.next();
+            return convertValueListToStrings(entity, "quayIds");
+        }
+        logger.warn("Did not find any stopPlace with stopPlaceId '{}'", stopPlaceId);
+        return Collections.emptySet();
+    }
+
+    @Override
+    public long getNumberOfStopPlaces() {
+        EntityQuery query = Query.newEntityQueryBuilder()
+                .setKind("__Stat_Kind__")
+                .setFilter(StructuredQuery.PropertyFilter.eq("kind_name", KIND_STOPPLACES))
+                .build();
+        try {
+            QueryResults<Entity> results = datastore.run(query);
+            if (results.hasNext()) {
+                Entity entity = results.next();
+                return entity.getLong("count");
+            }
+        } catch (Exception e) {
+            logger.error("Could not get size of {}", KIND_STOPPLACES, e);
+            return -2;
+        }
+        return -1;
+        //TODO: This query takes a long time running in a local emulator (59.000 stops > 250sec!):
+//        KeyQuery query = Query.newKeyQueryBuilder().setKind(KIND_STOPPLACES).build();
+//        QueryResults<Key> result = datastore.run(query);
+//        Key[] keys = Iterators.toArray(result, Key.class);
+//        return keys.length;
     }
 
     private QueryResults<Entity> findContaining(String property, String value) {

@@ -31,7 +31,7 @@ public class LiveRouteManagerTest {
     @Test
     public void updateJourney() {
         IMap<String, LiveJourney> liveJourneyIMap = new TestHazelcastInstanceFactory().newHazelcastInstance().getMap("journeys");
-        LiveRouteManager service = new LiveRouteManager(new DataStorageHazelcastService(new HashMap<>(), new HashMap<>(), liveJourneyIMap));
+        LiveRouteManager service = new LiveRouteManager(new DataStorageHazelcastService(new HashMap<>(), new HashMap<>(), liveJourneyIMap, new HashMap<>(), new HashMap<>()));
         service.updateJourney(createEstimatedVehicleJourney("1", "NSB:Line:Test1", false, ZonedDateTime.now().plusHours(1)));
         service.updateJourney(createEstimatedVehicleJourney("2", "NSB:Line:Test1", true, ZonedDateTime.now().plusHours(2)));
         service.updateJourney(createEstimatedVehicleJourney("3", "NSB:Line:Test2", false, ZonedDateTime.now()));

@@ -44,12 +44,14 @@ public class MetricsService {
     public static final String TIMER_PUSH          = "timer.push.http";
     public static final String TIMER_ET_PULL       = "timer.pull.anshar-et";
     public static final String TIMER_SX_PULL       = "timer.pull.anshar-sx";
+    public static final String TIMER_TIAMAT        = "timer.tiamat.StopPlacesAndQuays";
     public static final String TIMER_ET_PROCESS    = "timer.process.EstimatedVehicleJourney";
     public static final String TIMER_SX_PROCESS    = "timer.process.PtSituationElement";
     public static final String TIMER_ET_UNMARSHALL = "timer.unmarshall.EstimatedVehicleJourney";
     public static final String TIMER_SX_UNMARSHALL = "timer.unmarshall.PtSituationElement";
     public static final String GAUGE_SUBSCRIPTIONS = "gauge.subscriptions";
     public static final String GAUGE_LIVE_JOURNEYS = "gauge.liveJourneys";
+    public static final String GAUGE_STOPPLACES    = "gauge.stopPlaces";
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final MetricRegistry metrics = new MetricRegistry();
     private final boolean graphiteEnabled;

@@ -58,9 +58,10 @@ public class SubscriptionManagerTest {
         alreadySentCache =  new HashMap<>();
         siriMarshaller = new SiriMarshaller();
         IMap<String, LiveJourney> liveJourneyIMap = new TestHazelcastInstanceFactory().newHazelcastInstance().getMap("journeys");
+        liveJourneyIMap.clear();
         MetricsService metricsService = new MetricsService(null, 0);
         subscriptionManager = new SubscriptionManager(new DataStorageHazelcastService(subscriptionsPerStopPoint,
-                subscriptions, liveJourneyIMap), siriMarshaller, metricsService, alreadySentCache);
+                subscriptions, liveJourneyIMap, new HashMap<>(), new HashMap<>()), siriMarshaller, metricsService, alreadySentCache);
     }
 
     @Test
@@ -101,7 +102,7 @@ public class SubscriptionManagerTest {
     }
 
     @Test
-    public void testETPushError() {
+    public void testETPushError() throws InterruptedException {
 
         String url = "/push/error/et";
         stubFor(post(urlEqualTo(url))
@@ -141,6 +142,7 @@ public class SubscriptionManagerTest {
         subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney);
         waitAndVerifyAtLeast(4, postRequestedFor(urlEqualTo(url)));
         waitAndVerifyFailedPushCounter(4, subscription);
+        Thread.sleep(10);
         Mockito.verify(this.subscriptions, times(1)).remove(subscription.getId());
     }
 

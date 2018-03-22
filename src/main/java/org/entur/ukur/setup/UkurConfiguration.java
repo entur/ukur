@@ -55,6 +55,15 @@ public class UkurConfiguration {
     @Value("${ukur.camel.polling.interval}")
     private int pollingInterval;
 
+    @Value("${ukur.camel.tiamat.stop_place_quays.url}")
+    private String tiamatStopPlaceQuaysURL;
+
+    @Value("${ukur.camel.tiamat.stop_place_quays.interval}")
+    private int tiamatStopPlaceQuaysInterval;
+
+    @Value("${ukur.camel.tiamat.stop_place_quays.enabled}")
+    private boolean tiamatStopPlaceQuaysEnabled;
+
     public String getHazelcastManagementUrl() {
         return hazelcastManagementUrl;
     }
@@ -95,4 +104,15 @@ public class UkurConfiguration {
         return pollingInterval;
     }
 
+    public String getTiamatStopPlaceQuaysURL() {
+        return tiamatStopPlaceQuaysURL;
+    }
+
+    public int getTiamatStopPlaceQuaysInterval() {
+        return tiamatStopPlaceQuaysInterval;
+    }
+
+    public boolean isTiamatStopPlaceQuaysEnabled() {
+        return tiamatStopPlaceQuaysEnabled;
+    }
 }

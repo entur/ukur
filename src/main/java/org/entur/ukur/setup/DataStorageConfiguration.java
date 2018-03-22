@@ -86,12 +86,15 @@ public class DataStorageConfiguration {
             dataStorageService = new DataStorageHazelcastService(
                     extendedHazelcastService.subscriptionIdsPerStopPoint(),
                     extendedHazelcastService.subscriptions(),
-                    extendedHazelcastService.currentJourneys());
+                    extendedHazelcastService.currentJourneys(),
+                    extendedHazelcastService.stopPlaceIdToQaysId(),
+                    extendedHazelcastService.quayIdToStopPlaceId());
 
         }
 
         metricsService.registerGauge(MetricsService.GAUGE_SUBSCRIPTIONS, dataStorageService::getNumberOfSubscriptions);
         metricsService.registerGauge(MetricsService.GAUGE_LIVE_JOURNEYS, dataStorageService::getNumberOfCurrentJourneys);
+        metricsService.registerGauge(MetricsService.GAUGE_STOPPLACES, dataStorageService::getNumberOfStopPlaces);
 
         return dataStorageService;
     }

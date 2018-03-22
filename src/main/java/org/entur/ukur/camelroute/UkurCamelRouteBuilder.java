@@ -45,46 +45,51 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
+import org.w3c.dom.Document;
 
 import java.net.InetAddress;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
-import java.util.HashMap;
-import java.util.List;
-import java.util.Map;
-import java.util.UUID;
+import java.util.*;
 
 import static org.entur.ukur.camelroute.policy.SingletonRoutePolicyFactory.SINGLETON_ROUTE_DEFINITION_GROUP_NAME;
 
 @Component
 public class UkurCamelRouteBuilder extends SpringRouteBuilder {
 
+    private Logger logger = LoggerFactory.getLogger(this.getClass());
     public static final String ROUTE_ET_RETRIEVER = "seda:retrieveAnsharET";
     public static final String ROUTE_SX_RETRIEVER = "seda:retrieveAnsharSX";
     private static final String ROUTE_FLUSHJOURNEYS = "seda:flushOldJourneys";
-    private Logger logger = LoggerFactory.getLogger(this.getClass());
+    private static final String ROUTE_TIAMAT_MAP = "seda:getStopPlacesAndQuays";
     private static final String ROUTEID_SX_RETRIEVER = "SX Retriever";
     private static final String ROUTEID_ET_RETRIEVER = "ET Retriever";
-    private static final String MORE_DATA = "MoreData";
+    private static final String ROUTEID_TIAMAT_MAP = "Tiamat StopPlacesAndQuays";
+    private static final String ROUTEID_FLUSHJOURNEYS = "Flush Old Journeys Asynchronously";
+    private static final String ROUTEID_FLUSHJOURNEYS_TRIGGER = "Flush Old Journeys";
     private static final String ROUTEID_ET_TRIGGER = "ET trigger";
     private static final String ROUTEID_SX_TRIGGER = "SX trigger";
-    private static final String ROUTEID_FLUSHJOURNEYS_TRIGGER = "Flush Old Journeys";
+    private static final String ROUTEID_TIAMAT_MAP_TRIGGER = "Tiamat trigger";
+    private static final String MORE_DATA = "MoreData";
     private UkurConfiguration config;
     private final NsbETSubscriptionProcessor nsbETSubscriptionProcessor;
     private NsbSXSubscriptionProcessor nsbSXSubscriptionProcessor;
     private IMap<String, String> sharedProperties;
     private MetricsService metricsService;
     private String nodeStarted;
+    private TiamatStopPlaceQuaysProcessor tiamatStopPlaceQuaysProcessor;
 
     @Autowired
     public UkurCamelRouteBuilder(UkurConfiguration config,
                                  NsbETSubscriptionProcessor nsbETSubscriptionProcessor,
                                  NsbSXSubscriptionProcessor nsbSXSubscriptionProcessor,
+                                 TiamatStopPlaceQuaysProcessor tiamatStopPlaceQuaysProcessor,
                                  IMap<String, String> sharedProperties,
                                  MetricsService metricsService) {
         this.config = config;
         this.nsbETSubscriptionProcessor = nsbETSubscriptionProcessor;
         this.nsbSXSubscriptionProcessor = nsbSXSubscriptionProcessor;
+        this.tiamatStopPlaceQuaysProcessor = tiamatStopPlaceQuaysProcessor;
         this.sharedProperties = sharedProperties;
         this.metricsService = metricsService;
         nodeStarted = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
@@ -99,10 +104,9 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
         String siriETurl = config.getAnsharETCamelUrl(requestorId);
         String siriSXurl = config.getAnsharSXCamelUrl(requestorId);
 
-        createWorkerRoutes(siriETurl, siriSXurl);
+        createWorkerRoutes(siriETurl, siriSXurl, config.getTiamatStopPlaceQuaysURL());
         createRestRoutes(config.getRestPort(), config.isEtPollingEnabled(), config.isSxPollingEnabled());
-        createQuartzRoutes(config.isEtPollingEnabled(), config.isSxPollingEnabled(), config.getPollingInterval());
-
+        createQuartzRoutes(config.isEtPollingEnabled(), config.isSxPollingEnabled(), config.getPollingInterval(), config.isTiamatStopPlaceQuaysEnabled(), config.getTiamatStopPlaceQuaysInterval());
     }
 
     private void createRestRoutes(int jettyPort, boolean etPollingEnabled, boolean sxPollingEnabled) {
@@ -141,6 +145,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                     status.setStatusJourneyFlush(routeStatus(ROUTEID_FLUSHJOURNEYS_TRIGGER, null));
                     status.setStatusETPolling(routeStatus(ROUTEID_ET_TRIGGER, etPollingEnabled));
                     status.setStatusSXPolling(routeStatus(ROUTEID_SX_TRIGGER, sxPollingEnabled));
+                    status.setStatusStopPlacesAndQuays(routeStatus(ROUTEID_TIAMAT_MAP_TRIGGER, config.isTiamatStopPlaceQuaysEnabled()));
                     for (Map.Entry<String, Meter> entry : metricsService.getMeters().entrySet()) {
                         status.addMeter(entry.getKey(), entry.getValue());
                     }
@@ -154,37 +159,38 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 });
     }
 
-    private void createQuartzRoutes(boolean etPollingEnabled, boolean sxPollingEnabled, int repatInterval) {
+    private void createQuartzRoutes(boolean etPollingEnabled, boolean sxPollingEnabled, int repatInterval, boolean stopPlaceToQuayEnabled, int tiamatRepatInterval) {
 
         if (etPollingEnabled) {
-            singletonFrom("quartz2://ukur/pollAnsharET?fireNow=true&trigger.repeatInterval=" + repatInterval, ROUTEID_ET_TRIGGER)
-                    .filter(e -> isLeader(e.getFromRouteId()))
-                    .filter(new NotRunningPredicate(ROUTEID_ET_RETRIEVER))
-                    .log(LoggingLevel.DEBUG, "ET: Triggered by timer")
-                    .to(ROUTE_ET_RETRIEVER);
+            createSingletonQuartz2Route("pollAnsharET", repatInterval, ROUTEID_ET_TRIGGER, ROUTEID_ET_RETRIEVER, ROUTE_ET_RETRIEVER);
         } else {
             logger.warn("ET polling is disabled");
         }
 
         if (sxPollingEnabled) {
-            singletonFrom("quartz2://ukur/pollAnsharSX?fireNow=true&trigger.repeatInterval=" + repatInterval, ROUTEID_SX_TRIGGER)
-                    .filter(e -> isLeader(e.getFromRouteId()))
-                    .filter(new NotRunningPredicate(ROUTEID_SX_RETRIEVER))
-                    .log(LoggingLevel.DEBUG, "SX: Triggered by timer")
-                    .to(ROUTE_SX_RETRIEVER);
+            createSingletonQuartz2Route("pollAnsharSX", repatInterval, ROUTEID_SX_TRIGGER, ROUTEID_SX_RETRIEVER, ROUTE_SX_RETRIEVER);
         } else {
             logger.warn("SX polling is disabled");
         }
 
-        singletonFrom("quartz2://ukur/flushOldJourneys?fireNow=true&trigger.repeatInterval=" + repatInterval, ROUTEID_FLUSHJOURNEYS_TRIGGER)
-                .filter(e -> isLeader(e.getFromRouteId()))
-                .filter(new NotRunningPredicate(ROUTE_FLUSHJOURNEYS))
-                .log(LoggingLevel.DEBUG, "'Flush old journeys' triggered by timer")
-                .to(ROUTE_FLUSHJOURNEYS);
+        createSingletonQuartz2Route("flushOldJourneys", repatInterval, ROUTEID_FLUSHJOURNEYS_TRIGGER, ROUTEID_FLUSHJOURNEYS, ROUTE_FLUSHJOURNEYS);
+
+        if (stopPlaceToQuayEnabled) {
+            createSingletonQuartz2Route("getStopPlacesFromTiamat", tiamatRepatInterval, ROUTEID_TIAMAT_MAP_TRIGGER, ROUTEID_TIAMAT_MAP, ROUTE_TIAMAT_MAP);
+        }
 
     }
 
-    private void createWorkerRoutes(String siriETurl, String siriSXurl) {
+    private void createSingletonQuartz2Route(String timerName, int repatInterval, String triggerRouteId, String toRouteId, String toRoute) {
+        String uri = "quartz2://ukur/" + timerName + "?trigger.repeatInterval=" + repatInterval + "&startDelayedSeconds=5&fireNow=true";
+        singletonFrom(uri, triggerRouteId)
+                .filter(e -> isLeader(e.getFromRouteId()))
+                .filter(e -> isNotRunning(toRouteId))
+                .log(LoggingLevel.DEBUG, timerName + " triggered by timer")
+                .to(toRoute);
+    }
+
+    private void createWorkerRoutes(String siriETurl, String siriSXurl, String tiamatStopPlaceQuaysURL) {
 
         Predicate splitComplete = exchangeProperty(Exchange.SPLIT_COMPLETE).isEqualTo(true);
         Predicate moreData = exchangeProperty(MORE_DATA).isEqualToIgnoreCase("true");
@@ -195,13 +201,13 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
 
         from(ROUTE_ET_RETRIEVER)
                 .routeId(ROUTEID_ET_RETRIEVER)
-                .to("metrics:timer:"+MetricsService.TIMER_ET_PULL+"?action=start")
+                .to("metrics:timer:" + MetricsService.TIMER_ET_PULL + "?action=start")
                 .log(LoggingLevel.DEBUG, "About to call Anshar with url: " + siriETurl)
                 .setHeader(Exchange.HTTP_METHOD, constant("GET"))
                 .to(siriETurl)
-                .convertBodyTo(org.w3c.dom.Document.class)
+                .convertBodyTo(Document.class)
                 .setProperty(MORE_DATA, moreDataExpression)
-                .to("metrics:timer:"+MetricsService.TIMER_ET_PULL+"?action=stop")
+                .to("metrics:timer:" + MetricsService.TIMER_ET_PULL + "?action=stop")
                 //TODO: this only selects elements with NSB as operator
                 .split(ns.xpath("//s:EstimatedVehicleJourney[s:OperatorRef/text()='NSB']"))
                 .bean(metricsService, "registerSentMessage('EstimatedVehicleJourney')")
@@ -220,13 +226,13 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
 
         from(ROUTE_SX_RETRIEVER)
                 .routeId(ROUTEID_SX_RETRIEVER)
-                .to("metrics:timer:"+MetricsService.TIMER_SX_PULL+"?action=start")
+                .to("metrics:timer:" + MetricsService.TIMER_SX_PULL + "?action=start")
                 .log(LoggingLevel.DEBUG, "About to call Anshar with url: " + siriSXurl)
                 .setHeader(Exchange.HTTP_METHOD, constant("GET"))
                 .to(siriSXurl)
-                .convertBodyTo(org.w3c.dom.Document.class)
+                .convertBodyTo(Document.class)
                 .setProperty(MORE_DATA, moreDataExpression)
-                .to("metrics:timer:"+MetricsService.TIMER_SX_PULL+"?action=stop")
+                .to("metrics:timer:" + MetricsService.TIMER_SX_PULL + "?action=stop")
                 //TODO: this only selects elements with NSB as participant
                 .split(ns.xpath("//s:PtSituationElement[s:ParticipantRef/text()='NSB']"))
                 .bean(metricsService, "registerSentMessage('PtSituationElement')")
@@ -243,8 +249,19 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .end();
 
         from(ROUTE_FLUSHJOURNEYS)
-                .routeId("Flush Old Journeys Asynchronously")
+                .routeId(ROUTEID_FLUSHJOURNEYS)
                 .to("bean:liveRouteManager?method=flushOldJourneys()");
+
+        from(ROUTE_TIAMAT_MAP)
+                .routeId(ROUTEID_TIAMAT_MAP)
+                .to("metrics:timer:" + MetricsService.TIMER_TIAMAT + "?action=start")
+                .log(LoggingLevel.DEBUG, "About to call Tiamat with url: " + siriSXurl)
+                .setHeader(Exchange.HTTP_METHOD, constant("GET"))
+                .to(tiamatStopPlaceQuaysURL)
+                .process(tiamatStopPlaceQuaysProcessor)
+                .to("metrics:timer:" + MetricsService.TIMER_TIAMAT + "?action=stop")
+                .end();
+
     }
 
     private String routeStatus(String routeidSxTrigger, Boolean enabled) {
@@ -280,6 +297,13 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
             }
         }
         return false;
+    }
+
+    private boolean isNotRunning(String routeId) {
+        int size = getContext().getInflightRepository().size(routeId);
+        boolean notRunning = size == 0;
+        logger.trace("Number of running instances of camelroute '{}' is {} - returns {}", routeId, size, notRunning);
+        return notRunning;
     }
 
     @Bean(name = "json-jackson")

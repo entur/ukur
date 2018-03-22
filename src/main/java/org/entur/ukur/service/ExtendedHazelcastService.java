@@ -26,11 +26,12 @@ import org.entur.ukur.subscription.Subscription;
 import org.rutebanken.hazelcasthelper.service.HazelCastService;
 import org.rutebanken.hazelcasthelper.service.KubernetesService;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Service;
 
+import java.util.Collection;
 import java.util.List;
+import java.util.Map;
 import java.util.Set;
 
 @Service
@@ -69,6 +70,14 @@ public class ExtendedHazelcastService extends HazelCastService {
         return hazelcast.getMap("ukur.currentJourneys");
     }
 
+    public Map<String, Collection<String>> stopPlaceIdToQaysId() {
+        return hazelcast.getMap("ukur.stopPlaceIdToQaysId");
+    }
+
+    public Map<String, String> quayIdToStopPlaceId() {
+        return hazelcast.getMap("ukur.quayIdToStopPlaceId");
+    }
+
     @Override
     public List<MapConfig> getAdditionalMapConfigurations() {
         List<MapConfig> mapConfigs = super.getAdditionalMapConfigurations();
@@ -84,5 +93,4 @@ public class ExtendedHazelcastService extends HazelCastService {
         return mapConfigs;
 
     }
-
 }

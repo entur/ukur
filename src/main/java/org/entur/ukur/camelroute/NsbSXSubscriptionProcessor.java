@@ -188,7 +188,7 @@ public class NsbSXSubscriptionProcessor implements Processor {
                         }
                         LiveJourney liveJourney = journeys.get(vehicleJourneyRef);
                         if (liveJourney == null) {
-                            logger.debug("Has no camelroute data for journey with vehicleJourneyRef: {}", vehicleJourneyRef);
+                            logger.debug("Has no route data for journey with vehicleJourneyRef: {}", vehicleJourneyRef);
                         } else {
                             if (!hasCompleteRoute) {
                                 orderedListOfStops = liveJourney.getCalls().stream()
@@ -216,7 +216,7 @@ public class NsbSXSubscriptionProcessor implements Processor {
                         if (subscribedOrEmpty(lineRef, subscription.getLineRefs()) && subscribedOrEmpty(vehicleJourneyRef, subscription.getVehicleRefs())){
                             if (!hasCompleteRoute) {
                                 subscriptions.add(subscription);
-                                logger.trace("Has only affected stops and don't find camelroute in LiveRouteService, adds all subscriptions on these stops - regardless of direction");
+                                logger.trace("Has only affected stops and don't find route in LiveRouteService, adds all subscriptions on these stops - regardless of direction");
                             } else {
                                 if (affected(subscription, orderedListOfStops)) {
                                     subscriptions.add(subscription);

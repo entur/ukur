@@ -19,8 +19,7 @@ import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.subscription.Subscription;
 
 import java.time.ZonedDateTime;
-import java.util.Collection;
-import java.util.Set;
+import java.util.*;
 
 public interface DataStorageService {
 
@@ -38,4 +37,8 @@ public interface DataStorageService {
     int getNumberOfCurrentJourneys();
     void removeJourneysOlderThan(ZonedDateTime now);
 
+    void updateStopsAndQuaysMap(Map<String, Collection<String>> hashMap);
+    String mapQuayToStopPlace(String quayId);
+    Collection<String> mapStopPlaceToQuays(String stopPlaceId);
+    long getNumberOfStopPlaces();
 }
