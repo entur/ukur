@@ -54,7 +54,8 @@ public class NsbSXSubscriptionProcessorTest {
         IMap<String, LiveJourney> liveJourneyIMap = new TestHazelcastInstanceFactory().newHazelcastInstance().getMap("journeys");
         MetricsService metricsServiceMock = mock(MetricsService.class);
         siriMarshaller = new SiriMarshaller();
-        subscriptionManager = new SubscriptionManager(new DataStorageHazelcastService(new HashMap<>(), new HashMap<>(), liveJourneyIMap, new HashMap<>(), new HashMap<>()), siriMarshaller, metricsServiceMock, new HashMap<>());
+        DataStorageHazelcastService dataStorageService = new DataStorageHazelcastService(new HashMap<>(), new HashMap<>(), liveJourneyIMap, new HashMap<>(), new HashMap<>());
+        subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsServiceMock, new HashMap<>());
         liveRouteManagerMock = mock(LiveRouteManager.class);
         processor = new NsbSXSubscriptionProcessor(subscriptionManager, siriMarshaller, liveRouteManagerMock, mock(FileStorageService.class), mock(MetricsService.class));
     }
@@ -261,13 +262,6 @@ public class NsbSXSubscriptionProcessorTest {
         AffectedStopPointStructure stop1 = new AffectedStopPointStructure();
         stop1.setStopPointRef(createStopPointRef(s2));
         return stop1;
-    }
-
-    @Test
-    public void testAffectMethod() {
-        List<String> orderedListOfStops = Arrays.asList("NSR:StopPlace:1", "NSR:StopPlace:2", "NSR:StopPlace:3");
-        assertTrue(processor.affected(createSubscription("correct direction", "NSR:StopPlace:1", "NSR:StopPlace:2"), orderedListOfStops));
-        assertFalse(processor.affected(createSubscription("opposite direction", "NSR:StopPlace:2", "NSR:StopPlace:1"), orderedListOfStops));
     }
 
     private EstimatedCall createEstimatedCall(String s2) {

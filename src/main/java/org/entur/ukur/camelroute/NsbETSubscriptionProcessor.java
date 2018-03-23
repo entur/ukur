@@ -201,9 +201,6 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
                     StopData data = new StopData(call.getAimedDepartureTime());
                     String stopPointRef = call.getStopPointRef().getValue();
                     stops.put(stopPointRef, data);
-                    if (stopPointRef.startsWith("NSR:Quay:")) {
-                        dataStorageService.mapQuayToStopPlace(stopPointRef);
-                    }
                 }
             }
         }
@@ -214,12 +211,20 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
                             call.getArrivalBoardingActivity(), call.getDepartureBoardingActivity());
                     String stopPointRef = call.getStopPointRef().getValue();
                     stops.put(stopPointRef, data);
-                    if (stopPointRef.startsWith("NSR:Quay:")) {
-                        dataStorageService.mapQuayToStopPlace(stopPointRef);
-                    }
                 }
             }
         }
+        HashMap<String, StopData> mappedStops = new HashMap<>();
+        for (Map.Entry<String, StopData> entry : stops.entrySet()) {
+            String stopPointId = entry.getKey();
+            if (stopPointId.startsWith("NSR:Quay:")) {
+                String stopPlaceId = dataStorageService.mapQuayToStopPlace(stopPointId);
+                if (stopPlaceId != null) {
+                    mappedStops.put(stopPlaceId, entry.getValue());
+                }
+            }
+        }
+        stops.putAll(mappedStops);
         return stops;
     }
 

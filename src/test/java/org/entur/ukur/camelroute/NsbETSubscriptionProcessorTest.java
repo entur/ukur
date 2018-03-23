@@ -15,6 +15,7 @@
 
 package org.entur.ukur.camelroute;
 
+import com.google.common.collect.Sets;
 import org.entur.ukur.routedata.LiveRouteManager;
 import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.FileStorageService;
@@ -29,14 +30,13 @@ import uk.org.siri.siri20.*;
 import javax.xml.bind.JAXBException;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.Arrays;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.Set;
+import java.util.*;
 
 import static junit.framework.TestCase.assertTrue;
+import static org.hamcrest.CoreMatchers.hasItem;
 import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -47,11 +47,11 @@ public class NsbETSubscriptionProcessorTest {
     public void validDirection() throws JAXBException {
 
         EstimatedVehicleJourney.RecordedCalls recordedCalls = new EstimatedVehicleJourney.RecordedCalls();
-        addRecordedCall(recordedCalls, "R1", ZonedDateTime.now().minus(2, ChronoUnit.HOURS));
-        addRecordedCall(recordedCalls, "R2", ZonedDateTime.now().minus(1, ChronoUnit.HOURS));
+        addRecordedCall(recordedCalls, "R1", ZonedDateTime.now().minus(2, ChronoUnit.HOURS), false);
+        addRecordedCall(recordedCalls, "R2", ZonedDateTime.now().minus(1, ChronoUnit.HOURS), false);
         EstimatedVehicleJourney.EstimatedCalls estimatedCalls = new EstimatedVehicleJourney.EstimatedCalls();
-        addEstimatedCall(estimatedCalls, "E1", ZonedDateTime.now().plus(1, ChronoUnit.HOURS));
-        addEstimatedCall(estimatedCalls, "E2", ZonedDateTime.now().plus(2, ChronoUnit.HOURS));
+        addEstimatedCall(estimatedCalls, "E1", ZonedDateTime.now().plus(1, ChronoUnit.HOURS), false);
+        addEstimatedCall(estimatedCalls, "E2", ZonedDateTime.now().plus(2, ChronoUnit.HOURS), false);
         EstimatedVehicleJourney journey = new EstimatedVehicleJourney();
         journey.setRecordedCalls(recordedCalls);
         journey.setEstimatedCalls(estimatedCalls);
@@ -65,22 +65,22 @@ public class NsbETSubscriptionProcessorTest {
         assertFalse(processor.validDirection(new Subscription(), stopData));
 
         //Only to in journey
-        assertFalse(processor.validDirection(createSubscription("X", "E2"), stopData));
+        assertFalse(processor.validDirection(createSubscription("X", "E2", false), stopData));
 
         //Only from in journey
-        assertFalse(processor.validDirection(createSubscription("E2", "X"), stopData));
+        assertFalse(processor.validDirection(createSubscription("E2", "X", false), stopData));
 
         //To and from in correct order in estimated calls
-        assertTrue(processor.validDirection(createSubscription("E1", "E2"), stopData));
+        assertTrue(processor.validDirection(createSubscription("E1", "E2", false), stopData));
 
         //To and from in opposite order in estimated calls
-        assertFalse(processor.validDirection(createSubscription("E2", "E1"), stopData));
+        assertFalse(processor.validDirection(createSubscription("E2", "E1", false), stopData));
 
         //correct order: to in estimated calls, from in recorded calls
-        assertTrue(processor.validDirection(createSubscription("R1", "E2"), stopData));
+        assertTrue(processor.validDirection(createSubscription("R1", "E2", false), stopData));
 
         //opposite order: to in estimated calls, from in recorded calls
-        assertFalse(processor.validDirection(createSubscription("E1", "R1"), stopData));
+        assertFalse(processor.validDirection(createSubscription("E1", "R1", false), stopData));
 
     }
 
@@ -89,10 +89,10 @@ public class NsbETSubscriptionProcessorTest {
     public void processEstimatedVehicleJourney() throws JAXBException {
 
         EstimatedVehicleJourney.RecordedCalls recordedCalls = new EstimatedVehicleJourney.RecordedCalls();
-        addRecordedCall(recordedCalls, "R1", ZonedDateTime.now().minus(2, ChronoUnit.HOURS));
+        addRecordedCall(recordedCalls, "R1", ZonedDateTime.now().minus(2, ChronoUnit.HOURS), false);
         EstimatedVehicleJourney.EstimatedCalls estimatedCalls = new EstimatedVehicleJourney.EstimatedCalls();
-        addDelayedEstimatedCall(estimatedCalls, "E1", ZonedDateTime.now().plus(1, ChronoUnit.HOURS));
-        addDelayedEstimatedCall(estimatedCalls, "E2", ZonedDateTime.now().plus(1, ChronoUnit.HOURS));
+        addDelayedEstimatedCall(estimatedCalls, "E1", ZonedDateTime.now().plus(1, ChronoUnit.HOURS), false);
+        addDelayedEstimatedCall(estimatedCalls, "E2", ZonedDateTime.now().plus(1, ChronoUnit.HOURS), false);
         EstimatedVehicleJourney journey = new EstimatedVehicleJourney();
         journey.setRecordedCalls(recordedCalls);
         journey.setEstimatedCalls(estimatedCalls);
@@ -109,20 +109,20 @@ public class NsbETSubscriptionProcessorTest {
 
         Set<Subscription> subscriptionsForStopPoint = new HashSet<>();
         //Expects these to be found:
-        Subscription s_R1_E1 = createSubscription(subscriptionsForStopPoint, "R1", "E1", null, null);
-        Subscription s_R1_E1_v = createSubscription(subscriptionsForStopPoint, "R1", "E1", "1234", null);
-        Subscription s_R1_E1_v_l = createSubscription(subscriptionsForStopPoint, "R1", "E1", "1234", "NSB:Line:1");
-        Subscription s_R1_E1_l = createSubscription(subscriptionsForStopPoint, "R1", "E1", null, "NSB:Line:1");
-        Subscription s_l_v = createSubscription(subscriptionsForStopPoint, null, null, "1234", "NSB:Line:1");
+        Subscription s_R1_E1 = createSubscription(subscriptionsForStopPoint, "R1", "E1", null, null, false);
+        Subscription s_R1_E1_v = createSubscription(subscriptionsForStopPoint, "R1", "E1", "1234", null, false);
+        Subscription s_R1_E1_v_l = createSubscription(subscriptionsForStopPoint, "R1", "E1", "1234", "NSB:Line:1", false);
+        Subscription s_R1_E1_l = createSubscription(subscriptionsForStopPoint, "R1", "E1", null, "NSB:Line:1", false);
+        Subscription s_l_v = createSubscription(subscriptionsForStopPoint, null, null, "1234", "NSB:Line:1", false);
         //These should not be found:
-        Subscription s_l = createSubscription(subscriptionsForStopPoint, null, null, null, "NSB:Line:1");
-        Subscription s_v = createSubscription(subscriptionsForStopPoint, null, null, "1234", null);
-        createSubscription(subscriptionsForStopPoint, "E1", "R1", null, null);
-        createSubscription(subscriptionsForStopPoint, "R1", "E1", "4444", "NSB:Line:2");
-        Subscription s_l_vx = createSubscription(subscriptionsForStopPoint, null, null, "4444", "NSB:Line:1");
-        Subscription s_lx_v = createSubscription(subscriptionsForStopPoint, null, null, "1234", "NSB:Line:2");
-        createSubscription(subscriptionsForStopPoint, "x1", "E1", "1234", "NSB:Line:1");
-        createSubscription(subscriptionsForStopPoint, "R1", "x1", "1234", "NSB:Line:1");
+        Subscription s_l = createSubscription(subscriptionsForStopPoint, null, null, null, "NSB:Line:1", false);
+        Subscription s_v = createSubscription(subscriptionsForStopPoint, null, null, "1234", null, false);
+        createSubscription(subscriptionsForStopPoint, "E1", "R1", null, null, false);
+        createSubscription(subscriptionsForStopPoint, "R1", "E1", "4444", "NSB:Line:2", false);
+        Subscription s_l_vx = createSubscription(subscriptionsForStopPoint, null, null, "4444", "NSB:Line:1", false);
+        Subscription s_lx_v = createSubscription(subscriptionsForStopPoint, null, null, "1234", "NSB:Line:2", false);
+        createSubscription(subscriptionsForStopPoint, "x1", "E1", "1234", "NSB:Line:1", false);
+        createSubscription(subscriptionsForStopPoint, "R1", "x1", "1234", "NSB:Line:1", false);
 
         SubscriptionManager subscriptionManagerMock = mock(SubscriptionManager.class); //must be somewhat carefull so we don't spend to much time testing the mock...
         when((subscriptionManagerMock.getSubscriptionsForStopPoint("NSR:StopPlace:E1"))).thenReturn(subscriptionsForStopPoint);
@@ -150,16 +150,74 @@ public class NsbETSubscriptionProcessorTest {
         assertTrue(notifiedSubscriptionsWithFullMessage.contains(s_l_v));
     }
 
+    @Test
+    public void findAffectedStopPlaceOnlySubscriptionOnETMessageWithQuays() throws JAXBException {
+        Subscription s1 = createSubscription("1", "2", false);
+        Subscription q1 = createSubscription("1", "2", true);
+        Subscription s2 = createSubscription("2", "1", false);
+
+        MetricsService metricsService = new MetricsService(null, -1);
+        SiriMarshaller siriMarshaller = new SiriMarshaller();
+        DataStorageService dataStorageMock = mock(DataStorageService.class);
+        HashSet<Subscription> subscriptionsNotified = new HashSet<>();
+        SubscriptionManager subscriptionManager = new SubscriptionManager(dataStorageMock, siriMarshaller, metricsService, new HashMap<>()) {
+            @Override
+            public void notifySubscriptionsOnStops(HashSet<Subscription> subscriptions, EstimatedVehicleJourney estimatedVehicleJourney) {
+                subscriptionsNotified.addAll(subscriptions);
+            }
+        };
+
+        NsbETSubscriptionProcessor processor = new NsbETSubscriptionProcessor(subscriptionManager, siriMarshaller, mock(LiveRouteManager.class),
+                mock(FileStorageService.class), metricsService, dataStorageMock);
+
+        HashSet<Subscription> subscriptions = Sets.newHashSet(s1, s2);
+        when(dataStorageMock.getSubscriptionsForStopPoint("NSR:StopPlace:1")).thenReturn(subscriptions);
+        when(dataStorageMock.getSubscriptionsForStopPoint("NSR:StopPlace:2")).thenReturn(subscriptions);
+        when(dataStorageMock.getSubscriptionsForStopPoint("NSR:Quay:1")).thenReturn(Sets.newHashSet(q1));
+        when(dataStorageMock.getSubscriptionsForStopPoint("NSR:Quay:2")).thenReturn(Sets.newHashSet(q1));
+        when(dataStorageMock.mapQuayToStopPlace("NSR:Quay:1")).thenReturn("NSR:StopPlace:1");
+        when(dataStorageMock.mapQuayToStopPlace("NSR:Quay:2")).thenReturn("NSR:StopPlace:2");
+
+        EstimatedVehicleJourney.EstimatedCalls estimatedCalls = new EstimatedVehicleJourney.EstimatedCalls();
+        addDelayedEstimatedCall(estimatedCalls, "1", ZonedDateTime.now().plus(1, ChronoUnit.HOURS), true);
+        addDelayedEstimatedCall(estimatedCalls, "2", ZonedDateTime.now().plus(2, ChronoUnit.HOURS), true);
+        EstimatedVehicleJourney journey = new EstimatedVehicleJourney();
+        journey.setEstimatedCalls(estimatedCalls);
+        VehicleRef vehicleRef = new VehicleRef();
+        vehicleRef.setValue("1111");
+        journey.setVehicleRef(vehicleRef);
+        LineRef lineRef = new LineRef();
+        lineRef.setValue("NSB:Line:1111");
+        journey.setLineRef(lineRef);
+        OperatorRefStructure operatorRef = new OperatorRefStructure();
+        operatorRef.setValue("NSB");
+        journey.setOperatorRef(operatorRef);
+        journey.setDatedVehicleJourneyRef(new DatedVehicleJourneyRef());
+
+        assertTrue(processor.processEstimatedVehicleJourney(journey));
+        assertEquals(2, subscriptionsNotified.size());
+        assertThat(subscriptionsNotified, hasItem(s1));
+        assertThat(subscriptionsNotified, hasItem(q1));
+
+    }
+
+
     private int subscriptionCounter = 0;
 
-    private Subscription createSubscription(Set<Subscription> subscriptions, String from, String to, String vehicleJourney, String line) {
+    private Subscription createSubscription(Set<Subscription> subscriptions, String from, String to, String vehicleJourney, String line, boolean createQuay) {
         Subscription subscription = new Subscription();
         subscription.setId(Integer.toString(subscriptionCounter++));
+        String stopPrefix;
+        if (createQuay) {
+            stopPrefix = "NSR:Quay:";
+        } else {
+            stopPrefix = "NSR:StopPlace:";
+        }
         if (from != null) {
-            subscription.addFromStopPoint("NSR:StopPlace:"+from);
+            subscription.addFromStopPoint(stopPrefix +from);
         }
         if (to != null) {
-            subscription.addToStopPoint("NSR:StopPlace:"+to);
+            subscription.addToStopPoint(stopPrefix +to);
         }
         if (vehicleJourney != null) {
             subscription.addVehicleRef(vehicleJourney);
@@ -173,14 +231,18 @@ public class NsbETSubscriptionProcessorTest {
         return subscription;
     }
 
-    private Subscription createSubscription(String from, String to) {
-        return createSubscription(null, from, to, null, null);
+    private Subscription createSubscription(String from, String to, boolean createQuay) {
+        return createSubscription(null, from, to, null, null, createQuay);
     }
 
-    private void addDelayedEstimatedCall(EstimatedVehicleJourney.EstimatedCalls estimatedCalls, String stopPointRef, ZonedDateTime time) {
+    private void addDelayedEstimatedCall(EstimatedVehicleJourney.EstimatedCalls estimatedCalls, String stopPointRef, ZonedDateTime time, boolean createQuay) {
         EstimatedCall estimatedCall = new EstimatedCall();
         StopPointRef ref = new StopPointRef();
-        ref.setValue("NSR:StopPlace:"+stopPointRef);
+        if (createQuay) {
+            ref.setValue("NSR:Quay:" + stopPointRef);
+        } else {
+            ref.setValue("NSR:StopPlace:" + stopPointRef);
+        }
         estimatedCall.setStopPointRef(ref);
         estimatedCall.setAimedDepartureTime(time);
         estimatedCall.setExpectedDepartureTime(time.plusMinutes(5));
@@ -191,19 +253,27 @@ public class NsbETSubscriptionProcessorTest {
         estimatedCalls.getEstimatedCalls().add(estimatedCall);
     }
 
-    private void addEstimatedCall(EstimatedVehicleJourney.EstimatedCalls estimatedCalls, String stopPointRef, ZonedDateTime departureTime) {
+    private void addEstimatedCall(EstimatedVehicleJourney.EstimatedCalls estimatedCalls, String stopPointRef, ZonedDateTime departureTime, boolean createQuay) {
         EstimatedCall estimatedCall = new EstimatedCall();
         StopPointRef ref = new StopPointRef();
-        ref.setValue("NSR:StopPlace:"+stopPointRef);
+        if (createQuay) {
+            ref.setValue("NSR:Quay:" + stopPointRef);
+        } else {
+            ref.setValue("NSR:StopPlace:" + stopPointRef);
+        }
         estimatedCall.setStopPointRef(ref);
         estimatedCall.setAimedDepartureTime(departureTime);
         estimatedCalls.getEstimatedCalls().add(estimatedCall);
     }
 
-    private void addRecordedCall(EstimatedVehicleJourney.RecordedCalls recordedCalls, String stopPointRef, ZonedDateTime departureTime) {
+    private void addRecordedCall(EstimatedVehicleJourney.RecordedCalls recordedCalls, String stopPointRef, ZonedDateTime departureTime, boolean createQuay) {
         RecordedCall recordedCall = new RecordedCall();
         StopPointRef ref = new StopPointRef();
-        ref.setValue("NSR:StopPlace:"+stopPointRef);
+        if (createQuay) {
+            ref.setValue("NSR:Quay:" + stopPointRef);
+        } else {
+            ref.setValue("NSR:StopPlace:" + stopPointRef);
+        }
         recordedCall.setStopPointRef(ref);
         recordedCall.setAimedDepartureTime(departureTime);
         recordedCalls.getRecordedCalls().add(recordedCall);
