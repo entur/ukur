@@ -31,19 +31,13 @@ public class DataStorageHazelcastService implements DataStorageService {
     private final Map<String, Set<String>> subscriptionsPerStopPoint;
     private final Map<String, Subscription> subscriptions;
     private IMap<String, LiveJourney> currentJourneys;
-    private Map<String, Collection<String>> stopPlaceIdToQuayIds;
-    private Map<String, String> quayIdToStopPlaceId;
 
     public DataStorageHazelcastService(Map<String, Set<String>> subscriptionsPerStopPoint,
                                        Map<String, Subscription> subscriptions,
-                                       IMap<String, LiveJourney> currentJourneys,
-                                       Map<String, Collection<String>> stopPlaceIdToQuayIds,
-                                       Map<String, String> quayIdToStopPlaceId) {
+                                       IMap<String, LiveJourney> currentJourneys) {
         this.subscriptionsPerStopPoint = subscriptionsPerStopPoint;
         this.subscriptions = subscriptions;
         this.currentJourneys = currentJourneys;
-        this.stopPlaceIdToQuayIds = stopPlaceIdToQuayIds;
-        this.quayIdToStopPlaceId = quayIdToStopPlaceId;
     }
 
 
@@ -180,39 +174,5 @@ public class DataStorageHazelcastService implements DataStorageService {
         }
     }
 
-    @Override
-    public void updateStopsAndQuaysMap(Map<String, Collection<String>> hashMap) {
-        stopPlaceIdToQuayIds.clear();
-        stopPlaceIdToQuayIds.putAll(hashMap);
-        quayIdToStopPlaceId.clear();
-        for (Map.Entry<String, Collection<String>> stopAndQuays : hashMap.entrySet()) {
-            for (String quayId : stopAndQuays.getValue()) {
-                quayIdToStopPlaceId.put(quayId, stopAndQuays.getKey());
-            }
-        }
-    }
-
-    @Override
-    public String mapQuayToStopPlace(String quayId) {
-        String stopPlaceid = quayIdToStopPlaceId.get(quayId);
-        if (stopPlaceid == null) {
-            logger.warn("Did not find quayId '{}' on any stopplace", quayId);
-        }
-        return stopPlaceid;
-    }
-
-    @Override
-    public Collection<String> mapStopPlaceToQuays(String stopPlaceId) {
-        Collection<String> quayIds = stopPlaceIdToQuayIds.get(stopPlaceId);
-        if (quayIds == null) {
-            logger.warn("Did not find any stopPlace with stopPlaceId '{}'", stopPlaceId);
-        }
-        return quayIds;
-    }
-
-    @Override
-    public long getNumberOfStopPlaces() {
-        return stopPlaceIdToQuayIds.size();
-    }
 
 }

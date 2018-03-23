@@ -20,6 +20,7 @@ import org.entur.ukur.routedata.LiveRouteManager;
 import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.FileStorageService;
 import org.entur.ukur.service.MetricsService;
+import org.entur.ukur.service.QuayAndStopPlaceMappingService;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionManager;
 import org.entur.ukur.xml.SiriMarshaller;
@@ -47,18 +48,18 @@ public class NsbETSubscriptionProcessorTest {
     public void validDirection() throws JAXBException {
 
         EstimatedVehicleJourney.RecordedCalls recordedCalls = new EstimatedVehicleJourney.RecordedCalls();
-        addRecordedCall(recordedCalls, "R1", ZonedDateTime.now().minus(2, ChronoUnit.HOURS), false);
-        addRecordedCall(recordedCalls, "R2", ZonedDateTime.now().minus(1, ChronoUnit.HOURS), false);
+        addRecordedCall(recordedCalls, "R1", ZonedDateTime.now().minus(2, ChronoUnit.HOURS));
+        addRecordedCall(recordedCalls, "R2", ZonedDateTime.now().minus(1, ChronoUnit.HOURS));
         EstimatedVehicleJourney.EstimatedCalls estimatedCalls = new EstimatedVehicleJourney.EstimatedCalls();
-        addEstimatedCall(estimatedCalls, "E1", ZonedDateTime.now().plus(1, ChronoUnit.HOURS), false);
-        addEstimatedCall(estimatedCalls, "E2", ZonedDateTime.now().plus(2, ChronoUnit.HOURS), false);
+        addEstimatedCall(estimatedCalls, "E1", ZonedDateTime.now().plus(1, ChronoUnit.HOURS));
+        addEstimatedCall(estimatedCalls, "E2", ZonedDateTime.now().plus(2, ChronoUnit.HOURS));
         EstimatedVehicleJourney journey = new EstimatedVehicleJourney();
         journey.setRecordedCalls(recordedCalls);
         journey.setEstimatedCalls(estimatedCalls);
 
         NsbETSubscriptionProcessor processor = new NsbETSubscriptionProcessor(mock(SubscriptionManager.class),
                 new SiriMarshaller(), mock(LiveRouteManager.class), mock(FileStorageService.class),
-                mock(MetricsService.class), mock(DataStorageService.class));
+                mock(MetricsService.class), mock(QuayAndStopPlaceMappingService.class));
 
         HashMap<String, NsbETSubscriptionProcessor.StopData> stopData = processor.getStopData(journey);
         //No errors if no hits...
@@ -89,7 +90,7 @@ public class NsbETSubscriptionProcessorTest {
     public void processEstimatedVehicleJourney() throws JAXBException {
 
         EstimatedVehicleJourney.RecordedCalls recordedCalls = new EstimatedVehicleJourney.RecordedCalls();
-        addRecordedCall(recordedCalls, "R1", ZonedDateTime.now().minus(2, ChronoUnit.HOURS), false);
+        addRecordedCall(recordedCalls, "R1", ZonedDateTime.now().minus(2, ChronoUnit.HOURS));
         EstimatedVehicleJourney.EstimatedCalls estimatedCalls = new EstimatedVehicleJourney.EstimatedCalls();
         addDelayedEstimatedCall(estimatedCalls, "E1", ZonedDateTime.now().plus(1, ChronoUnit.HOURS), false);
         addDelayedEstimatedCall(estimatedCalls, "E2", ZonedDateTime.now().plus(1, ChronoUnit.HOURS), false);
@@ -132,7 +133,7 @@ public class NsbETSubscriptionProcessorTest {
 
         NsbETSubscriptionProcessor processor = new NsbETSubscriptionProcessor(subscriptionManagerMock,
                 new SiriMarshaller(), mock(LiveRouteManager.class), mock(FileStorageService.class),
-                new MetricsService(null, 0), mock(DataStorageService.class));
+                new MetricsService(null, 0), mock(QuayAndStopPlaceMappingService.class));
 
         ArgumentCaptor<HashSet> subscriptionsOnStopsCaptor= ArgumentCaptor.forClass(HashSet.class);
         ArgumentCaptor<HashSet> subscriptionsOnLineOrVehicleJourneyCaptor= ArgumentCaptor.forClass(HashSet.class);
@@ -160,7 +161,8 @@ public class NsbETSubscriptionProcessorTest {
         SiriMarshaller siriMarshaller = new SiriMarshaller();
         DataStorageService dataStorageMock = mock(DataStorageService.class);
         HashSet<Subscription> subscriptionsNotified = new HashSet<>();
-        SubscriptionManager subscriptionManager = new SubscriptionManager(dataStorageMock, siriMarshaller, metricsService, new HashMap<>()) {
+        QuayAndStopPlaceMappingService mappingMock = mock(QuayAndStopPlaceMappingService.class);
+        SubscriptionManager subscriptionManager = new SubscriptionManager(dataStorageMock, siriMarshaller, metricsService, new HashMap<>(), mappingMock) {
             @Override
             public void notifySubscriptionsOnStops(HashSet<Subscription> subscriptions, EstimatedVehicleJourney estimatedVehicleJourney) {
                 subscriptionsNotified.addAll(subscriptions);
@@ -168,15 +170,15 @@ public class NsbETSubscriptionProcessorTest {
         };
 
         NsbETSubscriptionProcessor processor = new NsbETSubscriptionProcessor(subscriptionManager, siriMarshaller, mock(LiveRouteManager.class),
-                mock(FileStorageService.class), metricsService, dataStorageMock);
+                mock(FileStorageService.class), metricsService, mappingMock);
 
         HashSet<Subscription> subscriptions = Sets.newHashSet(s1, s2);
         when(dataStorageMock.getSubscriptionsForStopPoint("NSR:StopPlace:1")).thenReturn(subscriptions);
         when(dataStorageMock.getSubscriptionsForStopPoint("NSR:StopPlace:2")).thenReturn(subscriptions);
         when(dataStorageMock.getSubscriptionsForStopPoint("NSR:Quay:1")).thenReturn(Sets.newHashSet(q1));
         when(dataStorageMock.getSubscriptionsForStopPoint("NSR:Quay:2")).thenReturn(Sets.newHashSet(q1));
-        when(dataStorageMock.mapQuayToStopPlace("NSR:Quay:1")).thenReturn("NSR:StopPlace:1");
-        when(dataStorageMock.mapQuayToStopPlace("NSR:Quay:2")).thenReturn("NSR:StopPlace:2");
+        when(mappingMock.mapQuayToStopPlace("NSR:Quay:1")).thenReturn("NSR:StopPlace:1");
+        when(mappingMock.mapQuayToStopPlace("NSR:Quay:2")).thenReturn("NSR:StopPlace:2");
 
         EstimatedVehicleJourney.EstimatedCalls estimatedCalls = new EstimatedVehicleJourney.EstimatedCalls();
         addDelayedEstimatedCall(estimatedCalls, "1", ZonedDateTime.now().plus(1, ChronoUnit.HOURS), true);
@@ -253,27 +255,19 @@ public class NsbETSubscriptionProcessorTest {
         estimatedCalls.getEstimatedCalls().add(estimatedCall);
     }
 
-    private void addEstimatedCall(EstimatedVehicleJourney.EstimatedCalls estimatedCalls, String stopPointRef, ZonedDateTime departureTime, boolean createQuay) {
+    private void addEstimatedCall(EstimatedVehicleJourney.EstimatedCalls estimatedCalls, String stopPointRef, ZonedDateTime departureTime) {
         EstimatedCall estimatedCall = new EstimatedCall();
         StopPointRef ref = new StopPointRef();
-        if (createQuay) {
-            ref.setValue("NSR:Quay:" + stopPointRef);
-        } else {
-            ref.setValue("NSR:StopPlace:" + stopPointRef);
-        }
+        ref.setValue("NSR:StopPlace:" + stopPointRef);
         estimatedCall.setStopPointRef(ref);
         estimatedCall.setAimedDepartureTime(departureTime);
         estimatedCalls.getEstimatedCalls().add(estimatedCall);
     }
 
-    private void addRecordedCall(EstimatedVehicleJourney.RecordedCalls recordedCalls, String stopPointRef, ZonedDateTime departureTime, boolean createQuay) {
+    private void addRecordedCall(EstimatedVehicleJourney.RecordedCalls recordedCalls, String stopPointRef, ZonedDateTime departureTime) {
         RecordedCall recordedCall = new RecordedCall();
         StopPointRef ref = new StopPointRef();
-        if (createQuay) {
-            ref.setValue("NSR:Quay:" + stopPointRef);
-        } else {
-            ref.setValue("NSR:StopPlace:" + stopPointRef);
-        }
+        ref.setValue("NSR:StopPlace:" + stopPointRef);
         recordedCall.setStopPointRef(ref);
         recordedCall.setAimedDepartureTime(departureTime);
         recordedCalls.getRecordedCalls().add(recordedCall);

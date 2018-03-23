@@ -20,6 +20,7 @@ import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.StringUtils;
 import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.MetricsService;
+import org.entur.ukur.service.QuayAndStopPlaceMappingService;
 import org.entur.ukur.xml.SiriMarshaller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -45,6 +46,7 @@ public class SubscriptionManager {
     private SiriMarshaller siriMarshaller;
     private MetricsService metricsService;
     private Map<Object, Long> alreadySentCache;
+    private QuayAndStopPlaceMappingService quayAndStopPlaceMappingService;
     private String hostname;
     private Logger logger = LoggerFactory.getLogger(this.getClass());
     private ExecutorService pushExecutor = Executors.newFixedThreadPool(20);
@@ -53,11 +55,13 @@ public class SubscriptionManager {
     public SubscriptionManager(DataStorageService dataStorageService,
                                SiriMarshaller siriMarshaller,
                                MetricsService metricsService,
-                               @Qualifier("alreadySentCache") Map<Object, Long> alreadySentCache) {
+                               @Qualifier("alreadySentCache") Map<Object, Long> alreadySentCache,
+                               QuayAndStopPlaceMappingService quayAndStopPlaceMappingService) {
         this.dataStorageService = dataStorageService;
         this.siriMarshaller = siriMarshaller;
         this.metricsService = metricsService;
-        this.alreadySentCache = alreadySentCache; //TODO: Leaves this in hazelcast for now because of easier eviction setup...
+        this.alreadySentCache = alreadySentCache;
+        this.quayAndStopPlaceMappingService = quayAndStopPlaceMappingService;
         try {
             hostname = InetAddress.getLocalHost().getHostName();
             logger.info("This nodes hostname is '{}'", hostname);
@@ -89,7 +93,7 @@ public class SubscriptionManager {
     public Set<Subscription> getSubscriptionsForStopPoint(String stopPointRef) {
         HashSet<Subscription> subscriptions = new HashSet<>();
         if (stopPointRef.startsWith("NSR:Quay:")) {
-            String stopPlace = dataStorageService.mapQuayToStopPlace(stopPointRef);
+            String stopPlace = quayAndStopPlaceMappingService.mapQuayToStopPlace(stopPointRef);
             if (StringUtils.isNotBlank(stopPlace)) {
                 Set<Subscription> subscriptionsForStopPlace = dataStorageService.getSubscriptionsForStopPoint(stopPlace);
                 logger.trace("Found {} subscriptions for stopPlace {} which quay {} is part of", subscriptionsForStopPlace.size(), stopPlace, stopPointRef);

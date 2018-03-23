@@ -19,9 +19,9 @@ import com.codahale.metrics.Timer;
 import org.apache.camel.Exchange;
 import org.apache.commons.lang3.StringUtils;
 import org.entur.ukur.routedata.LiveRouteManager;
-import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.FileStorageService;
 import org.entur.ukur.service.MetricsService;
+import org.entur.ukur.service.QuayAndStopPlaceMappingService;
 import org.entur.ukur.subscription.EstimatedCallAndSubscriptions;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionManager;
@@ -46,7 +46,7 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
 
     private SubscriptionManager subscriptionManager;
     private MetricsService metricsService;
-    private DataStorageService dataStorageService;
+    private QuayAndStopPlaceMappingService quayAndStopPlaceMappingService;
 
     private SiriMarshaller siriMarshaller;
     private LiveRouteManager liveRouteManager;
@@ -60,13 +60,13 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
                                       LiveRouteManager liveRouteManager,
                                       FileStorageService fileStorageService,
                                       MetricsService metricsService,
-                                      DataStorageService dataStorageService) {
+                                      QuayAndStopPlaceMappingService quayAndStopPlaceMappingService) {
         this.siriMarshaller = siriMarshaller;
         this.liveRouteManager = liveRouteManager;
         this.fileStorageService = fileStorageService;
         this.subscriptionManager = subscriptionManager;
         this.metricsService = metricsService;
-        this.dataStorageService = dataStorageService;
+        this.quayAndStopPlaceMappingService = quayAndStopPlaceMappingService;
         logger.debug("Initializes...");
     }
 
@@ -218,7 +218,7 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
         for (Map.Entry<String, StopData> entry : stops.entrySet()) {
             String stopPointId = entry.getKey();
             if (stopPointId.startsWith("NSR:Quay:")) {
-                String stopPlaceId = dataStorageService.mapQuayToStopPlace(stopPointId);
+                String stopPlaceId = quayAndStopPlaceMappingService.mapQuayToStopPlace(stopPointId);
                 if (stopPlaceId != null) {
                     mappedStops.put(stopPlaceId, entry.getValue());
                 }

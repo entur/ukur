@@ -17,6 +17,7 @@ package org.entur.ukur.subscription;
 
 import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.MetricsService;
+import org.entur.ukur.service.QuayAndStopPlaceMappingService;
 import org.entur.ukur.xml.SiriMarshaller;
 import org.junit.Test;
 
@@ -35,10 +36,11 @@ public class SubscriptionManagerTest {
     @Test
     public void testQuayToStopPlaceMapping() throws JAXBException {
         DataStorageService storageMock = mock(DataStorageService.class);
+        QuayAndStopPlaceMappingService mappingMock = mock(QuayAndStopPlaceMappingService.class);
         SubscriptionManager subscriptionManager = new SubscriptionManager(storageMock,
-                new SiriMarshaller(), new MetricsService(null, -1), new HashMap<>());
+                new SiriMarshaller(), new MetricsService(null, -1), new HashMap<>(), mappingMock);
 
-        when(storageMock.mapQuayToStopPlace("NSR:Quay:1")).thenReturn("NSR:StopPlace:1");
+        when(mappingMock.mapQuayToStopPlace("NSR:Quay:1")).thenReturn("NSR:StopPlace:1");
         Subscription s1 = new Subscription();
         s1.setId("s1");
         Subscription s2 = new Subscription();

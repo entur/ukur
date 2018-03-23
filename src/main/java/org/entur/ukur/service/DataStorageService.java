@@ -37,8 +37,4 @@ public interface DataStorageService {
     int getNumberOfCurrentJourneys();
     void removeJourneysOlderThan(ZonedDateTime now);
 
-    void updateStopsAndQuaysMap(Map<String, Collection<String>> hashMap);
-    String mapQuayToStopPlace(String quayId);
-    Collection<String> mapStopPlaceToQuays(String stopPlaceId);
-    long getNumberOfStopPlaces();
 }

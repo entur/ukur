@@ -18,26 +18,27 @@ package org.entur.ukur.camelroute;
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
 import org.apache.commons.io.IOUtils;
-import org.entur.ukur.service.DataStorageService;
+import org.entur.ukur.service.MetricsService;
+import org.entur.ukur.service.QuayAndStopPlaceMappingService;
 import org.junit.Ignore;
 import org.junit.Test;
-import org.mockito.ArgumentCaptor;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.io.FileInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
-import java.util.List;
 
 import static junit.framework.TestCase.assertEquals;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsCollectionContaining.hasItems;
 import static org.junit.Assert.assertFalse;
 import static org.junit.Assert.assertTrue;
-import static org.mockito.Mockito.*;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.when;
 
 public class TiamatStopPlaceQuaysProcessorTest {
 
@@ -69,39 +70,50 @@ public class TiamatStopPlaceQuaysProcessorTest {
                 "}";
 
         InputStream stream = IOUtils.toInputStream(json, "UTF-8");
-        DataStorageService storageServiceMock = mock(DataStorageService.class);
-        TiamatStopPlaceQuaysProcessor processor = new TiamatStopPlaceQuaysProcessor(storageServiceMock);
+        QuayAndStopPlaceMappingService quayAndStopPlaceMappingService = new QuayAndStopPlaceMappingService(new MetricsService(null, 0));
+        TiamatStopPlaceQuaysProcessor processor = new TiamatStopPlaceQuaysProcessor(quayAndStopPlaceMappingService);
         Exchange exchangeMock = createExchangeMock(stream);
-        processor.process(exchangeMock);
 
-        ArgumentCaptor<HashMap> stopsAndQuaysCaptor = ArgumentCaptor.forClass(HashMap.class);
-        verify(storageServiceMock).updateStopsAndQuaysMap(stopsAndQuaysCaptor.capture());
-        HashMap<String, List<String>> captured = stopsAndQuaysCaptor.getValue();
-        assertEquals(4, captured.size());
-        assertThat(captured.get("NSR:StopPlace:26291"), hasItems("NSR:Quay:45505"));
-        assertThat(captured.get("NSR:StopPlace:26292"), hasItems("NSR:Quay:45506", "NSR:Quay:45507"));
-        assertThat(captured.get("NSR:StopPlace:26293"), hasItems("NSR:Quay:45509", "NSR:Quay:45508"));
-        assertThat(captured.get("NSR:StopPlace:26294"), hasItems("NSR:Quay:45510", "NSR:Quay:45511", "NSR:Quay:45512", "NSR:Quay:45513", "NSR:Quay:45514"));
+        assertEquals(0, quayAndStopPlaceMappingService.getNumberOfStopPlaces());
+        processor.process(exchangeMock);
+        assertEquals(4, quayAndStopPlaceMappingService.getNumberOfStopPlaces());
+
+        assertThat(quayAndStopPlaceMappingService.mapStopPlaceToQuays("NSR:StopPlace:26291"), hasItems("NSR:Quay:45505"));
+        assertThat(quayAndStopPlaceMappingService.mapStopPlaceToQuays("NSR:StopPlace:26292"), hasItems("NSR:Quay:45506", "NSR:Quay:45507"));
+        assertThat(quayAndStopPlaceMappingService.mapStopPlaceToQuays("NSR:StopPlace:26293"), hasItems("NSR:Quay:45509", "NSR:Quay:45508"));
+        assertThat(quayAndStopPlaceMappingService.mapStopPlaceToQuays("NSR:StopPlace:26294"), hasItems("NSR:Quay:45510", "NSR:Quay:45511", "NSR:Quay:45512", "NSR:Quay:45513", "NSR:Quay:45514"));
+        assertEquals("NSR:StopPlace:26291", quayAndStopPlaceMappingService.mapQuayToStopPlace("NSR:Quay:45505"));
+        assertEquals("NSR:StopPlace:26292", quayAndStopPlaceMappingService.mapQuayToStopPlace("NSR:Quay:45506"));
+        assertEquals("NSR:StopPlace:26292", quayAndStopPlaceMappingService.mapQuayToStopPlace("NSR:Quay:45507"));
+        assertEquals("NSR:StopPlace:26293", quayAndStopPlaceMappingService.mapQuayToStopPlace("NSR:Quay:45509"));
+        assertEquals("NSR:StopPlace:26293", quayAndStopPlaceMappingService.mapQuayToStopPlace("NSR:Quay:45508"));
+        assertEquals("NSR:StopPlace:26294", quayAndStopPlaceMappingService.mapQuayToStopPlace("NSR:Quay:45510"));
+        assertEquals("NSR:StopPlace:26294", quayAndStopPlaceMappingService.mapQuayToStopPlace("NSR:Quay:45511"));
+        assertEquals("NSR:StopPlace:26294", quayAndStopPlaceMappingService.mapQuayToStopPlace("NSR:Quay:45512"));
+        assertEquals("NSR:StopPlace:26294", quayAndStopPlaceMappingService.mapQuayToStopPlace("NSR:Quay:45513"));
+        assertEquals("NSR:StopPlace:26294", quayAndStopPlaceMappingService.mapQuayToStopPlace("NSR:Quay:45514"));
     }
 
     @SuppressWarnings("unchecked")
     @Test
     @Ignore
-    public void verifyActualResults() throws IOException {
-        DataStorageService storageServiceMock = mock(DataStorageService.class);
-        TiamatStopPlaceQuaysProcessor processor = new TiamatStopPlaceQuaysProcessor(storageServiceMock);
+    public void verifyActualTiamatData() throws IOException {
+        QuayAndStopPlaceMappingService quayAndStopPlaceMappingService = new QuayAndStopPlaceMappingService(new MetricsService(null, 0));
+        TiamatStopPlaceQuaysProcessor processor = new TiamatStopPlaceQuaysProcessor(quayAndStopPlaceMappingService);
         Exchange exchangeMock = createExchangeMock(new FileInputStream("/home/jon/Documents/Entur/StopPlacesAndQuays.json"));
-        processor.process(exchangeMock);
 
-        ArgumentCaptor<HashMap> stopsAndQuaysCaptor = ArgumentCaptor.forClass(HashMap.class);
-        verify(storageServiceMock).updateStopsAndQuaysMap(stopsAndQuaysCaptor.capture());
-        HashMap<String, List<String>> captured = stopsAndQuaysCaptor.getValue();
+        assertEquals(0, quayAndStopPlaceMappingService.getNumberOfStopPlaces());
+        processor.process(exchangeMock);
+        assertTrue( quayAndStopPlaceMappingService.getNumberOfStopPlaces() > 10000);
+
+
+        HashMap<String, Collection<String>> captured = quayAndStopPlaceMappingService.getAllStopPlaces();
         assertTrue( captured.size() > 10000);
 
         logger.info("Got {} different stopplaces", captured.size());
         boolean foundQuayOnSeveralStops = false;
         HashSet<String> uniqueQuays = new HashSet<>();
-        for (List<String> quayIds : captured.values()) {
+        for (Collection<String> quayIds : captured.values()) {
             for (String id : quayIds) {
                 if (!uniqueQuays.add(id)) { {
                     foundQuayOnSeveralStops = true;

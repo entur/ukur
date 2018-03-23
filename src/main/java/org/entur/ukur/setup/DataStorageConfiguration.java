@@ -49,8 +49,6 @@ public class DataStorageConfiguration {
 
     @Bean
     public DataStorageService createDataStorageService() throws IOException, InterruptedException {
-
-
         DataStorageService dataStorageService;
         if (useDatastore) {
             //TODO: Consider using LocalDatastoreHelper to run a local emulator when not running in the cloud
@@ -86,15 +84,11 @@ public class DataStorageConfiguration {
             dataStorageService = new DataStorageHazelcastService(
                     extendedHazelcastService.subscriptionIdsPerStopPoint(),
                     extendedHazelcastService.subscriptions(),
-                    extendedHazelcastService.currentJourneys(),
-                    extendedHazelcastService.stopPlaceIdToQaysId(),
-                    extendedHazelcastService.quayIdToStopPlaceId());
-
+                    extendedHazelcastService.currentJourneys());
         }
 
         metricsService.registerGauge(MetricsService.GAUGE_SUBSCRIPTIONS, dataStorageService::getNumberOfSubscriptions);
         metricsService.registerGauge(MetricsService.GAUGE_LIVE_JOURNEYS, dataStorageService::getNumberOfCurrentJourneys);
-        metricsService.registerGauge(MetricsService.GAUGE_STOPPLACES, dataStorageService::getNumberOfStopPlaces);
 
         return dataStorageService;
     }

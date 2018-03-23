@@ -31,18 +31,15 @@ import java.util.stream.Collectors;
 public class GoogleDatastoreService implements DataStorageService {
 
     private static final String KIND_SUBSCRIPTIONS = "Ukur-subscriptions";
-    private static final String KIND_STOPPLACES = "Ukur-stopplaces";
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private final Datastore datastore;
     private final KeyFactory subscriptionkeyFactory;
-    private final KeyFactory stopPlacekeyFactory;
-    private final IMap<String, LiveJourney> currentJourneys; //TODO: replace with datastore entity with children....
+    private final IMap<String, LiveJourney> currentJourneys;
 
     public GoogleDatastoreService(Datastore datastore,
                                   IMap<String, LiveJourney> currentJourneys) {
         this.datastore = datastore;
         subscriptionkeyFactory = datastore.newKeyFactory().setKind(KIND_SUBSCRIPTIONS);
-        stopPlacekeyFactory = datastore.newKeyFactory().setKind(KIND_STOPPLACES);
         this.currentJourneys = currentJourneys;
     }
 
@@ -149,85 +146,6 @@ public class GoogleDatastoreService implements DataStorageService {
         for (String flush : toFlush) {
             currentJourneys.delete(flush);
         }
-    }
-
-    @Override
-    public void updateStopsAndQuaysMap(Map<String, Collection<String>> hashMap) {
-        ArrayList<Entity> tasks = new ArrayList<>();
-        for (Map.Entry<String, Collection<String>> stopPlaceEntry : hashMap.entrySet()) {
-            //since reads are cheap and writes are slow (combined with the fact that stopplace data seldom change...) we compare to what we have before anything is written
-            Collection<String> storedQuays = mapStopPlaceToQuays(stopPlaceEntry.getKey());
-            if (!sameContent(stopPlaceEntry.getValue(), storedQuays)) {
-                Entity task = Entity.newBuilder(stopPlacekeyFactory.newKey(stopPlaceEntry.getKey()))
-                        .set("quayIds", convertStringsToValueList(stopPlaceEntry.getValue()))
-                        .build();
-                tasks.add(task);
-            }
-            if (tasks.size() > 100) {
-                datastore.put(tasks.toArray(new Entity[tasks.size()]));
-                tasks.clear();
-            }
-        }
-        if (!tasks.isEmpty()) {
-            datastore.put(tasks.toArray(new Entity[tasks.size()]));
-            tasks.clear();
-        }
-    }
-
-    private boolean sameContent(Collection<String> collection1, Collection<String> collection2) {
-        if (collection1 == null) {
-            return collection2 == null || collection2.isEmpty();
-        }
-        if (collection2 == null) {
-            return collection1.isEmpty();
-        }
-        return collection1.size() == collection2.size() && collection1.containsAll(collection2);
-    }
-
-    @Override
-    public String mapQuayToStopPlace(String quayId) {
-        KeyQuery query = Query.newKeyQueryBuilder()
-            .setKind(KIND_STOPPLACES)
-            .setFilter(StructuredQuery.PropertyFilter.eq("quayIds", quayId))
-            .build();
-        QueryResults<Key> queryResults = datastore.run(query);
-        if (queryResults.hasNext()) {
-            //Expects only one entity
-            Key key = queryResults.next();
-            return key.getName();
-        }
-        logger.warn("Did not find quayId '{}' on any stopplace", quayId);
-        return null;
-    }
-
-    @Override
-    public Collection<String> mapStopPlaceToQuays(String stopPlaceId) {
-        Entity entity = datastore.get(stopPlacekeyFactory.newKey(stopPlaceId));
-        if (entity != null) {
-            return convertValueListToStrings(entity, "quayIds");
-        }
-        logger.warn("Did not find any stopPlace with stopPlaceId '{}'", stopPlaceId);
-        return Collections.emptySet();
-    }
-
-    @Override
-    public long getNumberOfStopPlaces() {
-        //TODO: This gives wrong size as statistics is produced only once a day or so...
-        EntityQuery query = Query.newEntityQueryBuilder()
-                .setKind("__Stat_Kind__")
-                .setFilter(StructuredQuery.PropertyFilter.eq("kind_name", KIND_STOPPLACES))
-                .build();
-        try {
-            QueryResults<Entity> results = datastore.run(query);
-            if (results.hasNext()) {
-                Entity entity = results.next();
-                return entity.getLong("count");
-            }
-        } catch (Exception e) {
-            logger.error("Could not get size of {}", KIND_STOPPLACES, e);
-            return -2;
-        }
-        return -1; //When running locally __Stat_Kind__ it not generated and we get this
     }
 
     private QueryResults<Entity> findContaining(String property, String value) {

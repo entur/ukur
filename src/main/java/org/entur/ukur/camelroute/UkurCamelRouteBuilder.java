@@ -100,7 +100,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
         String proposedValue = "ukur-" + UUID.randomUUID();
         String requestorId = sharedProperties.putIfAbsent("AnsharRequestorId", proposedValue);
         requestorId = requestorId == null ? proposedValue : requestorId;
-        logger.debug("Uses requestorId: '{}' - proposded value was {}", requestorId, proposedValue);
+        logger.debug("Uses requestorId: '{}' - proposed value was {}", requestorId, proposedValue);
         String siriETurl = config.getAnsharETCamelUrl(requestorId);
         String siriSXurl = config.getAnsharSXCamelUrl(requestorId);
 
@@ -176,7 +176,11 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
         createSingletonQuartz2Route("flushOldJourneys", repatInterval, ROUTEID_FLUSHJOURNEYS_TRIGGER, ROUTEID_FLUSHJOURNEYS, ROUTE_FLUSHJOURNEYS);
 
         if (stopPlaceToQuayEnabled) {
-            createSingletonQuartz2Route("getStopPlacesFromTiamat", tiamatRepatInterval, ROUTEID_TIAMAT_MAP_TRIGGER, ROUTEID_TIAMAT_MAP, ROUTE_TIAMAT_MAP);
+            from("quartz2://ukur/getStopPlacesFromTiamat?trigger.repeatInterval=" + tiamatRepatInterval + "&fireNow=true")
+                    .routeId(ROUTEID_TIAMAT_MAP_TRIGGER)
+                    .filter(e -> isNotRunning(ROUTEID_TIAMAT_MAP))
+                    .log(LoggingLevel.DEBUG, "getStopPlacesFromTiamat triggered by timer")
+                    .to(ROUTE_TIAMAT_MAP);
         }
 
     }
@@ -255,7 +259,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
         from(ROUTE_TIAMAT_MAP)
                 .routeId(ROUTEID_TIAMAT_MAP)
                 .to("metrics:timer:" + MetricsService.TIMER_TIAMAT + "?action=start")
-                .log(LoggingLevel.DEBUG, "About to call Tiamat with url: " + siriSXurl)
+                .log(LoggingLevel.DEBUG, "About to call Tiamat with url: " + tiamatStopPlaceQuaysURL)
                 .setHeader(Exchange.HTTP_METHOD, constant("GET"))
                 .to(tiamatStopPlaceQuaysURL)
                 .process(tiamatStopPlaceQuaysProcessor)

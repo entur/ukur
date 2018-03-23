@@ -31,11 +31,12 @@ import org.slf4j.LoggerFactory;
 import org.threeten.bp.Duration;
 
 import java.io.IOException;
-import java.util.*;
+import java.util.Collection;
+import java.util.Iterator;
+import java.util.Set;
 import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.core.Is.is;
-import static org.hamcrest.core.IsCollectionContaining.hasItems;
 import static org.junit.Assert.*;
 
 public class GoogleDatastoreServiceTest {
@@ -187,37 +188,6 @@ public class GoogleDatastoreServiceTest {
                 fail("Subscription should have been deleted");
             }
         }
-    }
-
-    @Test
-    public void testStopPlaceToQuaysMapping() {
-        GoogleDatastoreService service = new GoogleDatastoreService(datastore, null);
-        HashMap<String, Collection<String>> stopsAndQuays = new HashMap<>();
-        stopsAndQuays.put("stop1", Arrays.asList("quay11", "quay12"));
-        stopsAndQuays.put("stop2", Collections.singletonList("quay21"));
-        stopsAndQuays.put("stop3", Arrays.asList("quay31", "quay32", "quay33", "quay34", "quay35", "quay36"));
-        service.updateStopsAndQuaysMap(stopsAndQuays);
-        assertNull(service.mapQuayToStopPlace("non-existing"));
-        assertEquals("stop1", service.mapQuayToStopPlace("quay11"));
-        assertEquals("stop1", service.mapQuayToStopPlace("quay12"));
-        assertEquals("stop2", service.mapQuayToStopPlace("quay21"));
-        assertEquals("stop3", service.mapQuayToStopPlace("quay31"));
-        assertEquals("stop3", service.mapQuayToStopPlace("quay34"));
-        assertEquals("stop3", service.mapQuayToStopPlace("quay36"));
-        assertThat(service.mapStopPlaceToQuays("stop1"), hasItems("quay11", "quay12"));
-
-        //Updates and verifies that old entris no longer are there
-        HashMap<String, Collection<String>> updatedStopsAndQuays = new HashMap<>();
-        updatedStopsAndQuays.put("stop1", Arrays.asList("quay11_", "quay12_"));
-        updatedStopsAndQuays.put("stop2", Collections.singletonList("quay21"));
-        updatedStopsAndQuays.put("stop3", Arrays.asList("quay31_", "quay32_", "quay33", "quay34", "quay35", "quay36"));
-        service.updateStopsAndQuaysMap(updatedStopsAndQuays);
-        assertNull(service.mapQuayToStopPlace("quay11"));
-        assertEquals("stop1", service.mapQuayToStopPlace("quay11_"));
-        assertEquals("stop3", service.mapQuayToStopPlace("quay31_"));
-        assertEquals("stop3", service.mapQuayToStopPlace("quay34"));
-        assertThat(service.mapStopPlaceToQuays("stop1"), hasItems("quay11_", "quay12_"));
-        assertThat(service.mapStopPlaceToQuays("stop3"), hasItems("quay31_", "quay32_", "quay33", "quay34", "quay35", "quay36"));
     }
 
     @Test

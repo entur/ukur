@@ -18,7 +18,7 @@ package org.entur.ukur.camelroute;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
-import org.entur.ukur.service.DataStorageService;
+import org.entur.ukur.service.QuayAndStopPlaceMappingService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.stereotype.Service;
@@ -33,10 +33,10 @@ import java.util.Map;
 public class TiamatStopPlaceQuaysProcessor implements Processor {
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
-    private DataStorageService dataStorageService;
+    private QuayAndStopPlaceMappingService dataStorageService;
 
-    public TiamatStopPlaceQuaysProcessor(DataStorageService dataStorageService) {
-        this.dataStorageService = dataStorageService;
+    public TiamatStopPlaceQuaysProcessor(QuayAndStopPlaceMappingService quayAndStopPlaceMappingService) {
+        this.dataStorageService = quayAndStopPlaceMappingService;
     }
 
     @Override
