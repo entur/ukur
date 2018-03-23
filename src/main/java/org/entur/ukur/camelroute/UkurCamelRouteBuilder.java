@@ -145,7 +145,6 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                     status.setStatusJourneyFlush(routeStatus(ROUTEID_FLUSHJOURNEYS_TRIGGER, null));
                     status.setStatusETPolling(routeStatus(ROUTEID_ET_TRIGGER, etPollingEnabled));
                     status.setStatusSXPolling(routeStatus(ROUTEID_SX_TRIGGER, sxPollingEnabled));
-                    status.setStatusStopPlacesAndQuays(routeStatus(ROUTEID_TIAMAT_MAP_TRIGGER, config.isTiamatStopPlaceQuaysEnabled()));
                     for (Map.Entry<String, Meter> entry : metricsService.getMeters().entrySet()) {
                         status.addMeter(entry.getKey(), entry.getValue());
                     }
@@ -227,7 +226,6 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .process(nsbETSubscriptionProcessor)
                 .end();
 
-
         from(ROUTE_SX_RETRIEVER)
                 .routeId(ROUTEID_SX_RETRIEVER)
                 .to("metrics:timer:" + MetricsService.TIMER_SX_PULL + "?action=start")
@@ -265,7 +263,6 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .process(tiamatStopPlaceQuaysProcessor)
                 .to("metrics:timer:" + MetricsService.TIMER_TIAMAT + "?action=stop")
                 .end();
-
     }
 
     private String routeStatus(String routeidSxTrigger, Boolean enabled) {

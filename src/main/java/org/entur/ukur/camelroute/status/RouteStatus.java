@@ -33,7 +33,6 @@ public class RouteStatus {
     private String statusJourneyFlush;
     private String statusETPolling;
     private String statusSXPolling;
-    private String statusStopPlacesAndQuays;
     private HashMap<String, Object> gauges = new HashMap<>();
     private HashMap<String, Long> meterCounts = new HashMap<>();
     private HashMap<String, Double> meterOneMinuteRates = new HashMap<>();
@@ -113,14 +112,6 @@ public class RouteStatus {
 
     public void setStatusSXPolling(String statusSXPolling) {
         this.statusSXPolling = statusSXPolling;
-    }
-
-    public void setStatusStopPlacesAndQuays(String statusStopPlacesAndQuays) {
-        this.statusStopPlacesAndQuays = statusStopPlacesAndQuays;
-    }
-
-    public String getStatusStopPlacesAndQuays() {
-        return statusStopPlacesAndQuays;
     }
 
     public void addMeter(String name, Meter meter) {
