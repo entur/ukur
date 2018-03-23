@@ -292,6 +292,13 @@ public class SubscriptionManager {
         if (toStopPoints != null) {
             result.addAll(toStopPoints);
         }
+        HashSet<String> mappedQuays = new HashSet<>();
+        for (String stopPoint : result) {
+            if (stopPoint.startsWith("NSR:StopPlace:")) {
+                mappedQuays.addAll(quayAndStopPlaceMappingService.mapStopPlaceToQuays(stopPoint));
+            }
+        }
+        result.addAll(mappedQuays);
         return result;
     }
 
