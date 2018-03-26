@@ -106,7 +106,9 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
 
         createWorkerRoutes(siriETurl, siriSXurl, config.getTiamatStopPlaceQuaysURL());
         createRestRoutes(config.getRestPort(), config.isEtPollingEnabled(), config.isSxPollingEnabled());
-        createQuartzRoutes(config.isEtPollingEnabled(), config.isSxPollingEnabled(), config.getPollingInterval(), config.isTiamatStopPlaceQuaysEnabled(), config.getTiamatStopPlaceQuaysInterval());
+        createQuartzRoutes(config.getPollingInterval(), config.isTiamatStopPlaceQuaysEnabled(), config.getTiamatStopPlaceQuaysInterval());
+        //TODO ROR-212: if anshar subscription is enabled, create proper endpoints instead of these polling-routes:
+        createAnsharPollingRoutes(config.isEtPollingEnabled(), config.isSxPollingEnabled(), config.getPollingInterval());
     }
 
     private void createRestRoutes(int jettyPort, boolean etPollingEnabled, boolean sxPollingEnabled) {
@@ -158,7 +160,20 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 });
     }
 
-    private void createQuartzRoutes(boolean etPollingEnabled, boolean sxPollingEnabled, int repatInterval, boolean stopPlaceToQuayEnabled, int tiamatRepatInterval) {
+    private void createQuartzRoutes(int repatInterval, boolean stopPlaceToQuayEnabled, int tiamatRepatInterval) {
+
+        createSingletonQuartz2Route("flushOldJourneys", repatInterval, ROUTEID_FLUSHJOURNEYS_TRIGGER, ROUTEID_FLUSHJOURNEYS, ROUTE_FLUSHJOURNEYS);
+
+        if (stopPlaceToQuayEnabled) {
+            from("quartz2://ukur/getStopPlacesFromTiamat?trigger.repeatInterval=" + tiamatRepatInterval + "&fireNow=true")
+                    .routeId(ROUTEID_TIAMAT_MAP_TRIGGER)
+                    .filter(e -> isNotRunning(ROUTEID_TIAMAT_MAP))
+                    .log(LoggingLevel.DEBUG, "getStopPlacesFromTiamat triggered by timer")
+                    .to(ROUTE_TIAMAT_MAP);
+        }
+    }
+
+    private void createAnsharPollingRoutes(boolean etPollingEnabled, boolean sxPollingEnabled, int repatInterval) {
 
         if (etPollingEnabled) {
             createSingletonQuartz2Route("pollAnsharET", repatInterval, ROUTEID_ET_TRIGGER, ROUTEID_ET_RETRIEVER, ROUTE_ET_RETRIEVER);
@@ -171,26 +186,6 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
         } else {
             logger.warn("SX polling is disabled");
         }
-
-        createSingletonQuartz2Route("flushOldJourneys", repatInterval, ROUTEID_FLUSHJOURNEYS_TRIGGER, ROUTEID_FLUSHJOURNEYS, ROUTE_FLUSHJOURNEYS);
-
-        if (stopPlaceToQuayEnabled) {
-            from("quartz2://ukur/getStopPlacesFromTiamat?trigger.repeatInterval=" + tiamatRepatInterval + "&fireNow=true")
-                    .routeId(ROUTEID_TIAMAT_MAP_TRIGGER)
-                    .filter(e -> isNotRunning(ROUTEID_TIAMAT_MAP))
-                    .log(LoggingLevel.DEBUG, "getStopPlacesFromTiamat triggered by timer")
-                    .to(ROUTE_TIAMAT_MAP);
-        }
-
-    }
-
-    private void createSingletonQuartz2Route(String timerName, int repatInterval, String triggerRouteId, String toRouteId, String toRoute) {
-        String uri = "quartz2://ukur/" + timerName + "?trigger.repeatInterval=" + repatInterval + "&startDelayedSeconds=5&fireNow=true";
-        singletonFrom(uri, triggerRouteId)
-                .filter(e -> isLeader(e.getFromRouteId()))
-                .filter(e -> isNotRunning(toRouteId))
-                .log(LoggingLevel.DEBUG, timerName + " triggered by timer")
-                .to(toRoute);
     }
 
     private void createWorkerRoutes(String siriETurl, String siriSXurl, String tiamatStopPlaceQuaysURL) {
@@ -263,6 +258,15 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .process(tiamatStopPlaceQuaysProcessor)
                 .to("metrics:timer:" + MetricsService.TIMER_TIAMAT + "?action=stop")
                 .end();
+    }
+
+    private void createSingletonQuartz2Route(String timerName, int repatInterval, String triggerRouteId, String toRouteId, String toRoute) {
+        String uri = "quartz2://ukur/" + timerName + "?trigger.repeatInterval=" + repatInterval + "&startDelayedSeconds=5&fireNow=true";
+        singletonFrom(uri, triggerRouteId)
+                .filter(e -> isLeader(e.getFromRouteId()))
+                .filter(e -> isNotRunning(toRouteId))
+                .log(LoggingLevel.DEBUG, timerName + " triggered by timer")
+                .to(toRoute);
     }
 
     private String routeStatus(String routeidSxTrigger, Boolean enabled) {

@@ -15,9 +15,7 @@
 
 package org.entur.ukur.service;
 
-import com.hazelcast.config.EvictionPolicy;
 import com.hazelcast.config.MapConfig;
-import com.hazelcast.config.MaxSizeConfig;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IMap;
 import org.entur.ukur.routedata.LiveJourney;
@@ -37,9 +35,6 @@ import java.util.Set;
 @Service
 public class ExtendedHazelcastService extends HazelCastService {
 
-    /** Evict cache when free heap percentage is below this value */
-    private static final int EVICT_WHEN_FREE_HEAP_PERCENTAGE_BELOW = 25;
-
     public ExtendedHazelcastService(@Autowired KubernetesService kubernetesService, @Autowired UkurConfiguration cfg) {
         super(kubernetesService, cfg.getHazelcastManagementUrl());
     }
@@ -57,7 +52,7 @@ public class ExtendedHazelcastService extends HazelCastService {
     }
 
     @Bean
-    public IMap<Object, Long> alreadySentCache() {
+    public Map<Object, Long> alreadySentCache() {
         return hazelcast.getMap("ukur.alreadySentCache");
     }
 
@@ -85,11 +80,7 @@ public class ExtendedHazelcastService extends HazelCastService {
         mapConfigs.add(
                 new MapConfig()
                         .setName("ukur.alreadySentCache")
-                        .setMaxIdleSeconds(300)
-                        .setEvictionPolicy(EvictionPolicy.LFU)
-                        .setMaxSizeConfig(
-                                new MaxSizeConfig(EVICT_WHEN_FREE_HEAP_PERCENTAGE_BELOW, MaxSizeConfig.MaxSizePolicy.FREE_HEAP_PERCENTAGE)));
-
+                        .setMaxIdleSeconds(3600));
         return mapConfigs;
 
     }

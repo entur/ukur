@@ -52,6 +52,7 @@ public class MetricsService {
     public static final String GAUGE_SUBSCRIPTIONS = "gauge.subscriptions";
     public static final String GAUGE_LIVE_JOURNEYS = "gauge.liveJourneys";
     public static final String GAUGE_STOPPLACES    = "gauge.stopPlaces";
+    public static final String GAUGE_PUSH_QUEUE    = "gauge.pushQueue";
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final MetricRegistry metrics = new MetricRegistry();
     private final boolean graphiteEnabled;

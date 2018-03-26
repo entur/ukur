@@ -36,8 +36,10 @@ import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
 import java.util.*;
-import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.ThreadPoolExecutor;
+
+import static org.entur.ukur.service.MetricsService.GAUGE_PUSH_QUEUE;
 
 @Service
 public class SubscriptionManager {
@@ -49,7 +51,7 @@ public class SubscriptionManager {
     private QuayAndStopPlaceMappingService quayAndStopPlaceMappingService;
     private String hostname;
     private Logger logger = LoggerFactory.getLogger(this.getClass());
-    private ExecutorService pushExecutor = Executors.newFixedThreadPool(20);
+    private ThreadPoolExecutor pushExecutor = (ThreadPoolExecutor) Executors.newFixedThreadPool(50);
 
     @Autowired
     public SubscriptionManager(DataStorageService dataStorageService,
@@ -69,6 +71,7 @@ public class SubscriptionManager {
             hostname = "random_"+new Random().nextInt(10000); //want to separate message producing nodes from each other, this will work as fallback
             logger.error("Cant resolve hostname - use random name '{}' instead to differentiate nodes", hostname, e);
         }
+        metricsService.registerGauge(GAUGE_PUSH_QUEUE, () -> pushExecutor.getQueue().size());
         logger.info("There are at startup {} subscriptions", dataStorageService.getNumberOfSubscriptions());
     }
 
@@ -335,9 +338,9 @@ public class SubscriptionManager {
             content = siriMarshaller.marshall(siriElement);
         } catch (Exception e) {
             logger.warn("Could not marshall {}", e);
-            content = UUID.randomUUID().toString();
+            content = subscription.getId()+"_"+UUID.randomUUID().toString();
         }
-        return subscription.getId()+content.hashCode();
+        return subscription.getId()+"_"+content.length()+"_"+content.hashCode();
     }
 
     private void pushToHttp(Subscription subscription, Object siriElement) {
