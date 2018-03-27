@@ -281,7 +281,7 @@
                 <inherited>true</inherited>
                 <configuration>
                     <excludes>
-                        <exclude>**/*KT.java</exclude>
+                        <exclude>**/*ManualTest.java</exclude>
                     </excludes>
                 </configuration>
             </plugin>

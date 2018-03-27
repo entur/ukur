@@ -48,7 +48,7 @@ public class LiveRouteManager {
                     logger.info("Got EstimatedVehicleJourney (VehicleRef={}) that we could not read LastArrivalTime from - skips it", journey.getVehicleRef().getValue());
                 } else {
                     dataStorageService.putCurrentJourney(lj);
-                    logger.debug("Set journey with VehicleRef={}", lj.getVehicleRef());
+                    logger.trace("Set journey with VehicleRef={}", lj.getVehicleRef());
                 }
             } else {
                 logger.warn("Got EstimatedVehicleJourney with incomplete StopSequence - skips it... (VehicleRef={})", journey.getVehicleRef().getValue());

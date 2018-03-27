@@ -75,6 +75,10 @@ public class SubscriptionManager {
         logger.info("There are at startup {} subscriptions", dataStorageService.getNumberOfSubscriptions());
     }
 
+    public int getActivePushThreads() {
+        return pushExecutor.getActiveCount();
+    }
+
     @SuppressWarnings("unused") //Used from camel route
     public Collection<Subscription> listAll() {
         Collection<Subscription> existingSubscriptions = dataStorageService.getSubscriptions();
