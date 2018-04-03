@@ -20,17 +20,14 @@ import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IMap;
 import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.setup.UkurConfiguration;
-import org.entur.ukur.subscription.Subscription;
 import org.rutebanken.hazelcasthelper.service.HazelCastService;
 import org.rutebanken.hazelcasthelper.service.KubernetesService;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Service;
 
-import java.util.Collection;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 
 @Service
 public class ExtendedHazelcastService extends HazelCastService {
@@ -43,14 +40,6 @@ public class ExtendedHazelcastService extends HazelCastService {
         return hazelcast;
     }
 
-    public IMap<String, Set<String>> subscriptionIdsPerStopPoint() {
-        return hazelcast.getMap("ukur.subscriptionIdsPerStop");
-    }
-
-    public IMap<String, Subscription> subscriptions() {
-        return hazelcast.getMap("ukur.subscriptions");
-    }
-
     @Bean
     public Map<Object, Long> alreadySentCache() {
         return hazelcast.getMap("ukur.alreadySentCache");
@@ -61,16 +50,9 @@ public class ExtendedHazelcastService extends HazelCastService {
         return hazelcast.getMap("ukur.sharedProperties");
     }
 
+    @Bean
     public IMap<String, LiveJourney> currentJourneys() {
         return hazelcast.getMap("ukur.currentJourneys");
-    }
-
-    public Map<String, Collection<String>> stopPlaceIdToQaysId() {
-        return hazelcast.getMap("ukur.stopPlaceIdToQaysId");
-    }
-
-    public Map<String, String> quayIdToStopPlaceId() {
-        return hazelcast.getMap("ukur.quayIdToStopPlaceId");
     }
 
     @Override

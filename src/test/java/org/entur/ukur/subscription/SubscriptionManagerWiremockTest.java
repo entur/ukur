@@ -21,47 +21,50 @@ import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 import com.hazelcast.core.IMap;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
 import org.entur.ukur.routedata.LiveJourney;
-import org.entur.ukur.service.DataStorageHazelcastService;
+import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.service.QuayAndStopPlaceMappingService;
+import org.entur.ukur.testsupport.DatastoreTest;
 import org.entur.ukur.xml.SiriMarshaller;
+import org.hamcrest.CoreMatchers;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import org.mockito.Mockito;
 import uk.org.siri.siri20.*;
 
 import javax.xml.bind.JAXBException;
 import javax.xml.stream.XMLStreamException;
-import java.util.*;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
+import static org.hamcrest.CoreMatchers.hasItem;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.times;
 
-public class SubscriptionManagerWiremockTest {
+public class SubscriptionManagerWiremockTest extends DatastoreTest {
 
     @Rule
     public WireMockRule wireMockRule = new WireMockRule(options().dynamicPort());
 
     private SubscriptionManager subscriptionManager;
-    private Map subscriptions;
     private Map<Object, Long> alreadySentCache;
     private SiriMarshaller siriMarshaller;
+    private DataStorageService dataStorageService;
 
     @SuppressWarnings("unchecked")
     @Before
-    public void setUp() throws JAXBException {
-        Map<String, Set<String>> subscriptionsPerStopPoint = mock(Map.class);
-        subscriptions = mock(Map.class);
+    public void setUp() throws Exception {
+        super.setUp();
         alreadySentCache =  new HashMap<>();
         siriMarshaller = new SiriMarshaller();
         IMap<String, LiveJourney> liveJourneyIMap = new TestHazelcastInstanceFactory().newHazelcastInstance().getMap("journeys");
         liveJourneyIMap.clear();
         MetricsService metricsService = new MetricsService(null, 0);
-        DataStorageHazelcastService dataStorageService = new DataStorageHazelcastService(subscriptionsPerStopPoint, subscriptions, liveJourneyIMap);
+        dataStorageService = new DataStorageService(datastore, liveJourneyIMap);
         subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsService, alreadySentCache, mock(QuayAndStopPlaceMappingService.class));
     }
 
@@ -96,9 +99,11 @@ public class SubscriptionManagerWiremockTest {
         assertEquals(0, subscription.getFailedPushCounter());
         HashSet<Subscription> subscriptions = new HashSet<>();
         subscriptions.add(subscription);
+        assertThat(dataStorageService.getSubscriptions(), hasItem(subscription));
         subscriptionManager.notifySubscriptionsOnStops(subscriptions, new EstimatedVehicleJourney());
         waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
-        Mockito.verify(this.subscriptions).remove(subscription.getId());
+        assertThat(dataStorageService.getSubscriptions(), CoreMatchers.not(hasItem(subscription)));
+        assertFalse(new HashSet<>(subscriptionManager.listAll()).contains(subscription));
         assertEquals(0, subscription.getFailedPushCounter());
     }
 
@@ -122,7 +127,7 @@ public class SubscriptionManagerWiremockTest {
         EstimatedVehicleJourney estimatedVehicleJourney = new EstimatedVehicleJourney();
         subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney);
         waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
-        Mockito.verify(this.subscriptions, times(0)).remove(subscription.getId());
+        assertThat(dataStorageService.getSubscriptions(), hasItem(subscription));
         waitAndVerifyFailedPushCounter(1, subscription);
 
         OperatorRefStructure value = new OperatorRefStructure();
@@ -130,13 +135,13 @@ public class SubscriptionManagerWiremockTest {
         estimatedVehicleJourney.setOperatorRef(value); //must add something so it differs from the previous ones
         subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney);
         waitAndVerifyAtLeast(2, postRequestedFor(urlEqualTo(url)));
-        Mockito.verify(this.subscriptions, times(0)).remove(subscription.getId());
+        assertThat(dataStorageService.getSubscriptions(), hasItem(subscription));
         waitAndVerifyFailedPushCounter(2, subscription);
 
         estimatedVehicleJourney.setCancellation(false); //must add something so it differs from the previous ones
         subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney);
         waitAndVerifyAtLeast(3, postRequestedFor(urlEqualTo(url)));
-        Mockito.verify(this.subscriptions, times(0)).remove(subscription.getId());
+        assertThat(dataStorageService.getSubscriptions(), hasItem(subscription));
         waitAndVerifyFailedPushCounter(3, subscription);
 
         estimatedVehicleJourney.setDataSource("blabla"); //must add something so it differs from the previous ones
@@ -144,7 +149,7 @@ public class SubscriptionManagerWiremockTest {
         waitAndVerifyAtLeast(4, postRequestedFor(urlEqualTo(url)));
         waitAndVerifyFailedPushCounter(4, subscription);
         Thread.sleep(10);
-        Mockito.verify(this.subscriptions, times(1)).remove(subscription.getId());
+        assertThat(dataStorageService.getSubscriptions(), CoreMatchers.not(hasItem(subscription)));
     }
 
     @Test

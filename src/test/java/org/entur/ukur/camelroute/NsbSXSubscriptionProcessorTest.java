@@ -20,12 +20,13 @@ import com.hazelcast.test.TestHazelcastInstanceFactory;
 import org.apache.commons.lang3.StringUtils;
 import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.routedata.LiveRouteManager;
-import org.entur.ukur.service.DataStorageHazelcastService;
+import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.FileStorageService;
 import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.service.QuayAndStopPlaceMappingService;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionManager;
+import org.entur.ukur.testsupport.DatastoreTest;
 import org.entur.ukur.xml.SiriMarshaller;
 import org.junit.Before;
 import org.junit.Test;
@@ -42,7 +43,7 @@ import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class NsbSXSubscriptionProcessorTest {
+public class NsbSXSubscriptionProcessorTest extends DatastoreTest {
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private SubscriptionManager subscriptionManager;
@@ -52,10 +53,11 @@ public class NsbSXSubscriptionProcessorTest {
 
     @Before
     public void setUp() throws Exception {
+        super.setUp();
         IMap<String, LiveJourney> liveJourneyIMap = new TestHazelcastInstanceFactory().newHazelcastInstance().getMap("journeys");
         MetricsService metricsServiceMock = mock(MetricsService.class);
         siriMarshaller = new SiriMarshaller();
-        DataStorageHazelcastService dataStorageService = new DataStorageHazelcastService(new HashMap<>(), new HashMap<>(), liveJourneyIMap);
+        DataStorageService dataStorageService = new DataStorageService(datastore, liveJourneyIMap);
         subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsServiceMock, new HashMap<>(), new QuayAndStopPlaceMappingService(metricsServiceMock));
         liveRouteManagerMock = mock(LiveRouteManager.class);
         processor = new NsbSXSubscriptionProcessor(subscriptionManager, siriMarshaller, liveRouteManagerMock, mock(FileStorageService.class), mock(MetricsService.class));

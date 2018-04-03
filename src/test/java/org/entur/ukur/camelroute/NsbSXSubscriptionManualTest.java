@@ -26,12 +26,13 @@ import org.apache.camel.Exchange;
 import org.apache.camel.Message;
 import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.routedata.LiveRouteManager;
-import org.entur.ukur.service.DataStorageHazelcastService;
+import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.FileStorageService;
 import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.service.QuayAndStopPlaceMappingService;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionManager;
+import org.entur.ukur.testsupport.DatastoreTest;
 import org.entur.ukur.xml.SiriMarshaller;
 import org.junit.Before;
 import org.junit.Rule;
@@ -61,7 +62,7 @@ import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @SuppressWarnings({"SameParameterValue", "Duplicates"})
-public class NsbSXSubscriptionManualTest {
+public class NsbSXSubscriptionManualTest extends DatastoreTest {
     private final Logger logger = LoggerFactory.getLogger(getClass());
     @Rule
     public WireMockRule wireMockRule = new WireMockRule(options().dynamicPort());
@@ -73,10 +74,11 @@ public class NsbSXSubscriptionManualTest {
 
     @Before
     public void setUp() throws Exception {
+        super.setUp();
         IMap<String, LiveJourney> liveJourneyIMap = new TestHazelcastInstanceFactory().newHazelcastInstance().getMap("journeys");
         MetricsService metricsService = new MetricsService(null, 0);
         siriMarshaller = new SiriMarshaller();
-        DataStorageHazelcastService dataStorageService = new DataStorageHazelcastService(new HashMap<>(), new HashMap<>(), liveJourneyIMap);
+        DataStorageService dataStorageService = new DataStorageService(datastore,liveJourneyIMap);
         quayAndStopPlaceMappingService = new QuayAndStopPlaceMappingService(metricsService);
         subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsService, new HashMap<>(), quayAndStopPlaceMappingService);
         liveRouteManager = new LiveRouteManager(dataStorageService, quayAndStopPlaceMappingService);

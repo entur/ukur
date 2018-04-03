@@ -15,73 +15,28 @@
 
 package org.entur.ukur.service;
 
-import com.google.cloud.datastore.*;
-import com.google.cloud.datastore.testing.LocalDatastoreHelper;
-import com.google.common.collect.Iterators;
 import com.hazelcast.core.IMap;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
 import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.subscription.Subscription;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
+import org.entur.ukur.testsupport.DatastoreTest;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import org.threeten.bp.Duration;
 
-import java.io.IOException;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Set;
-import java.util.concurrent.TimeoutException;
 
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.*;
 
-public class GoogleDatastoreServiceTest {
-    private static final Logger logger = LoggerFactory.getLogger(GoogleDatastoreServiceTest.class);
-    private static final LocalDatastoreHelper HELPER = LocalDatastoreHelper.create(1.0);
-
-    private Datastore datastore;
-
-    /**
-     * Starts the local Datastore emulator.
-     */
-    @BeforeClass
-    public static void beforeClass() throws IOException, InterruptedException {
-        logger.info("Starts HELPER...");
-        HELPER.start();
-        logger.info("...HELPER started");
-    }
-
-    /**
-     * Initializes Datastore and cleans out any residual values.
-     */
-    @Before
-    public void setUp() {
-        datastore = HELPER.getOptions().toBuilder().setNamespace(GoogleDatastoreServiceTest.class.getSimpleName()).build().getService();
-        StructuredQuery<Key> query = Query.newKeyQueryBuilder().build();
-        QueryResults<Key> result = datastore.run(query);
-        Key[] keys = Iterators.toArray(result, Key.class);
-        logger.info("Deletes {} entries from the local emulated datastore before test", keys.length);
-        datastore.delete(keys);
-    }
-
-    /**
-     * Stops the local Datastore emulator.
-     */
-    @AfterClass
-    public static void afterClass() throws IOException, InterruptedException, TimeoutException {
-        logger.info("Stops HELPER...");
-        HELPER.stop(Duration.ofSeconds(10));
-        logger.info("...HELPER stopped");
-    }
-
+public class DataStorageServiceTest extends DatastoreTest {
+    private static final Logger logger = LoggerFactory.getLogger(DataStorageServiceTest.class);
 
     @Test
     public void testSubscriptionHandling() {
-        GoogleDatastoreService service = new GoogleDatastoreService(datastore, null);
+        DataStorageService service = new DataStorageService(datastore, null);
         Subscription subscription = new Subscription();
         subscription.setPushAddress("http://somehost/test");
         subscription.setName("Test#1");
@@ -193,7 +148,7 @@ public class GoogleDatastoreServiceTest {
     @Test
     public void testLineOnlySubscription() {
         IMap<String, LiveJourney> liveJourneyIMap = new TestHazelcastInstanceFactory().newHazelcastInstance().getMap("journeys");
-        GoogleDatastoreService service = new GoogleDatastoreService(datastore, liveJourneyIMap);
+        DataStorageService service = new DataStorageService(datastore, liveJourneyIMap);
         Subscription subscription = new Subscription();
         subscription.setPushAddress("http://somehost/test");
         subscription.setName("Test#1");
