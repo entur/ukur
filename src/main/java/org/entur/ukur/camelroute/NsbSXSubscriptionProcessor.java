@@ -129,7 +129,7 @@ public class NsbSXSubscriptionProcessor implements Processor {
      *  Gå gjennom Affects|StopPlacess og matche StopPlaceRef mot subscriptions <-- Litt usikker på denne, men tar med for nå
 	 *  Gå gjennom Affects|VehicleJourneys|AffectedVehicleJourney|Route|StopPoints|AffectedStopPoint og
      */
-    protected HashSet<String> findAffectedStopPointRefs(AffectsScopeStructure affects) {
+    HashSet<String> findAffectedStopPointRefs(AffectsScopeStructure affects) {
         HashSet<String> stopsToNotify = new HashSet<>();
 
         AffectsScopeStructure.StopPoints affectsStopPoints = affects.getStopPoints();
@@ -153,7 +153,7 @@ public class NsbSXSubscriptionProcessor implements Processor {
         return stopsToNotify;
     }
 
-    protected HashSet<Subscription> findAffectedSubscriptions(AffectsScopeStructure.VehicleJourneys vehicleJourneys) {
+    HashSet<Subscription> findAffectedSubscriptions(AffectsScopeStructure.VehicleJourneys vehicleJourneys) {
         HashMap<String, LiveJourney> journeys = null;
         HashSet<Subscription> subscriptions = new HashSet<>();
         List<AffectedVehicleJourneyStructure> affectedVehicleJourneies = vehicleJourneys.getAffectedVehicleJourneies();
@@ -264,10 +264,14 @@ public class NsbSXSubscriptionProcessor implements Processor {
         return journeys;
     }
 
-    protected boolean affected(Subscription subscription, List<String> orderedListOfStops) {
+    private boolean affected(Subscription subscription, List<String> orderedListOfStops) {
         int from = findIndexOfOne(subscription.getFromStopPoints(), orderedListOfStops);
         int to = findIndexOfOne(subscription.getToStopPoints(), orderedListOfStops);
-        return from > -1 && to > -1 && from < to;
+        boolean affected = from > -1 && to > -1 && from < to;
+        if (affected) {
+            logger.trace("Affected subscription '{}' from {} to {}", subscription.getName(), orderedListOfStops.get(from), orderedListOfStops.get(to));
+        }
+        return affected;
     }
 
     private int findIndexOfOne(Set<String> stops, List<String> orderedListOfStops) {

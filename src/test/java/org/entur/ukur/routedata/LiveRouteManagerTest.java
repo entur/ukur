@@ -18,6 +18,7 @@ package org.entur.ukur.routedata;
 import com.hazelcast.core.IMap;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
 import org.entur.ukur.service.DataStorageHazelcastService;
+import org.entur.ukur.service.QuayAndStopPlaceMappingService;
 import org.junit.Test;
 import uk.org.siri.siri20.*;
 
@@ -25,13 +26,14 @@ import java.time.ZonedDateTime;
 import java.util.HashMap;
 
 import static org.junit.Assert.assertEquals;
+import static org.mockito.Mockito.mock;
 
 public class LiveRouteManagerTest {
 
     @Test
     public void updateJourney() {
         IMap<String, LiveJourney> liveJourneyIMap = new TestHazelcastInstanceFactory().newHazelcastInstance().getMap("journeys");
-        LiveRouteManager service = new LiveRouteManager(new DataStorageHazelcastService(new HashMap<>(), new HashMap<>(), liveJourneyIMap));
+        LiveRouteManager service = new LiveRouteManager(new DataStorageHazelcastService(new HashMap<>(), new HashMap<>(), liveJourneyIMap), mock(QuayAndStopPlaceMappingService.class));
         service.updateJourney(createEstimatedVehicleJourney("1", "NSB:Line:Test1", false, ZonedDateTime.now().plusHours(1)));
         service.updateJourney(createEstimatedVehicleJourney("2", "NSB:Line:Test1", true, ZonedDateTime.now().plusHours(2)));
         service.updateJourney(createEstimatedVehicleJourney("3", "NSB:Line:Test2", false, ZonedDateTime.now()));

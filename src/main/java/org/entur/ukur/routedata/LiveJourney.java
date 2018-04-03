@@ -15,13 +15,15 @@
 
 package org.entur.ukur.routedata;
 
+import org.apache.commons.lang3.SerializationUtils;
+import org.entur.ukur.service.QuayAndStopPlaceMappingService;
 import uk.org.siri.siri20.*;
 
 import java.io.Serializable;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.Objects;
+import java.util.*;
 
+@SuppressWarnings("WeakerAccess")
 public class LiveJourney implements Serializable {
 
     private final ZonedDateTime lastArrivalTime ;
@@ -29,9 +31,9 @@ public class LiveJourney implements Serializable {
     private String vehicleRef = null;
     private String lineRef = null;
     private String datedVehicleJourneyRef = null;
-    private ArrayList<Call> calls = new ArrayList<>();
+    private LinkedList<Call> calls = new LinkedList<>();
 
-    public LiveJourney(EstimatedVehicleJourney journey) {
+    public LiveJourney(EstimatedVehicleJourney journey, QuayAndStopPlaceMappingService quayAndStopPlaceMappingService) {
 
         if (journey.getLineRef() != null) {
             lineRef = journey.getLineRef().getValue();
@@ -47,8 +49,28 @@ public class LiveJourney implements Serializable {
         }
         add(journey.getRecordedCalls());
         add(journey.getEstimatedCalls());
+        insertStopPlacesForQuays(quayAndStopPlaceMappingService);
         Call lastCall = calls.get(calls.size() - 1); //simply assumes calls are in correct order
         lastArrivalTime = lastCall.getArrivalTime();
+    }
+
+    /**
+     * If there are quays in the calls list, we insert new calls (clone of the quay call) with stopplace id
+     * so existing logic will handle subscription for both quays and stopplaces.
+     */
+    private void insertStopPlacesForQuays(QuayAndStopPlaceMappingService quayAndStopPlaceMappingService) {
+        for (int i = calls.size()-1; i > -1 ; i--) {
+            Call call = calls.get(i);
+            String stopPointRef = call.getStopPointRef();
+            if (stopPointRef.startsWith("NSR:Quay:")) {
+                String stopPlace = quayAndStopPlaceMappingService.mapQuayToStopPlace(stopPointRef);
+                if (stopPlace != null) {
+                    Call callWithStopPlace = SerializationUtils.clone(call);
+                    callWithStopPlace.setStopPointRef(stopPlace);
+                    calls.add(i, callWithStopPlace);
+                }
+            }
+        }
     }
 
     private void add(EstimatedVehicleJourney.RecordedCalls recordedCalls) {
@@ -89,8 +111,8 @@ public class LiveJourney implements Serializable {
         return datedVehicleJourneyRef;
     }
 
-    public ArrayList<Call> getCalls() {
-        return calls;
+    public List<Call> getCalls() {
+        return Collections.unmodifiableList(calls);
     }
 
     @Override

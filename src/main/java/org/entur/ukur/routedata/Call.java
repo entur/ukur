@@ -23,6 +23,7 @@ import java.time.temporal.ChronoUnit;
 import java.util.List;
 import java.util.Objects;
 
+@SuppressWarnings("WeakerAccess")
 public class Call implements Serializable {
 
     private boolean extraCall;
@@ -143,6 +144,10 @@ public class Call implements Serializable {
 
     private void setStopPointRef(StopPointRef stopPointRef) {
         this.stopPointRef = stopPointRef == null ? null : stopPointRef.getValue();
+    }
+
+    public void setStopPointRef(String stopPlace) {
+        this.stopPointRef = stopPlace;
     }
 
     public void setAimedArrivalTime(ZonedDateTime aimedArrivalTime) {

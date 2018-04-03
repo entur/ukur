@@ -56,7 +56,6 @@ import java.util.stream.Collectors;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
-import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -80,7 +79,7 @@ public class NsbSXSubscriptionManualTest {
         DataStorageHazelcastService dataStorageService = new DataStorageHazelcastService(new HashMap<>(), new HashMap<>(), liveJourneyIMap);
         quayAndStopPlaceMappingService = new QuayAndStopPlaceMappingService(metricsService);
         subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsService, new HashMap<>(), quayAndStopPlaceMappingService);
-        liveRouteManager = new LiveRouteManager(dataStorageService);
+        liveRouteManager = new LiveRouteManager(dataStorageService, quayAndStopPlaceMappingService);
         nsbSXSubscriptionProcessor = new NsbSXSubscriptionProcessor(subscriptionManager, siriMarshaller, liveRouteManager, mock(FileStorageService.class), metricsService);
     }
 
@@ -168,7 +167,11 @@ public class NsbSXSubscriptionManualTest {
         List<String> s1SituationsNumbers = getReceivedSituationNumbers("/subscription1/sx");
         List<String> s2SituationsNumbers = getReceivedSituationNumbers("/subscription2/sx");
 
-        assertThat(s1SituationsNumbers, is(s2SituationsNumbers));
+        logger.info("s1SituationsNumbers: {}", s1SituationsNumbers.size());
+        logger.info("s2SituationsNumbers: {}", s2SituationsNumbers.size());
+        assertEquals(s1SituationsNumbers.size(), s2SituationsNumbers.size());
+        assertTrue(s1SituationsNumbers.containsAll(s2SituationsNumbers));
+        assertTrue(s2SituationsNumbers.containsAll(s1SituationsNumbers));
     }
 
     private List<String> getReceivedSituationNumbers(String pushAddress) throws JAXBException, XMLStreamException {

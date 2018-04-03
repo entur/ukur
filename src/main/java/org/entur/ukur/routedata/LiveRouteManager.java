@@ -16,6 +16,7 @@
 package org.entur.ukur.routedata;
 
 import org.entur.ukur.service.DataStorageService;
+import org.entur.ukur.service.QuayAndStopPlaceMappingService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -26,24 +27,25 @@ import java.time.ZonedDateTime;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
-import java.util.HashSet;
 
 @Service
 public class LiveRouteManager {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
     private DataStorageService dataStorageService;
+    private QuayAndStopPlaceMappingService quayAndStopPlaceMappingService;
 
 
     @Autowired
-    public LiveRouteManager(DataStorageService dataStorageService) {
+    public LiveRouteManager(DataStorageService dataStorageService, QuayAndStopPlaceMappingService quayAndStopPlaceMappingService) {
         this.dataStorageService = dataStorageService;
+        this.quayAndStopPlaceMappingService = quayAndStopPlaceMappingService;
     }
 
     public void updateJourney(EstimatedVehicleJourney journey) {
         //TODO: Using VehicleRef like this will probably only work with NSB/BaneNOR
         if (journey != null && journey.getVehicleRef() != null) {
             if (Boolean.TRUE.equals(journey.isIsCompleteStopSequence())) {
-                LiveJourney lj = new LiveJourney(journey);
+                LiveJourney lj = new LiveJourney(journey, quayAndStopPlaceMappingService);
                 if (lj.getLastArrivalTime() == null) {
                     logger.info("Got EstimatedVehicleJourney (VehicleRef={}) that we could not read LastArrivalTime from - skips it", journey.getVehicleRef().getValue());
                 } else {
@@ -56,13 +58,13 @@ public class LiveRouteManager {
         }
     }
 
-    @SuppressWarnings("unused") //used from camel quartz route
+    @SuppressWarnings({"unused", "WeakerAccess"}) //used from camel quartz route
     public void flushOldJourneys() {
         ZonedDateTime now = ZonedDateTime.now().minusMinutes(15);//Keeps journeys 15 minutes after their last arrival
         dataStorageService.removeJourneysOlderThan(now);
     }
 
-    @SuppressWarnings("unused") //used from camel rest route
+    @SuppressWarnings({"unused", "WeakerAccess"}) //used from camel rest route
     public Collection<LiveJourney> getJourneys(String lineref) {
         if (lineref == null) {
             return null;

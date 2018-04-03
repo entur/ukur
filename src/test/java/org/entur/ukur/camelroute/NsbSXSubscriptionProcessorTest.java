@@ -320,7 +320,7 @@ public class NsbSXSubscriptionProcessorTest {
             call.setDepartureStatus(CallStatusEnumeration.ON_TIME);
             calls.add(call);
         }
-        return new LiveJourney(someJourney);
+        return new LiveJourney(someJourney, mock(QuayAndStopPlaceMappingService.class));
     }
 
     private AffectsScopeStructure.VehicleJourneys createVehicleJourneys(List<String> stops, String vehicleJourneyRef, boolean affectedOnly) {
