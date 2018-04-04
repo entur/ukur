@@ -142,14 +142,14 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
         if (StringUtils.isNotBlank(lineRef)) {
             Set<Subscription> lineRefSubscriptions = subscriptionManager.getSubscriptionsForLineRef(lineRef);
             if (StringUtils.isNotBlank(vehicleRef)) {
-                lineRefSubscriptions.removeIf(s->!s.getVehicleRefs().contains(vehicleRef));
+                lineRefSubscriptions.removeIf(s -> !s.getVehicleRefs().isEmpty() && !s.getVehicleRefs().contains(vehicleRef));
             }
             subscriptions.addAll(lineRefSubscriptions);
         }
         if (StringUtils.isNotBlank(vehicleRef)) {
             Set<Subscription> vehicleRefSubscriptions = subscriptionManager.getSubscriptionsForvehicleRef(vehicleRef);
             if (StringUtils.isNotBlank(lineRef)) {
-                vehicleRefSubscriptions.removeIf(s->!s.getVehicleRefs().contains(lineRef));
+                vehicleRefSubscriptions.removeIf(s -> !s.getLineRefs().isEmpty() && !s.getLineRefs().contains(lineRef));
             }
             subscriptions.addAll(vehicleRefSubscriptions);
         }

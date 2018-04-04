@@ -31,13 +31,14 @@ import uk.org.siri.siri20.*;
 import javax.xml.bind.JAXBException;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
-import java.util.*;
+import java.util.Arrays;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.Set;
 
 import static junit.framework.TestCase.assertTrue;
 import static org.hamcrest.CoreMatchers.hasItem;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
+import static org.junit.Assert.*;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.*;
 
@@ -115,9 +116,9 @@ public class NsbETSubscriptionProcessorTest {
         Subscription s_R1_E1_v_l = createSubscription(subscriptionsForStopPoint, "R1", "E1", "1234", "NSB:Line:1", false);
         Subscription s_R1_E1_l = createSubscription(subscriptionsForStopPoint, "R1", "E1", null, "NSB:Line:1", false);
         Subscription s_l_v = createSubscription(subscriptionsForStopPoint, null, null, "1234", "NSB:Line:1", false);
-        //These should not be found:
         Subscription s_l = createSubscription(subscriptionsForStopPoint, null, null, null, "NSB:Line:1", false);
         Subscription s_v = createSubscription(subscriptionsForStopPoint, null, null, "1234", null, false);
+        //These should not be found:
         createSubscription(subscriptionsForStopPoint, "E1", "R1", null, null, false);
         createSubscription(subscriptionsForStopPoint, "R1", "E1", "4444", "NSB:Line:2", false);
         Subscription s_l_vx = createSubscription(subscriptionsForStopPoint, null, null, "4444", "NSB:Line:1", false);
@@ -147,8 +148,10 @@ public class NsbETSubscriptionProcessorTest {
         assertTrue(notifiedSubscriptionsOnStops.contains(s_R1_E1_v_l));
         assertTrue(notifiedSubscriptionsOnStops.contains(s_R1_E1_l));
         HashSet<Subscription> notifiedSubscriptionsWithFullMessage = subscriptionsOnLineOrVehicleJourneyCaptor.getValue();
-        assertEquals(1, notifiedSubscriptionsWithFullMessage.size());
+        assertEquals(3, notifiedSubscriptionsWithFullMessage.size());
         assertTrue(notifiedSubscriptionsWithFullMessage.contains(s_l_v));
+        assertTrue(notifiedSubscriptionsWithFullMessage.contains(s_l));
+        assertTrue(notifiedSubscriptionsWithFullMessage.contains(s_v));
     }
 
     @Test

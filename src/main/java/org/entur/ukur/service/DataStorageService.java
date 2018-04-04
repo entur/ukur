@@ -67,13 +67,13 @@ public class DataStorageService {
 
     public Set<Subscription> getSubscriptionsForLineRefAndNoStops(String lineRef) {
         Set<Subscription> subscriptions = convertSubscription(findContainingWithoutStops("lineRefs", lineRef));
-        logger.trace("Found {} unique subscriptions containing '{}' in lineRefs", lineRef, subscriptions.size());
+        logger.trace("Found {} unique subscriptions containing '{}' in lineRefs", subscriptions.size(), lineRef);
         return subscriptions;
     }
 
     public Set<Subscription> getSubscriptionsForvehicleRefAndNoStops(String vehicleRef) {
         Set<Subscription> subscriptions = convertSubscription(findContainingWithoutStops("vehicleRefs", vehicleRef));
-        logger.trace("Found {} unique subscriptions containing '{}' in vehicleRefs", vehicleRef, subscriptions.size());
+        logger.trace("Found {} unique subscriptions containing '{}' in vehicleRefs", subscriptions.size(), vehicleRef);
         return subscriptions;
     }
 
