@@ -161,11 +161,11 @@ public class DataStorageService {
                 .set("created", Timestamp.now())
                 .set("name", StringValue.newBuilder(s.getName()).setExcludeFromIndexes(true).build())
                 .set("pushAddress", StringValue.newBuilder(s.getPushAddress()).setExcludeFromIndexes(true).build())
-                .set("failedPushCounter", LongValue.newBuilder(s.getFailedPushCounter()).setExcludeFromIndexes(true).build())
-                .set("fromStopPlaces", convertStringsToValueList(s.getFromStopPoints()))
-                .set("toStopPlaces", convertStringsToValueList(s.getToStopPoints()))
-                .set("lineRefs", convertStringsToValueList(s.getLineRefs()))
-                .set("vehicleRefs", convertStringsToValueList(s.getVehicleRefs()));
+                .set("failedPushCounter", LongValue.newBuilder(s.getFailedPushCounter()).setExcludeFromIndexes(true).build());
+        appendStringValueList(builder, "fromStopPlaces", s.getFromStopPoints());
+        appendStringValueList(builder, "toStopPlaces", s.getToStopPoints());
+        appendStringValueList(builder, "lineRefs", s.getLineRefs());
+        appendStringValueList(builder, "vehicleRefs", s.getVehicleRefs());
         return builder.build();
     }
 
@@ -190,8 +190,13 @@ public class DataStorageService {
         return subscription;
     }
 
-    private List<StringValue> convertStringsToValueList(Collection<String> stops) {
-        return stops.stream().filter(StringUtils::isNotBlank).map(StringValue::of).collect(Collectors.toList());
+    private void appendStringValueList(Entity.Builder builder, String name, Collection<String> stops) {
+        List<StringValue> values = stops.stream().filter(StringUtils::isNotBlank).map(StringValue::of).collect(Collectors.toList());
+        if (values.isEmpty()) {
+            builder.set(name, NullValue.of());
+        } else {
+            builder.set(name, values);
+        }
     }
 
     private Set<String> convertValueListToStrings(Entity entity, String property) {

@@ -155,6 +155,15 @@ public class DataStorageServiceTest extends DatastoreTest {
         String line = "NSB:Line:L1";
         subscription.addLineRef(line);
         service.addSubscription(subscription);
+
+        Subscription notLineOnlySubscription = new Subscription();
+        notLineOnlySubscription.setPushAddress("http://somehost/test");
+        notLineOnlySubscription.setName("Both line and stops");
+        notLineOnlySubscription.addLineRef(line);
+        notLineOnlySubscription.addFromStopPoint("NSR:Quay:1");
+        notLineOnlySubscription.addToStopPoint("NSR:Quay:2");
+        service.addSubscription(notLineOnlySubscription);
+
         int unexistingVehicleRef1 = service.getSubscriptionsForvehicleRefAndNoStops("unexisting").size();
         int unexistingVehicleRef2 = service.getSubscriptionsForvehicleRefAndNoStops(line).size();
         int unexistingLineRef = service.getSubscriptionsForLineRefAndNoStops("unexisting").size();
