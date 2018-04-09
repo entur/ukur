@@ -96,7 +96,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
     private final TiamatStopPlaceQuaysProcessor tiamatStopPlaceQuaysProcessor;
     private final Namespaces siriNamespace = new Namespaces("s", "http://www.siri.org.uk/siri");
     private final int HEARTBEAT_INTERVAL_MS = 60_000;
-    private final int SUBSCRIPTION_DURATION_MIN = 12*60;
+    private final int SUBSCRIPTION_DURATION_MIN = 30;//TODO: sett til 12 timer etter testing av mottak av fremtidige sx-meldinger :12*60;
 
     @Autowired
     public UkurCamelRouteBuilder(UkurConfiguration config,
@@ -256,6 +256,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
 
         from("direct:checkRequestorId")
                 .routeId("Check requestorId")
+                .bean(metricsService, "registerReceivedSiriSubscribedMessage(${header.requestorId}, ${header.type} )")
                 .choice()
                 .when(header("requestorId").isNotEqualTo(requestorId))
                     .log(LoggingLevel.WARN, "Received unknown requestorId ('${header.requestorId}')")

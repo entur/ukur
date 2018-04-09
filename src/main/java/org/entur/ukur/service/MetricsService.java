@@ -115,6 +115,12 @@ public class MetricsService {
     }
 
     @SuppressWarnings("unused") //Used directly from Camel route
+    public void registerReceivedSubscribedMessage(String requestorId, String type) {
+        String counterName = "message.subs-received." + requestorId +"."+type;
+        metrics.meter(counterName).mark();
+    }
+
+    @SuppressWarnings("unused") //Used directly from Camel route
     public void registerSentMessage(String messagetype) {
         String counterName = "message.sent." + messagetype;
         metrics.meter(counterName).mark();

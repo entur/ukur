@@ -104,7 +104,7 @@ public class NsbSXSubscriptionProcessor implements Processor {
         }
 
         if (notValidNext24Hours(ptSituationElement.getValidityPeriods())) {
-            logger.info("Skips message that is not valid the next 24 hours (will be received again later)");
+            logger.info("Skips message that is not valid the next 24 hours (will be received again later) - situationNumber={}", ptSituationElement.getSituationNumber().getValue());
             return false;
         }
 
