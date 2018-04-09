@@ -31,8 +31,8 @@ public class RouteStatus {
     private String hostname;
     private String nodeStartTime;
     private String statusJourneyFlush;
-    private String statusETPolling;
-    private String statusSXPolling;
+    private String statusET;
+    private String statusSX;
     private HashMap<String, Object> gauges = new HashMap<>();
     private HashMap<String, Long> meterCounts = new HashMap<>();
     private HashMap<String, Double> meterOneMinuteRates = new HashMap<>();
@@ -98,20 +98,20 @@ public class RouteStatus {
         this.statusJourneyFlush = statusJourneyFlush;
     }
 
-    public String getStatusETPolling() {
-        return statusETPolling;
+    public String getStatusET() {
+        return statusET;
     }
 
-    public void setStatusETPolling(String statusETPolling) {
-        this.statusETPolling = statusETPolling;
+    public void setStatusET(String statusETPolling) {
+        this.statusET = statusETPolling;
     }
 
-    public String getStatusSXPolling() {
-        return statusSXPolling;
+    public String getStatusSX() {
+        return statusSX;
     }
 
-    public void setStatusSXPolling(String statusSXPolling) {
-        this.statusSXPolling = statusSXPolling;
+    public void setStatusSX(String statusSXPolling) {
+        this.statusSX = statusSXPolling;
     }
 
     public void addMeter(String name, Meter meter) {

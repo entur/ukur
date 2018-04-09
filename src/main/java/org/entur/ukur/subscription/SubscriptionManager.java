@@ -317,6 +317,7 @@ public class SubscriptionManager {
 
         String alreadySentKey = calculateUniqueKey(subscription, siriElement);
         Long ifPresent = alreadySentCache.get(alreadySentKey);
+        //TODO: ROR-282 (Støtte endret validity for SX meldinger)
 
         if (ifPresent != null) {
             long diffInSecs = (System.currentTimeMillis() - ifPresent) / 1000;

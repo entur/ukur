@@ -45,12 +45,12 @@ public class WiremockTestConfig extends UkurConfiguration {
     }
 
     @Override
-    public boolean isEtPollingEnabled() {
+    public boolean isEtEnabled() {
         return false;
     }
 
     @Override
-    public boolean isSxPollingEnabled() {
+    public boolean isSxEnabled() {
         return false;
     }
 

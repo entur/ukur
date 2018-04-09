@@ -37,6 +37,7 @@ import uk.org.siri.siri20.*;
 
 import java.io.InputStream;
 import java.io.Serializable;
+import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -101,6 +102,12 @@ public class NsbSXSubscriptionProcessor implements Processor {
             logger.info("Got PtSituationElement without any effects - nothing to notify");
             return false;
         }
+
+        if (notValidNext24Hours(ptSituationElement.getValidityPeriods())) {
+            logger.info("Skips message that is not valid the next 24 hours (will be received again later)");
+            return false;
+        }
+
         com.codahale.metrics.Timer timer = metricsService.getTimer(MetricsService.TIMER_SX_PROCESS);
         Timer.Context time = timer.time();
         try {
@@ -122,6 +129,22 @@ public class NsbSXSubscriptionProcessor implements Processor {
             time.stop();
         }
         return true;
+    }
+
+    private boolean notValidNext24Hours(List<HalfOpenTimestampOutputRangeStructure> validityPeriods) {
+        if (validityPeriods == null || validityPeriods.isEmpty()) {
+            logger.trace("Has no validity period to check validity");
+            return false;
+        }
+
+        ZonedDateTime earliest = null;
+        for (HalfOpenTimestampOutputRangeStructure validityPeriod : validityPeriods) {
+            ZonedDateTime startTime = validityPeriod.getStartTime();
+            if (earliest == null || startTime.isBefore(earliest)) {
+                earliest = startTime;
+            }
+        }
+        return earliest.isAfter(ZonedDateTime.now().plusDays(1));
     }
 
     /**

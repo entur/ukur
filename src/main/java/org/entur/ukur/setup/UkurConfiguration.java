@@ -37,17 +37,20 @@ public class UkurConfiguration {
     @Value("${rutebanken.hazelcast.management.url:}")
     private String hazelcastManagementUrl;
 
-    @Value("${ukur.camel.anshar.et.url}")
-    private String etURL;
+    @Value("${ukur.camel.anshar.url}")
+    private String ansharURL;
 
-    @Value("${ukur.camel.anshar.sx.url}")
-    private String sxURL;
+    @Value("${ukur.camel.anshar.receiver.baseurl}")
+    private String ownSubscriptionURL;
 
-    @Value("${ukur.camel.et.polling.enabled}")
-    private boolean etPollingEnabled;
+    @Value("${ukur.camel.anshar.et.enabled}")
+    private boolean etEnabled;
 
-    @Value("${ukur.camel.sx.polling.enabled}")
-    private boolean sxPollingEnabled;
+    @Value("${ukur.camel.anshar.sx.enabled}")
+    private boolean sxEnabled;
+
+    @Value("${ukur.camel.anshar.subscription:false}")
+    private boolean useAnsharSubscription;
 
     @Value("${ukur.camel.rest.port}")
     private int restPort;
@@ -80,20 +83,47 @@ public class UkurConfiguration {
         return namespace;
     }
 
+    private String getAnsharURL() {
+        if (ansharURL != null) {
+            String url = ansharURL.trim();
+            if (url.endsWith("/")) {
+                return url.substring(0, url.length() - 1);
+            }
+            return url;
+        }
+        return null;
+    }
+
     public String getAnsharETCamelUrl(String requestorId) {
-        return etURL + "?requestorId=" + requestorId + "&maxSize=500";
+        return getAnsharURL() + "/rest/et?requestorId=" + requestorId + "&maxSize=500";
     }
 
     public String getAnsharSXCamelUrl(String requestorId) {
-        return sxURL + "?requestorId=" + requestorId + "&maxSize=500";
+        return getAnsharURL() + "/rest/sx?requestorId=" + requestorId + "&maxSize=500";
     }
 
-    public boolean isEtPollingEnabled() {
-        return etPollingEnabled;
+    public String getAnsharSubscriptionUrl() {
+        return getAnsharURL() + "/subscribe";
     }
 
-    public boolean isSxPollingEnabled() {
-        return sxPollingEnabled;
+    public String getOwnSubscriptionURL() {
+        if (ownSubscriptionURL == null) {
+            //not to be called if not set
+            throw new IllegalStateException("Required (when subscribing to anshar) config for own subscription url is not set");
+        }
+        String trimmed = ownSubscriptionURL.trim();
+        if (!trimmed.endsWith("/")) {
+            return trimmed + "/";
+        }
+        return trimmed;
+    }
+
+    public boolean isEtEnabled() {
+        return etEnabled;
+    }
+
+    public boolean isSxEnabled() {
+        return sxEnabled;
     }
 
     public int getRestPort() {
@@ -114,5 +144,9 @@ public class UkurConfiguration {
 
     public boolean isTiamatStopPlaceQuaysEnabled() {
         return tiamatStopPlaceQuaysEnabled;
+    }
+
+    public boolean useAnsharSubscription() {
+        return useAnsharSubscription;
     }
 }
