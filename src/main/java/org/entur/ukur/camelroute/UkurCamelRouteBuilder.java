@@ -256,7 +256,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
 
         from("direct:checkRequestorId")
                 .routeId("Check requestorId")
-                .bean(metricsService, "registerReceivedSiriSubscribedMessage(${header.requestorId}, ${header.type} )")
+                .bean(metricsService, "registerReceivedSubscribedMessage(${header.requestorId}, ${header.type} )")
                 .choice()
                 .when(header("requestorId").isNotEqualTo(requestorId))
                     .log(LoggingLevel.WARN, "Received unknown requestorId ('${header.requestorId}')")
