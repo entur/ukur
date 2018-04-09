@@ -199,6 +199,8 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                     status.setStatusJourneyFlush(routeStatus(ROUTEID_FLUSHJOURNEYS_TRIGGER));
                     status.setStatusET(routeStatus(ROUTEID_ET_TRIGGER, etEnabled, createSubscriptionReceievers));
                     status.setStatusSX(routeStatus(ROUTEID_SX_TRIGGER, sxEnabled, createSubscriptionReceievers));
+                    status.setStatusSubscriptionRenewer(routeStatus(ROUTEID_ANSHAR_SUBSRENEWER_TRIGGER));
+                    status.setStatusSubscriptionChecker(routeStatus(ROUTEID_ANSHAR_SUBSCHECKER_TRIGGER));
                     for (Map.Entry<String, Meter> entry : metricsService.getMeters().entrySet()) {
                         status.addMeter(entry.getKey(), entry.getValue());
                     }

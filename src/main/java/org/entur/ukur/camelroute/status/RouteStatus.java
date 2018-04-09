@@ -33,6 +33,8 @@ public class RouteStatus {
     private String statusJourneyFlush;
     private String statusET;
     private String statusSX;
+    private String statusSubscriptionRenewer;
+    private String statusSubscriptionChecker;
     private HashMap<String, Object> gauges = new HashMap<>();
     private HashMap<String, Long> meterCounts = new HashMap<>();
     private HashMap<String, Double> meterOneMinuteRates = new HashMap<>();
@@ -140,4 +142,19 @@ public class RouteStatus {
         return nanos / 1000000;
     }
 
+    public void setStatusSubscriptionRenewer(String statusSubscriptionRenewer) {
+        this.statusSubscriptionRenewer = statusSubscriptionRenewer;
+    }
+
+    public String getStatusSubscriptionRenewer() {
+        return statusSubscriptionRenewer;
+    }
+
+    public void setStatusSubscriptionChecker(String statusSubscriptionChecker) {
+        this.statusSubscriptionChecker = statusSubscriptionChecker;
+    }
+
+    public String getStatusSubscriptionChecker() {
+        return statusSubscriptionChecker;
+    }
 }
