@@ -96,7 +96,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
     private final TiamatStopPlaceQuaysProcessor tiamatStopPlaceQuaysProcessor;
     private final Namespaces siriNamespace = new Namespaces("s", "http://www.siri.org.uk/siri");
     private final int HEARTBEAT_INTERVAL_MS = 60_000;
-    private final int SUBSCRIPTION_DURATION_MIN = 30;//TODO: sett til 12 timer etter testing av mottak av fremtidige sx-meldinger :12*60;
+    private final int SUBSCRIPTION_DURATION_MIN = 12*60;
 
     @Autowired
     public UkurCamelRouteBuilder(UkurConfiguration config,
@@ -303,7 +303,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .to("direct:processEstimatedVehicleJourneys");
 
         //renew subscriptions:
-        createSingletonQuartz2Route("AnsharSubscriptionRenewer", SUBSCRIPTION_DURATION_MIN *60_000, ROUTEID_ANSHAR_SUBSRENEWER_TRIGGER, ROUTEID_ANSHAR_SUBSRENEWER, ROUTE_ANSHAR_SUBSRENEWER);
+        createSingletonQuartz2Route("AnsharSubscriptionRenewer", SUBSCRIPTION_DURATION_MIN * 60_000, ROUTEID_ANSHAR_SUBSRENEWER_TRIGGER, ROUTEID_ANSHAR_SUBSRENEWER, ROUTE_ANSHAR_SUBSRENEWER);
         //re-create subscriptions if nothing is received from Anshar for some time (3 x heartbeat):
         createSingletonQuartz2Route("AnsharSubscriptionChecker", HEARTBEAT_INTERVAL_MS, ROUTEID_ANSHAR_SUBSCHECKER_TRIGGER, ROUTEID_ANSHAR_SUBSCHECKER, ROUTE_ANSHAR_SUBSCHECKER);
 
