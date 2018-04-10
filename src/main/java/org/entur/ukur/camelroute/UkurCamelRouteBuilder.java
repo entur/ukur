@@ -50,6 +50,10 @@ import uk.org.siri.siri20.*;
 
 import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
+import javax.xml.namespace.NamespaceContext;
+import javax.xml.xpath.XPath;
+import javax.xml.xpath.XPathConstants;
+import javax.xml.xpath.XPathFactory;
 import java.io.DataOutputStream;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
@@ -229,14 +233,54 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
     }
 
     private void createSiriProcessingRoutes() {
+        NamespaceContext nsContext = new NamespaceContext() {
+            @Override
+            public String getNamespaceURI(String prefix) {
+                if ("s" .equals(prefix)) return "http://www.siri.org.uk/siri";
+                return null;
+            }
+
+            @Override
+            public String getPrefix(String namespaceURI) {
+                return null;
+            }
+
+            @Override
+            public Iterator getPrefixes(String namespaceURI) {
+                return null;
+            }
+        };
+
         from("direct:processPtSituationElements")
                 .routeId("processPtSituationElements")
+                .process(exchange -> {
+                    if (logger.isDebugEnabled()) {
+                        Message in = exchange.getIn();
+                        Document xmlDocument = in.getBody(Document.class);
+                        XPath xPath = XPathFactory.newInstance().newXPath();
+                        xPath.setNamespaceContext(nsContext);
+                        Double total = (Double) xPath.compile("count(//s:PtSituationElement)").evaluate(xmlDocument, XPathConstants.NUMBER);
+                        Double nsb = (Double) xPath.compile("count(//s:PtSituationElement[s:ParticipantRef/text()='NSB'])").evaluate(xmlDocument, XPathConstants.NUMBER);
+                        logger.debug("Received XML with totally {} PtSituationElements - {} regarding 'NSB'", Math.round(total), Math.round(nsb));
+                    }
+                })
                 .split(siriNamespace.xpath("//s:PtSituationElement[s:ParticipantRef/text()='NSB']")) //TODO: this only selects elements with NSB as operator
                 .bean(metricsService, "registerSentMessage('PtSituationElement')")
                 .to("activemq:queue:" + UkurConfiguration.SX_QUEUE);
 
         from("direct:processEstimatedVehicleJourneys")
                 .routeId("processEstimatedVehicleJourneys")
+                .process(exchange -> {
+                    if (logger.isDebugEnabled()) {
+                        Message in = exchange.getIn();
+                        Document xmlDocument = in.getBody(Document.class);
+                        XPath xPath = XPathFactory.newInstance().newXPath();
+                        xPath.setNamespaceContext(nsContext);
+                        Double total = (Double) xPath.compile("count(//s:EstimatedVehicleJourney)").evaluate(xmlDocument, XPathConstants.NUMBER);
+                        Double nsb = (Double) xPath.compile("count(//s:EstimatedVehicleJourney[s:OperatorRef/text()='NSB'])").evaluate(xmlDocument, XPathConstants.NUMBER);
+                        logger.debug("Received XML with totally {} EstimatedVehicleJourneys - {} regarding 'NSB'", Math.round(total), Math.round(nsb));
+                    }
+                })
                 .split(siriNamespace.xpath("//s:EstimatedVehicleJourney[s:OperatorRef/text()='NSB']")) //TODO: this only selects elements with NSB as operator
                 .bean(metricsService, "registerSentMessage('EstimatedVehicleJourney')")
                 .to("activemq:queue:" + UkurConfiguration.ET_QUEUE);
