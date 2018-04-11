@@ -19,6 +19,7 @@ import com.codahale.metrics.*;
 import com.codahale.metrics.graphite.Graphite;
 import com.codahale.metrics.graphite.GraphiteReporter;
 import com.google.common.base.Strings;
+import com.google.common.collect.Sets;
 import org.apache.camel.component.metrics.MetricsComponent;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -37,6 +38,8 @@ import java.net.UnknownHostException;
 import java.util.SortedMap;
 import java.util.UUID;
 import java.util.concurrent.TimeUnit;
+
+import static com.codahale.metrics.MetricAttribute.*;
 
 @Service
 @Configuration
@@ -83,14 +86,16 @@ public class MetricsService {
                 logger.warn("Could not get hostname ", e);
                 hostName = UUID.randomUUID().toString();
             }
-            String prefix = "app.ukur;host=" + hostName;
-            logger.info("Setting up metrics service with graphite server: host={}, port={}, prefix={}", graphiteHost, graphitePort, prefix);
+            String prefix = "app.ukur." + hostName;
+            logger.info("Setting up metrics reporter with graphite server: host={}, port={}, prefix={}", graphiteHost, graphitePort, prefix);
             graphite = new Graphite(new InetSocketAddress(graphiteHost, graphitePort));
             reporter = GraphiteReporter.forRegistry(metrics)
                     .prefixedWith(prefix)
                     .convertRatesTo(TimeUnit.SECONDS)
                     .convertDurationsTo(TimeUnit.MILLISECONDS)
                     .filter(MetricFilter.ALL)
+                    //each of the metric attributes below results in a 3.1mb database per metric in graphite - disables the one we don't need:
+                    .disabledMetricAttributes(Sets.newHashSet(STDDEV, P50, P75, P95, P98, P99, P999, M5_RATE, M15_RATE, MEAN_RATE))
                     .build(graphite);
         }
     }
@@ -132,7 +137,7 @@ public class MetricsService {
     }
 
     public Timer getTimer(String name) {
-        return metrics.timer(name);
+        return metrics.timer(name, () -> new Timer(new SlidingTimeWindowArrayReservoir(1, TimeUnit.MINUTES)));
     }
 
     public void registerGauge(String name, Gauge<?> gauge) {
