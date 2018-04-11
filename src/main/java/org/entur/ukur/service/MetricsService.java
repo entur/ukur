@@ -83,7 +83,7 @@ public class MetricsService {
                 logger.warn("Could not get hostname ", e);
                 hostName = UUID.randomUUID().toString();
             }
-            String prefix = "app.ukur." + hostName;
+            String prefix = "app.ukur;host=" + hostName;
             logger.info("Setting up metrics service with graphite server: host={}, port={}, prefix={}", graphiteHost, graphitePort, prefix);
             graphite = new Graphite(new InetSocketAddress(graphiteHost, graphitePort));
             reporter = GraphiteReporter.forRegistry(metrics)
