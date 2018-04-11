@@ -119,7 +119,12 @@ public class DataStorageService {
     }
 
     public int getNumberOfCurrentJourneys() {
-        return currentJourneys.size();
+        try {
+            return currentJourneys.size();
+        } catch (Exception e) {
+            logger.warn("Could not get currentJourneys' size - returns -1", e);
+            return -1;
+        }
     }
 
     @SuppressWarnings("Duplicates") //TODO: This will be replaced with datastore....
