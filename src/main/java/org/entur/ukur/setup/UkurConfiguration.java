@@ -67,6 +67,9 @@ public class UkurConfiguration {
     @Value("${ukur.camel.tiamat.stop_place_quays.enabled}")
     private boolean tiamatStopPlaceQuaysEnabled;
 
+    @Value("${ukur.camel.anshar.subscription.checking:true}")
+    private boolean subscriptionCheckingEnabled;
+
     public String getHazelcastManagementUrl() {
         return hazelcastManagementUrl;
     }
@@ -148,5 +151,13 @@ public class UkurConfiguration {
 
     public boolean useAnsharSubscription() {
         return useAnsharSubscription;
+    }
+
+    public boolean isSubscriptionCheckingEnabled() {
+        return subscriptionCheckingEnabled;
+    }
+
+    public void setSubscriptionCheckingEnabled(boolean subscriptionCheckingEnabled) {
+        this.subscriptionCheckingEnabled = subscriptionCheckingEnabled;
     }
 }

@@ -70,8 +70,8 @@ import static org.entur.ukur.camelroute.policy.SingletonRoutePolicyFactory.SINGL
 public class UkurCamelRouteBuilder extends SpringRouteBuilder {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
-    static final String ROUTE_ET_RETRIEVER = "seda:retrieveAnsharET";
-    static final String ROUTE_SX_RETRIEVER = "seda:retrieveAnsharSX";
+    public  static final String ROUTE_ET_RETRIEVER = "seda:retrieveAnsharET";
+    public  static final String ROUTE_SX_RETRIEVER = "seda:retrieveAnsharSX";
     private static final String SIRI_VERSION = "2.0";
     private static final String ROUTE_FLUSHJOURNEYS = "seda:flushOldJourneys";
     private static final String ROUTE_TIAMAT_MAP = "seda:getStopPlacesAndQuays";
@@ -130,8 +130,10 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
         requestorId = (requestorId == null) ? proposedValue : requestorId;
         logger.debug("Uses requestorId: '{}' - proposed value was {}", requestorId, proposedValue);
         if (config.useAnsharSubscription()) {
-            configureAnsharSubscriptionRoutes(config.isEtEnabled(), config.isSxEnabled(), requestorId);
+            logger.info("Configures camel routes for subscribing to Anshar");
+            configureAnsharSubscriptionRoutes(config.isEtEnabled(), config.isSxEnabled(), config.isSubscriptionCheckingEnabled(),  requestorId);
         } else {
+            logger.info("Configures camel routes for polling Anshar");
             String siriETurl = config.getAnsharETCamelUrl(requestorId);
             String siriSXurl = config.getAnsharSXCamelUrl(requestorId);
             createAnsharPollingRoutes(config.isEtEnabled(), config.isSxEnabled(), config.getPollingInterval(), siriETurl, siriSXurl);
@@ -286,11 +288,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .to("activemq:queue:" + UkurConfiguration.ET_QUEUE);
     }
 
-    private void configureAnsharSubscriptionRoutes(boolean etEnabled, boolean sxEnabled, String requestorId) {
-        if (!etEnabled && !sxEnabled) {
-            logger.warn("No point in setting up required routes for Anshar-subscriptions since both SX and ET is disabled!");
-            return;
-        }
+    private void configureAnsharSubscriptionRoutes(boolean etEnabled, boolean sxEnabled, boolean createSubscription, String requestorId) {
 
         rest("siriMessages")
                 .consumes("application/xml")
@@ -300,17 +298,18 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
 
         from("direct:checkRequestorId")
                 .routeId("Check requestorId")
-                .bean(metricsService, "registerReceivedSubscribedMessage(${header.requestorId}, ${header.type} )")
                 .choice()
                 .when(header("requestorId").isNotEqualTo(requestorId))
                     .log(LoggingLevel.WARN, "Received unknown requestorId ('${header.requestorId}')")
                     .to("direct:FORBIDDEN")
                     .endChoice()
                 .when(PredicateBuilder.and(exchange -> sxEnabled, header("type").isEqualTo("sx")))
+                    .bean(metricsService, "registerReceivedSubscribedMessage(${header.type} )")
                     .wireTap("seda:handleSubscribedSituationExchange")
                     .setBody(simple("OK\n\n"))
                     .endChoice()
                 .when(PredicateBuilder.and(exchange -> etEnabled, header("type").isEqualTo("et")))
+                    .bean(metricsService, "registerReceivedSubscribedMessage(${header.type} )")
                     .wireTap("seda:handleSubscribedEstimatedTimetable")
                     .setBody(simple("OK\n\n"))
                     .endChoice()
@@ -346,12 +345,13 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .process(heartbeatRegistrer)
                 .to("direct:processEstimatedVehicleJourneys");
 
-        //renew subscriptions:
-        createSingletonQuartz2Route("AnsharSubscriptionRenewer", SUBSCRIPTION_DURATION_MIN * 60_000, ROUTEID_ANSHAR_SUBSRENEWER_TRIGGER, ROUTEID_ANSHAR_SUBSRENEWER, ROUTE_ANSHAR_SUBSRENEWER);
-        //re-create subscriptions if nothing is received from Anshar for some time (3 x heartbeat):
-        createSingletonQuartz2Route("AnsharSubscriptionChecker", HEARTBEAT_INTERVAL_MS, ROUTEID_ANSHAR_SUBSCHECKER_TRIGGER, ROUTEID_ANSHAR_SUBSCHECKER, ROUTE_ANSHAR_SUBSCHECKER);
+        if (createSubscription) {
+            //renew subscriptions:
+            createSingletonQuartz2Route("AnsharSubscriptionRenewer", SUBSCRIPTION_DURATION_MIN * 60_000, ROUTEID_ANSHAR_SUBSRENEWER_TRIGGER, ROUTEID_ANSHAR_SUBSRENEWER, ROUTE_ANSHAR_SUBSRENEWER);
+            //re-create subscriptions if nothing is received from Anshar for some time (3 x heartbeat):
+            createSingletonQuartz2Route("AnsharSubscriptionChecker", HEARTBEAT_INTERVAL_MS, ROUTEID_ANSHAR_SUBSCHECKER_TRIGGER, ROUTEID_ANSHAR_SUBSCHECKER, ROUTE_ANSHAR_SUBSCHECKER);
+        }
 
-        //TODO: Separate ET and SX subscription handling (using same parameter controlled method...?)
         from(ROUTE_ANSHAR_SUBSRENEWER)
                 .routeId(ROUTEID_ANSHAR_SUBSRENEWER)
                 .process(exchange -> {

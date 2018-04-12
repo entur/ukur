@@ -13,14 +13,17 @@
  * limitations under the Licence.
  */
 
-package org.entur.ukur.camelroute;
+package org.entur.ukur.camelroute.testconfig;
 
 import org.entur.ukur.setup.UkurConfiguration;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.context.annotation.Primary;
+import org.springframework.context.annotation.PropertySource;
+import org.springframework.context.support.PropertySourcesPlaceholderConfigurer;
 
 import java.io.IOException;
 import java.net.ServerSocket;
@@ -33,6 +36,7 @@ public class WiremockTestConfig extends UkurConfiguration {
 
     @Value("${wiremock.server.port}")
     private String wiremockPort;
+    private Integer restPort = null;
 
     @Override
     public String getAnsharETCamelUrl(String uuid) {
@@ -45,24 +49,23 @@ public class WiremockTestConfig extends UkurConfiguration {
     }
 
     @Override
-    public boolean isEtEnabled() {
-        return false;
-    }
-
-    @Override
-    public boolean isSxEnabled() {
-        return false;
-    }
-
-    @Override
     public int getRestPort() {
-        try (ServerSocket s = new ServerSocket(0)){
-            int localPort = s.getLocalPort();
-            logger.info("Use {} as REST port", localPort);
-            return localPort;
-        } catch (IOException e) {
-            throw new RuntimeException("Could not get an available port...", e);
+        if (restPort == null) {
+            try (ServerSocket s = new ServerSocket(0)) {
+                int localPort = s.getLocalPort();
+                logger.info("Use {} as REST port", localPort);
+                restPort = localPort;
+            } catch (IOException e) {
+                throw new RuntimeException("Could not get an available port...", e);
+            }
         }
+        return  restPort;
     }
+
+    @Bean
+    public static PropertySourcesPlaceholderConfigurer propertySourcesPlaceholderConfigurer() {
+        return new PropertySourcesPlaceholderConfigurer();
+    }
+
 
 }

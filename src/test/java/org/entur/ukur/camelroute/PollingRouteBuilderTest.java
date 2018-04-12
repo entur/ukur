@@ -20,14 +20,13 @@ import org.apache.camel.ProducerTemplate;
 import org.apache.commons.io.IOUtils;
 import org.entur.ukur.App;
 import org.entur.ukur.service.MetricsService;
-import org.entur.ukur.subscription.SubscriptionManager;
 import org.junit.Test;
 import org.junit.runner.RunWith;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cloud.contract.wiremock.AutoConfigureWireMock;
+import org.springframework.test.annotation.DirtiesContext;
+import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.AbstractJUnit4SpringContextTests;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
@@ -40,19 +39,12 @@ import static org.junit.Assert.fail;
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(webEnvironment= SpringBootTest.WebEnvironment.MOCK, classes = App.class)
 @AutoConfigureWireMock(port = 0)
-@SuppressWarnings("unused")
-public class UkurCamelRouteBuilderTest extends AbstractJUnit4SpringContextTests {
-
-    private Logger logger = LoggerFactory.getLogger(this.getClass());
+@TestPropertySource("classpath:application-polling.properties")
+@DirtiesContext
+public class PollingRouteBuilderTest extends AbstractJUnit4SpringContextTests {
 
     @Autowired
     private MetricsService metricsService;
-
-    @Autowired
-    private SubscriptionManager subscriptionManager;
-
-    @Autowired
-    private WiremockTestConfig config;
 
     @Produce(uri = UkurCamelRouteBuilder.ROUTE_ET_RETRIEVER)
     private ProducerTemplate etTemplate;
