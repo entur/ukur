@@ -32,15 +32,13 @@ import org.springframework.stereotype.Service;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.io.IOException;
-import java.net.InetAddress;
 import java.net.InetSocketAddress;
-import java.net.UnknownHostException;
 import java.util.SortedMap;
-import java.util.UUID;
 import java.util.concurrent.TimeUnit;
 
 import static com.codahale.metrics.MetricAttribute.*;
 
+@SuppressWarnings("WeakerAccess")
 @Service
 @Configuration
 public class MetricsService {
@@ -62,14 +60,6 @@ public class MetricsService {
     private GraphiteReporter reporter;
     private Graphite graphite;
 
-    /**
-     * Bean factory method so we can use this metricregistry directly in camel routes.
-     */
-    @Bean(name = MetricsComponent.METRIC_REGISTRY_NAME)
-    public MetricRegistry getMetricRegistry() {
-        return metrics;
-    }
-
     @Autowired
     public MetricsService(@Value("${ukur.graphite.host:}") String graphiteHost,
                           @Value("${ukur.graphite.port:2003}") int graphitePort) {
@@ -79,14 +69,7 @@ public class MetricsService {
             logger.info("Setting up local metrics service");
         } else {
             graphiteEnabled = true;
-            String hostName;
-            try {
-                hostName = InetAddress.getLocalHost().getHostName();
-            } catch (UnknownHostException e) {
-                logger.warn("Could not get hostname ", e);
-                hostName = UUID.randomUUID().toString();
-            }
-            String prefix = "app.ukur." + hostName;
+            String prefix = "app.ukur";
             logger.info("Setting up metrics reporter with graphite server: host={}, port={}, prefix={}", graphiteHost, graphitePort, prefix);
             graphite = new Graphite(new InetSocketAddress(graphiteHost, graphitePort));
             reporter = GraphiteReporter.forRegistry(metrics)
@@ -117,6 +100,14 @@ public class MetricsService {
                 graphite.close();
             }
         }
+    }
+
+    /**
+     * Bean factory method so we can use this metricregistry directly in camel routes.
+     */
+    @Bean(name = MetricsComponent.METRIC_REGISTRY_NAME)
+    public MetricRegistry getMetricRegistry() {
+        return metrics;
     }
 
     @SuppressWarnings("unused") //Used directly from Camel route
