@@ -211,7 +211,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
                 .withHeader("Content-Type", equalTo("application/xml"))
                 .willReturn(aResponse()));
 
-        Subscription subscription = createSubscription(url, "NSR:Quay:232", "NSR:Quay:125", null);
+        Subscription subscription = createSubscription(url, "NSR:StopPlace:1", "NSR:StopPlace:2", null);
         verify(0, postRequestedFor(urlEqualTo(url)));
         assertEquals(0, subscription.getFailedPushCounter());
         assertTrue(alreadySentCache.keySet().isEmpty());

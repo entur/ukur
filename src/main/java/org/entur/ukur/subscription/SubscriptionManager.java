@@ -32,6 +32,7 @@ import org.springframework.web.client.RestTemplate;
 import uk.org.siri.siri20.*;
 
 import java.io.Serializable;
+import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
@@ -232,8 +233,26 @@ public class SubscriptionManager {
                 }
             }
 
-            pushMessage(subscription, clone);
+            if (withAffects(clone)) {
+                pushMessage(subscription, clone);
+            } else {
+                BigInteger version = clone.getVersion() == null ? null : clone.getVersion().getValue();
+                String situationNumber = clone.getSituationNumber() == null ? null : clone.getSituationNumber().getValue();
+                logger.info("do not push PtSituationElement with situationnumber {} and version {} to subscription with id {} as all affects are removed", situationNumber, version, subscription.getId());
+            }
         }
+    }
+
+    private boolean withAffects(PtSituationElement element) {
+        AffectsScopeStructure affects = element.getAffects();
+        if (affects == null) {
+            return false;
+        }
+        List<AffectedStopPlaceStructure> stopPlaces = affects.getStopPlaces() == null ? null : affects.getStopPlaces().getAffectedStopPlaces();
+        List<AffectedVehicleJourneyStructure> vehicleJourneys = affects.getVehicleJourneys() == null ? null : affects.getVehicleJourneys().getAffectedVehicleJourneies();
+        boolean hasStopPlace = stopPlaces != null && !stopPlaces.isEmpty();
+        boolean hasVehicleJourney = vehicleJourneys != null && !vehicleJourneys.isEmpty();
+        return hasStopPlace || hasVehicleJourney;
     }
 
     private boolean isSubscribed(Subscription subscription, AffectedVehicleJourneyStructure journey) {
