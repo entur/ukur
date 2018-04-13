@@ -34,6 +34,7 @@ import uk.org.siri.siri20.*;
 
 import javax.xml.bind.JAXBException;
 import javax.xml.stream.XMLStreamException;
+import java.math.BigInteger;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -200,6 +201,70 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         waitAndVerifyAtLeast(2, postRequestedFor(urlEqualTo(url)));
         assertEquals(0, subscription.getFailedPushCounter());
         assertEquals(2, alreadySentCache.keySet().size());
+    }
+
+    @Test
+    public void dontPushSameSXMessageMoreThanOnce() throws JAXBException, XMLStreamException, InterruptedException {
+
+        String url = "/push/duplicates/sx";
+        stubFor(post(urlEqualTo(url))
+                .withHeader("Content-Type", equalTo("application/xml"))
+                .willReturn(aResponse()));
+
+        Subscription subscription = createSubscription(url, "NSR:Quay:232", "NSR:Quay:125", null);
+        verify(0, postRequestedFor(urlEqualTo(url)));
+        assertEquals(0, subscription.getFailedPushCounter());
+        assertTrue(alreadySentCache.keySet().isEmpty());
+        HashSet<Subscription> subscriptions = new HashSet<>();
+        subscriptions.add(subscription);
+        PtSituationElement ptSituationElement1 = createPtSituationElement();
+        //first notify
+        subscriptionManager.notifySubscriptions(subscriptions, ptSituationElement1);
+        waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
+        assertEquals(0, subscription.getFailedPushCounter());
+        assertEquals(1, alreadySentCache.keySet().size());
+        verify(1, postRequestedFor(urlEqualTo(url)));
+
+        //second notify with same payload (but new instance) (should not be sent)
+        PtSituationElement ptSituationElement2 = createPtSituationElement();
+        assertNotEquals(ptSituationElement1.hashCode(), ptSituationElement2.hashCode());
+        assertEquals(ptSituationElement1.getSituationNumber().getValue(), ptSituationElement2.getSituationNumber().getValue());
+        assertEquals(ptSituationElement1.getVersion().getValue(), ptSituationElement2.getVersion().getValue());
+        subscriptionManager.notifySubscriptions(subscriptions, ptSituationElement2);
+        waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
+        assertEquals(0, subscription.getFailedPushCounter());
+        assertEquals(1, alreadySentCache.keySet().size());
+        verify(1, postRequestedFor(urlEqualTo(url)));
+
+        //third notify with same ptSituationElement with version changed - should be sent
+        PtSituationElement ptSituationElement3 = createPtSituationElement();
+        SituationVersion version = new SituationVersion();
+        version.setValue(BigInteger.valueOf(77));
+        ptSituationElement3.setVersion(version);
+        assertNotEquals(ptSituationElement1.hashCode(), ptSituationElement3.hashCode());
+        assertEquals(ptSituationElement1.getSituationNumber().getValue(), ptSituationElement3.getSituationNumber().getValue());
+        assertNotEquals(ptSituationElement1.getVersion().getValue(), ptSituationElement3.getVersion().getValue());
+        subscriptionManager.notifySubscriptions(subscriptions, ptSituationElement3);
+        waitAndVerifyAtLeast(2, postRequestedFor(urlEqualTo(url)));
+        assertEquals(0, subscription.getFailedPushCounter());
+        assertEquals(2, alreadySentCache.keySet().size());
+        verify(2, postRequestedFor(urlEqualTo(url)));
+
+        //fourth notify with same ptSituationElement and original version changed, but different validity (spec/profile says version should be changed if validity is changed!) - should NOT be sent
+        PtSituationElement ptSituationElement4 = createPtSituationElement();
+        HalfOpenTimestampOutputRangeStructure validity = ptSituationElement4.getValidityPeriods().get(0);
+        validity.setEndTime(validity.getEndTime().plusHours(1));
+        assertNotEquals(ptSituationElement1.hashCode(), ptSituationElement4.hashCode());
+        assertEquals(ptSituationElement1.getSituationNumber().getValue(), ptSituationElement4.getSituationNumber().getValue());
+        assertEquals(ptSituationElement1.getVersion().getValue(), ptSituationElement4.getVersion().getValue());
+        assertNotEquals(ptSituationElement1.getValidityPeriods().get(0).getEndTime(), ptSituationElement4.getValidityPeriods().get(0).getEndTime());
+        subscriptionManager.notifySubscriptions(subscriptions, ptSituationElement4);
+        waitAndVerifyAtLeast(2, postRequestedFor(urlEqualTo(url)));
+        assertEquals(0, subscription.getFailedPushCounter());
+        Thread.sleep(100); //allow some time for a last call to be made...
+        assertEquals(2, alreadySentCache.keySet().size());
+        verify(2, postRequestedFor(urlEqualTo(url)));
+
     }
 
     @Test

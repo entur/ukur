@@ -337,6 +337,12 @@ public class SubscriptionManager {
     }
 
     private String calculateUniqueKey(Subscription subscription, Object siriElement) {
+        if (siriElement instanceof PtSituationElement) {
+            PtSituationElement situationElement = (PtSituationElement) siriElement;
+            String situationNumber = situationElement.getSituationNumber() == null ? UUID.randomUUID().toString() : situationElement.getSituationNumber().getValue();
+            int version = situationElement.getVersion() == null ? 0 : situationElement.getVersion().getValue().intValue();
+            return subscription.getId()+"_"+situationNumber+"_"+version;
+        }
         String content;
         try {
             //Can't use the cxf generated objects directly, has to convert it to something we can compare
