@@ -15,11 +15,17 @@
 
 package org.entur.ukur.camelroute;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
+import com.github.tomakehurst.wiremock.verification.LoggedRequest;
+import com.google.common.collect.Sets;
 import com.hazelcast.core.IMap;
 import org.apache.commons.io.IOUtils;
 import org.entur.ukur.App;
 import org.entur.ukur.camelroute.testconfig.WiremockTestConfig;
 import org.entur.ukur.service.MetricsService;
+import org.entur.ukur.service.QuayAndStopPlaceMappingService;
+import org.entur.ukur.subscription.Subscription;
+import org.entur.ukur.xml.SiriMarshaller;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.slf4j.Logger;
@@ -32,12 +38,22 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.AbstractJUnit4SpringContextTests;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import uk.org.siri.siri20.PtSituationElement;
 
+import javax.xml.bind.JAXBException;
+import javax.xml.stream.XMLStreamException;
+import java.io.BufferedReader;
 import java.io.DataOutputStream;
 import java.io.IOException;
+import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.List;
 
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static org.junit.Assert.*;
 
 @RunWith(SpringJUnit4ClassRunner.class)
@@ -57,11 +73,14 @@ public class SubscribingRouteBuilderTest extends AbstractJUnit4SpringContextTest
     private WiremockTestConfig config;
 
     @Autowired @Qualifier("sharedProperties")
-    IMap<String, String> sharedProperties;
+    private IMap<String, String> sharedProperties;
+
+    @Autowired
+    private QuayAndStopPlaceMappingService quayAndStopPlaceMappingService;
 
     @Test
     public void testETreceive() throws Exception {
-
+        metricsService.reset();
         waitUntilReceiverIsReady();
 
         assertEquals(0, metricsService.getMeter("message.received.EstimatedVehicleJourney").getCount());
@@ -76,7 +95,7 @@ public class SubscribingRouteBuilderTest extends AbstractJUnit4SpringContextTest
 
     @Test
     public void testSXreceive() throws Exception {
-
+        metricsService.reset();
         waitUntilReceiverIsReady();
 
         assertEquals(0, metricsService.getMeter("message.received.PtSituationElement").getCount());
@@ -87,6 +106,112 @@ public class SubscribingRouteBuilderTest extends AbstractJUnit4SpringContextTest
 
         assertEquals(5, metricsService.getMeter("message.received.PtSituationElement").getCount());
         assertEquals(5, metricsService.getTimer(MetricsService.TIMER_SX_PROCESS).getCount());
+    }
+
+    @DirtiesContext
+    @Test
+    public void testPushOnSXFromJourneyLookup() throws Exception {
+        metricsService.reset();
+        waitUntilReceiverIsReady();
+
+        assertEquals(0, metricsService.getMeter("message.received.PtSituationElement").getCount());
+        assertEquals(0, metricsService.getTimer(MetricsService.TIMER_SX_PROCESS).getCount());
+        assertEquals(0, metricsService.getMeter("message.received.EstimatedVehicleJourney").getCount());
+        assertEquals(0, metricsService.getTimer(MetricsService.TIMER_ET_PROCESS).getCount());
+        assertEquals(0, metricsService.getTimer(MetricsService.TIMER_PUSH).getCount());
+
+        logger.info("Adds quays and stopplace maps");
+        HashMap<String, Collection<String>> stopPlacesAndQuays = new HashMap<>();
+        stopPlacesAndQuays.put("NSR:StopPlace:337", Sets.newHashSet("NSR:Quay:553"));
+        stopPlacesAndQuays.put("NSR:StopPlace:418", Sets.newHashSet("NSR:Quay:696"));
+        quayAndStopPlaceMappingService.updateStopsAndQuaysMap(stopPlacesAndQuays);
+
+        logger.info("TestControl: Sends ET message to register our test journey (from Lillestøm to Asker)");
+        postFile("/et-vehicleref2123-pretty.xml", "et");
+
+        stubFor(post(urlMatching("/push.*/sx"))
+                .withHeader("Content-Type", equalTo("application/xml"))
+                .willReturn(aResponse()));
+
+        String osloAskerUrl = "/push1/sx";
+        Subscription osloAsker = createSubscription(osloAskerUrl, "NSR:StopPlace:337", "NSR:StopPlace:418", null, "Oslo-Asker");
+        logger.info("TestControl: Created subscription from OsloS to Asker with id = {}", osloAsker.getId());
+
+        String askerOsloUrl = "/push2/sx";
+        Subscription askerOslo = createSubscription(askerOsloUrl, "NSR:StopPlace:418", "NSR:StopPlace:337", null, "Asker-Oslo");
+        logger.info("TestControl: Created subscription from Asker to OsloS with id = {}", askerOslo.getId());
+
+        String lineL1Url = "/push3/sx";
+        Subscription lineL1 = createSubscription(lineL1Url, null, null, "NSB:Line:L1", "Line L1");
+        logger.info("TestControl: Created subscription for line L1 with id = {}", lineL1.getId());
+
+        logger.info("TestControl: Sends SX messages that will trigger notifications");
+        postFile("/sx-vehiclejourneyref2123-pretty.xml", "sx");
+        waitUntil(MetricsService.TIMER_SX_PROCESS, 1);
+        waitUntil(MetricsService.TIMER_ET_PROCESS, 1);
+        waitUntil(MetricsService.TIMER_PUSH, 2);
+        Thread.sleep(100); //Sleeps a little longer to detect if we send an unwanted push message
+
+        logger.info("TestControl: Asserts expected results");
+        assertEquals(1, metricsService.getMeter("message.received.PtSituationElement").getCount());
+        assertEquals(1, metricsService.getTimer(MetricsService.TIMER_SX_PROCESS).getCount());
+        assertEquals(1, metricsService.getMeter("message.received.EstimatedVehicleJourney").getCount());
+        assertEquals(1, metricsService.getTimer(MetricsService.TIMER_ET_PROCESS).getCount());
+        assertEquals(2, metricsService.getTimer(MetricsService.TIMER_PUSH).getCount());
+        List<PtSituationElement> askerOsloMessages = getReceivedMessages(askerOsloUrl);
+        logger.info("TestControl: received {} messages for subscription from Asker to Oslo", askerOsloMessages.size());
+        List<PtSituationElement> l1Messages = getReceivedMessages(lineL1Url);
+        logger.info("TestControl: received {} messages for subscription on L1", l1Messages.size());
+        List<PtSituationElement> osloAskerMessages = getReceivedMessages(osloAskerUrl);
+        logger.info("TestControl: received {} messages for subscription from Oslo to Asker", osloAskerMessages.size());
+        assertEquals(0, askerOsloMessages.size());
+        assertEquals(1, l1Messages.size());
+        assertEquals(1, osloAskerMessages.size());
+    }
+
+    private List<PtSituationElement> getReceivedMessages(String pushAddress) throws JAXBException, XMLStreamException {
+        List<LoggedRequest> loggedRequests = findAll(postRequestedFor(urlEqualTo(pushAddress)));
+        ArrayList<PtSituationElement> result = new ArrayList<>(loggedRequests.size());
+        SiriMarshaller siriMarshaller = new SiriMarshaller();
+        for (LoggedRequest request : loggedRequests) {
+            result.add(siriMarshaller.unmarshall(request.getBodyAsString(), PtSituationElement.class));
+        }
+        return result;
+    }
+
+    private Subscription createSubscription(String pushAddress, String from, String to, String line, String name) throws Exception {
+        Subscription subscription = new Subscription();
+        if (from != null) subscription.addFromStopPoint(from);
+        if (to != null) subscription.addToStopPoint(to);
+        if (line != null) subscription.addLineRef(line);
+        subscription.setName(name);
+        pushAddress = pushAddress.substring(0, pushAddress.length()-3); //last '/et' (or '/sx') is added by the subscription manager
+        subscription.setPushAddress("http://localhost:" + config.getWiremockPort() + pushAddress);
+        ObjectMapper mapper = new ObjectMapper();
+        byte[] bytes = mapper.writeValueAsString(subscription).getBytes();
+        String postUrl = "http://localhost:"+config.getRestPort()+"/subscription";
+        HttpURLConnection connection = (HttpURLConnection) new URL(postUrl).openConnection();
+        connection.setRequestMethod("POST");
+        connection.setRequestProperty("Content-Type", "application/json");
+        connection.setRequestProperty("Content-Length", "" +Integer.toString(bytes.length));
+        connection.setDoOutput(true);
+        connection.setDoInput(true);
+        DataOutputStream out = new DataOutputStream(connection.getOutputStream());
+        out.write(bytes);
+        out.flush();
+        out.close();
+        int responseCode = connection.getResponseCode();
+        assertEquals(200, responseCode);
+
+        BufferedReader in = new BufferedReader(new InputStreamReader(connection.getInputStream()));
+        String inputLine;
+        StringBuilder response = new StringBuilder();
+        while ((inputLine = in.readLine()) != null) {
+            response.append(inputLine);
+        }
+        in.close();
+
+        return mapper.readValue(response.toString(), Subscription.class);
     }
 
     private void postFile(String classpathResource, String type) throws IOException {

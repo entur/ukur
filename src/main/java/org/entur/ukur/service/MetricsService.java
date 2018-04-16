@@ -150,4 +150,9 @@ public class MetricsService {
     public Meter getMeter(String meterName) {
         return metrics.meter(meterName);
     }
+
+    public void reset() {
+        logger.warn("Resets all metrics!");
+        metrics.removeMatching(MetricFilter.ALL);
+    }
 }

@@ -62,6 +62,10 @@ public class WiremockTestConfig extends UkurConfiguration {
         return  restPort;
     }
 
+    public String getWiremockPort() {
+        return wiremockPort;
+    }
+
     @Bean
     public static PropertySourcesPlaceholderConfigurer propertySourcesPlaceholderConfigurer() {
         return new PropertySourcesPlaceholderConfigurer();
