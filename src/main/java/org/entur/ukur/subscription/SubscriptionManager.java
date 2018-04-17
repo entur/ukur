@@ -402,7 +402,7 @@ public class SubscriptionManager {
                 if (HttpStatus.RESET_CONTENT.equals(responseStatus)) {
                     logger.info("Receive {} on push to {} and removes subscription with id {}", HttpStatus.RESET_CONTENT, uri, subscription.getId());
                     remove(subscription.getId());
-                } else if (HttpStatus.OK.equals(responseStatus)) {
+                } else if (HttpStatus.OK.equals(responseStatus) && subscription.getFailedPushCounter() > 0) {
                     subscription.resetFailedPushCounter();
                     dataStorageService.updateSubscription(subscription);
                 } else {
