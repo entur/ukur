@@ -16,6 +16,7 @@
 package org.entur.ukur.routedata;
 
 import org.apache.commons.lang3.SerializationUtils;
+import org.apache.commons.lang3.StringUtils;
 import org.entur.ukur.service.QuayAndStopPlaceMappingService;
 import uk.org.siri.siri20.*;
 
@@ -36,16 +37,16 @@ public class LiveJourney implements Serializable {
     public LiveJourney(EstimatedVehicleJourney journey, QuayAndStopPlaceMappingService quayAndStopPlaceMappingService) {
 
         if (journey.getLineRef() != null) {
-            lineRef = journey.getLineRef().getValue();
+            lineRef = StringUtils.trimToNull(journey.getLineRef().getValue());
         }
         if (journey.getDatedVehicleJourneyRef()!= null) {
-            datedVehicleJourneyRef = journey.getDatedVehicleJourneyRef().getValue();
+            datedVehicleJourneyRef = StringUtils.trimToNull(journey.getDatedVehicleJourneyRef().getValue());
         }
         if (journey.getVehicleRef() != null) {
-            vehicleRef = journey.getVehicleRef().getValue();
+            vehicleRef = StringUtils.trimToNull(journey.getVehicleRef().getValue());
         }
         if (journey.getDirectionRef() != null) {
-            directionRef = journey.getDirectionRef().getValue();
+            directionRef = StringUtils.trimToNull(journey.getDirectionRef().getValue());
         }
         add(journey.getRecordedCalls());
         add(journey.getEstimatedCalls());

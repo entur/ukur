@@ -15,6 +15,7 @@
 
 package org.entur.ukur.routedata;
 
+import org.apache.commons.lang3.StringUtils;
 import uk.org.siri.siri20.*;
 
 import java.io.Serializable;
@@ -138,16 +139,16 @@ public class Call implements Serializable {
         if (stopPointNames != null && !stopPointNames.isEmpty()) {
             //TODO: simply picks the first as NSB/BaneNOR only provides one
             NaturalLanguageStringStructure naturalLanguageStringStructure = stopPointNames.get(0);
-            stopPointName = naturalLanguageStringStructure.getValue();
+            stopPointName = StringUtils.trimToNull(naturalLanguageStringStructure.getValue());
         }
     }
 
     private void setStopPointRef(StopPointRef stopPointRef) {
-        this.stopPointRef = stopPointRef == null ? null : stopPointRef.getValue();
+        this.stopPointRef = stopPointRef == null ? null : StringUtils.trimToNull(stopPointRef.getValue());
     }
 
     public void setStopPointRef(String stopPlace) {
-        this.stopPointRef = stopPlace;
+        this.stopPointRef = StringUtils.trimToNull(stopPlace);
     }
 
     public void setAimedArrivalTime(ZonedDateTime aimedArrivalTime) {

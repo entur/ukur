@@ -205,13 +205,15 @@ public class NsbSXSubscriptionProcessor implements Processor {
                     logger.warn("More than one ({}) vehicleJourneyRef in AffectedVehicleJourneyStructure - 'norsk siri profil' only allows one", vehicleJourneyReves.size());
                 } else {
                     vehicleJourneyRef = vehicleJourneyReves.get(0).getValue();
-                    if (!hasCompleteRoute || lineRef == null) {
+                    if (StringUtils.isBlank(vehicleJourneyRef)) {
+                        logger.warn("Has a blank vehicleJourneyRef - can't look it up");
+                    } else if (!hasCompleteRoute || lineRef == null) {
                         if (journeys == null) {
                             journeys = getJourneys();
                         }
-                        LiveJourney liveJourney = journeys.get(vehicleJourneyRef);
+                        LiveJourney liveJourney = journeys.get(vehicleJourneyRef.trim());
                         if (liveJourney == null) {
-                            logger.debug("Has no route data for journey with vehicleJourneyRef: {}", vehicleJourneyRef);
+                            logger.warn("Has no route data for journey with vehicleJourneyRef: {}", vehicleJourneyRef);
                         } else {
                             if (!hasCompleteRoute) {
                                 orderedListOfStops = liveJourney.getCalls().stream()
@@ -239,6 +241,7 @@ public class NsbSXSubscriptionProcessor implements Processor {
                         if (subscribedOrEmpty(lineRef, subscription.getLineRefs()) && subscribedOrEmpty(vehicleJourneyRef, subscription.getVehicleRefs())){
                             if (!hasCompleteRoute) {
                                 subscriptions.add(subscription);
+                                //TODO: Hvis dubscription på stopp og kun ett av dem funnet: ikke legge til for å unngå unødvendige meldinger..!
                                 logger.trace("Has only affected stops and don't find route in LiveRouteService, adds all subscriptions on these stops - regardless of direction");
                             } else {
                                 if (affected(subscription, orderedListOfStops)) {
@@ -284,6 +287,7 @@ public class NsbSXSubscriptionProcessor implements Processor {
             //Since SX messages from NSB specify Vehicle
             journeys.put(liveJourney.getVehicleRef(), liveJourney);
         }
+        logger.trace("Returns {} journeys from liveRouteManager", journeys.size());
         return journeys;
     }
 

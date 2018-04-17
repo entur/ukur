@@ -22,6 +22,7 @@ import com.hazelcast.core.IMap;
 import org.apache.commons.io.IOUtils;
 import org.entur.ukur.App;
 import org.entur.ukur.camelroute.testconfig.WiremockTestConfig;
+import org.entur.ukur.routedata.LiveRouteManager;
 import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.service.QuayAndStopPlaceMappingService;
 import org.entur.ukur.subscription.Subscription;
@@ -38,16 +39,15 @@ import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
 import org.springframework.test.context.junit4.AbstractJUnit4SpringContextTests;
 import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
+import uk.org.siri.siri20.EstimatedVehicleJourney;
 import uk.org.siri.siri20.PtSituationElement;
 
 import javax.xml.bind.JAXBException;
 import javax.xml.stream.XMLStreamException;
-import java.io.BufferedReader;
-import java.io.DataOutputStream;
-import java.io.IOException;
-import java.io.InputStreamReader;
+import java.io.*;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.nio.charset.Charset;
 import java.util.ArrayList;
 import java.util.Collection;
 import java.util.HashMap;
@@ -77,6 +77,14 @@ public class SubscribingRouteBuilderTest extends AbstractJUnit4SpringContextTest
 
     @Autowired
     private QuayAndStopPlaceMappingService quayAndStopPlaceMappingService;
+
+    @Autowired
+    private LiveRouteManager liveRouteManager;
+
+    private SiriMarshaller siriMarshaller = new SiriMarshaller();
+
+    public SubscribingRouteBuilderTest() throws JAXBException {
+    }
 
     @Test
     public void testETreceive() throws Exception {
@@ -126,8 +134,10 @@ public class SubscribingRouteBuilderTest extends AbstractJUnit4SpringContextTest
         stopPlacesAndQuays.put("NSR:StopPlace:418", Sets.newHashSet("NSR:Quay:696"));
         quayAndStopPlaceMappingService.updateStopsAndQuaysMap(stopPlacesAndQuays);
 
-        logger.info("TestControl: Sends ET message to register our test journey (from Lillestøm to Asker)");
-        postFile("/et-vehicleref2123-pretty.xml", "et");
+        logger.info("TestControl: updates liveRouteManager with an EstimatedVehicleJourney (from Lillestrøm to Asker)");
+        String xml = IOUtils.toString(this.getClass().getResourceAsStream("/et-vehicleref2123-pretty.xml"), Charset.defaultCharset());
+        EstimatedVehicleJourney estimatedVehicleJourney = siriMarshaller.unmarshall(xml, EstimatedVehicleJourney.class);
+        liveRouteManager.updateJourney(estimatedVehicleJourney);
 
         stubFor(post(urlMatching("/push.*/sx"))
                 .withHeader("Content-Type", equalTo("application/xml"))
@@ -148,15 +158,12 @@ public class SubscribingRouteBuilderTest extends AbstractJUnit4SpringContextTest
         logger.info("TestControl: Sends SX messages that will trigger notifications");
         postFile("/sx-vehiclejourneyref2123-pretty.xml", "sx");
         waitUntil(MetricsService.TIMER_SX_PROCESS, 1);
-        waitUntil(MetricsService.TIMER_ET_PROCESS, 1);
         waitUntil(MetricsService.TIMER_PUSH, 2);
         Thread.sleep(100); //Sleeps a little longer to detect if we send an unwanted push message
 
         logger.info("TestControl: Asserts expected results");
         assertEquals(1, metricsService.getMeter("message.received.PtSituationElement").getCount());
         assertEquals(1, metricsService.getTimer(MetricsService.TIMER_SX_PROCESS).getCount());
-        assertEquals(1, metricsService.getMeter("message.received.EstimatedVehicleJourney").getCount());
-        assertEquals(1, metricsService.getTimer(MetricsService.TIMER_ET_PROCESS).getCount());
         assertEquals(2, metricsService.getTimer(MetricsService.TIMER_PUSH).getCount());
         List<PtSituationElement> askerOsloMessages = getReceivedMessages(askerOsloUrl);
         logger.info("TestControl: received {} messages for subscription from Asker to Oslo", askerOsloMessages.size());
@@ -172,7 +179,6 @@ public class SubscribingRouteBuilderTest extends AbstractJUnit4SpringContextTest
     private List<PtSituationElement> getReceivedMessages(String pushAddress) throws JAXBException, XMLStreamException {
         List<LoggedRequest> loggedRequests = findAll(postRequestedFor(urlEqualTo(pushAddress)));
         ArrayList<PtSituationElement> result = new ArrayList<>(loggedRequests.size());
-        SiriMarshaller siriMarshaller = new SiriMarshaller();
         for (LoggedRequest request : loggedRequests) {
             result.add(siriMarshaller.unmarshall(request.getBodyAsString(), PtSituationElement.class));
         }
