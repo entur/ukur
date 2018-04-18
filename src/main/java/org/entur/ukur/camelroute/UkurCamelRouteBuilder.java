@@ -92,8 +92,8 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
 
     private static final String MORE_DATA = "MoreData";
     private final UkurConfiguration config;
-    private final NsbETSubscriptionProcessor nsbETSubscriptionProcessor;
-    private final NsbSXSubscriptionProcessor nsbSXSubscriptionProcessor;
+    private final ETSubscriptionProcessor ETSubscriptionProcessor;
+    private final SXSubscriptionProcessor SXSubscriptionProcessor;
     private final IMap<String, String> sharedProperties;
     private final MetricsService metricsService;
     private final String nodeStarted;
@@ -104,14 +104,14 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
 
     @Autowired
     public UkurCamelRouteBuilder(UkurConfiguration config,
-                                 NsbETSubscriptionProcessor nsbETSubscriptionProcessor,
-                                 NsbSXSubscriptionProcessor nsbSXSubscriptionProcessor,
+                                 ETSubscriptionProcessor ETSubscriptionProcessor,
+                                 SXSubscriptionProcessor SXSubscriptionProcessor,
                                  TiamatStopPlaceQuaysProcessor tiamatStopPlaceQuaysProcessor,
                                  @Qualifier("sharedProperties") IMap<String, String> sharedProperties,
                                  MetricsService metricsService) {
         this.config = config;
-        this.nsbETSubscriptionProcessor = nsbETSubscriptionProcessor;
-        this.nsbSXSubscriptionProcessor = nsbSXSubscriptionProcessor;
+        this.ETSubscriptionProcessor = ETSubscriptionProcessor;
+        this.SXSubscriptionProcessor = SXSubscriptionProcessor;
         this.tiamatStopPlaceQuaysProcessor = tiamatStopPlaceQuaysProcessor;
         this.sharedProperties = sharedProperties;
         this.metricsService = metricsService;
@@ -144,12 +144,12 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
 
         from("activemq:queue:" + UkurConfiguration.ET_QUEUE)
                 .routeId("ET ActiveMQ Listener")
-                .process(nsbETSubscriptionProcessor)
+                .process(ETSubscriptionProcessor)
                 .end();
 
         from("activemq:queue:" + UkurConfiguration.SX_QUEUE)
                 .routeId("SX ActiveMQ Listener")
-                .process(nsbSXSubscriptionProcessor)
+                .process(SXSubscriptionProcessor)
                 .end();
 
         from(ROUTE_FLUSHJOURNEYS)
@@ -262,11 +262,10 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                         XPath xPath = XPathFactory.newInstance().newXPath();
                         xPath.setNamespaceContext(nsContext);
                         Double total = (Double) xPath.compile("count(//s:PtSituationElement)").evaluate(xmlDocument, XPathConstants.NUMBER);
-                        Double nsb = (Double) xPath.compile("count(//s:PtSituationElement[s:ParticipantRef/text()='NSB'])").evaluate(xmlDocument, XPathConstants.NUMBER);
-                        logger.debug("Received XML with totally {} PtSituationElements - {} regarding 'NSB'", Math.round(total), Math.round(nsb));
+                        logger.debug("Received XML with {} PtSituationElements", Math.round(total));
                     }
                 })
-                .split(siriNamespace.xpath("//s:PtSituationElement[s:ParticipantRef/text()='NSB']")) //TODO: this only selects elements with NSB as operator
+                .split(siriNamespace.xpath("//s:PtSituationElement"))
                 .bean(metricsService, "registerSentMessage('PtSituationElement')")
                 .to("activemq:queue:" + UkurConfiguration.SX_QUEUE);
 
@@ -279,11 +278,10 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                         XPath xPath = XPathFactory.newInstance().newXPath();
                         xPath.setNamespaceContext(nsContext);
                         Double total = (Double) xPath.compile("count(//s:EstimatedVehicleJourney)").evaluate(xmlDocument, XPathConstants.NUMBER);
-                        Double nsb = (Double) xPath.compile("count(//s:EstimatedVehicleJourney[s:OperatorRef/text()='NSB'])").evaluate(xmlDocument, XPathConstants.NUMBER);
-                        logger.debug("Received XML with totally {} EstimatedVehicleJourneys - {} regarding 'NSB'", Math.round(total), Math.round(nsb));
+                        logger.debug("Received XML with {} EstimatedVehicleJourneys", Math.round(total));
                     }
                 })
-                .split(siriNamespace.xpath("//s:EstimatedVehicleJourney[s:OperatorRef/text()='NSB']")) //TODO: this only selects elements with NSB as operator
+                .split(siriNamespace.xpath("//s:EstimatedVehicleJourney"))
                 .bean(metricsService, "registerSentMessage('EstimatedVehicleJourney')")
                 .to("activemq:queue:" + UkurConfiguration.ET_QUEUE);
     }

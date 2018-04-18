@@ -43,11 +43,11 @@ import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class NsbSXSubscriptionProcessorTest extends DatastoreTest {
+public class SXSubscriptionProcessorTest extends DatastoreTest {
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private SubscriptionManager subscriptionManager;
-    private NsbSXSubscriptionProcessor processor;
+    private SXSubscriptionProcessor processor;
     private LiveRouteManager liveRouteManagerMock;
     private SiriMarshaller siriMarshaller;
 
@@ -60,7 +60,7 @@ public class NsbSXSubscriptionProcessorTest extends DatastoreTest {
         DataStorageService dataStorageService = new DataStorageService(datastore, liveJourneyIMap);
         subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsServiceMock, new HashMap<>(), new QuayAndStopPlaceMappingService(metricsServiceMock));
         liveRouteManagerMock = mock(LiveRouteManager.class);
-        processor = new NsbSXSubscriptionProcessor(subscriptionManager, siriMarshaller, liveRouteManagerMock, mock(FileStorageService.class), mock(MetricsService.class));
+        processor = new SXSubscriptionProcessor(subscriptionManager, siriMarshaller, liveRouteManagerMock, mock(FileStorageService.class), mock(MetricsService.class));
     }
 
     @Test

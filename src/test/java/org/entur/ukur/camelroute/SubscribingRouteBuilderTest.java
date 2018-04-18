@@ -92,13 +92,15 @@ public class SubscribingRouteBuilderTest extends AbstractJUnit4SpringContextTest
         waitUntilReceiverIsReady();
 
         assertEquals(0, metricsService.getMeter("message.received.EstimatedVehicleJourney").getCount());
+        assertEquals(0, metricsService.getMeter("message.subs-received.et").getCount());
         assertEquals(0, metricsService.getTimer(MetricsService.TIMER_ET_PROCESS).getCount());
 
         postFile("/et-pretty.xml", "et");
-        waitUntil(MetricsService.TIMER_ET_PROCESS, 1);
+        waitUntil(MetricsService.TIMER_ET_PROCESS, 10);
 
-        assertEquals(1, metricsService.getMeter("message.received.EstimatedVehicleJourney").getCount());
-        assertEquals(1, metricsService.getTimer(MetricsService.TIMER_ET_PROCESS).getCount());
+        assertEquals(1, metricsService.getMeter("message.subs-received.et").getCount());
+        assertEquals(10, metricsService.getMeter("message.received.EstimatedVehicleJourney").getCount());
+        assertEquals(10, metricsService.getTimer(MetricsService.TIMER_ET_PROCESS).getCount());
     }
 
     @Test
@@ -108,15 +110,16 @@ public class SubscribingRouteBuilderTest extends AbstractJUnit4SpringContextTest
 
         assertEquals(0, metricsService.getMeter("message.received.PtSituationElement").getCount());
         assertEquals(0, metricsService.getTimer(MetricsService.TIMER_SX_PROCESS).getCount());
+        assertEquals(0, metricsService.getMeter("message.subs-received.sx").getCount());
 
         postFile("/sx-pretty.xml", "sx");
-        waitUntil(MetricsService.TIMER_SX_PROCESS, 5);
+        waitUntil(MetricsService.TIMER_SX_PROCESS, 9);
 
-        assertEquals(5, metricsService.getMeter("message.received.PtSituationElement").getCount());
-        assertEquals(5, metricsService.getTimer(MetricsService.TIMER_SX_PROCESS).getCount());
+        assertEquals(1, metricsService.getMeter("message.subs-received.sx").getCount());
+        assertEquals(9, metricsService.getMeter("message.received.PtSituationElement").getCount());
+        assertEquals(9, metricsService.getTimer(MetricsService.TIMER_SX_PROCESS).getCount());
     }
 
-    @DirtiesContext
     @Test
     public void testPushOnSXFromJourneyLookup() throws Exception {
         metricsService.reset();

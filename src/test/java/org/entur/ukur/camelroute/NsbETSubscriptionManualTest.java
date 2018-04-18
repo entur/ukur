@@ -66,7 +66,7 @@ public class NsbETSubscriptionManualTest extends DatastoreTest {
     @Rule
     public WireMockRule wireMockRule = new WireMockRule(options().dynamicPort());
     private SubscriptionManager subscriptionManager;
-    private NsbETSubscriptionProcessor nsbETSubscriptionProcessor;
+    private ETSubscriptionProcessor ETSubscriptionProcessor;
     private QuayAndStopPlaceMappingService quayAndStopPlaceMappingService;
     private SiriMarshaller siriMarshaller;
 
@@ -80,7 +80,7 @@ public class NsbETSubscriptionManualTest extends DatastoreTest {
         quayAndStopPlaceMappingService = new QuayAndStopPlaceMappingService(metricsService);
         subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsService, new HashMap<>(), quayAndStopPlaceMappingService);
         LiveRouteManager liveRouteManager = new LiveRouteManager(dataStorageService, quayAndStopPlaceMappingService);
-        nsbETSubscriptionProcessor = new NsbETSubscriptionProcessor(subscriptionManager, siriMarshaller, liveRouteManager, mock(FileStorageService.class), metricsService, quayAndStopPlaceMappingService);
+        ETSubscriptionProcessor = new ETSubscriptionProcessor(subscriptionManager, siriMarshaller, liveRouteManager, mock(FileStorageService.class), metricsService, quayAndStopPlaceMappingService);
     }
 
     @Test
@@ -159,7 +159,7 @@ public class NsbETSubscriptionManualTest extends DatastoreTest {
         for (int i = 0; i < etMessages.size(); i++) {
             logger.info("About to process message {}/{} ...", (i+1), etMessages.size());
             long start = System.currentTimeMillis();
-            nsbETSubscriptionProcessor.process(createExchangeMock(new FileInputStream(etMessages.get(i).toFile())));
+            ETSubscriptionProcessor.process(createExchangeMock(new FileInputStream(etMessages.get(i).toFile())));
             logger.info("... processing took {} ms", String.format("%,d", (System.currentTimeMillis()-start)));
         }
 

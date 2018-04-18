@@ -42,7 +42,7 @@ import static org.junit.Assert.*;
 import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.*;
 
-public class NsbETSubscriptionProcessorTest {
+public class ETSubscriptionProcessorTest {
 
 
     @Test
@@ -58,11 +58,11 @@ public class NsbETSubscriptionProcessorTest {
         journey.setRecordedCalls(recordedCalls);
         journey.setEstimatedCalls(estimatedCalls);
 
-        NsbETSubscriptionProcessor processor = new NsbETSubscriptionProcessor(mock(SubscriptionManager.class),
+        ETSubscriptionProcessor processor = new ETSubscriptionProcessor(mock(SubscriptionManager.class),
                 new SiriMarshaller(), mock(LiveRouteManager.class), mock(FileStorageService.class),
                 mock(MetricsService.class), mock(QuayAndStopPlaceMappingService.class));
 
-        HashMap<String, NsbETSubscriptionProcessor.StopData> stopData = processor.getStopData(journey);
+        HashMap<String, ETSubscriptionProcessor.StopData> stopData = processor.getStopData(journey);
         //No errors if no hits...
         assertFalse(processor.validDirection(new Subscription(), stopData));
 
@@ -132,7 +132,7 @@ public class NsbETSubscriptionProcessorTest {
         when((subscriptionManagerMock.getSubscriptionsForLineRef("NSB:Line:1"))).thenReturn(new HashSet<>(Arrays.asList(s_l, s_l_v, s_l_vx)));
         when((subscriptionManagerMock.getSubscriptionsForvehicleRef("1234"))).thenReturn(new HashSet<>(Arrays.asList(s_l_v, s_v, s_lx_v)));
 
-        NsbETSubscriptionProcessor processor = new NsbETSubscriptionProcessor(subscriptionManagerMock,
+        ETSubscriptionProcessor processor = new ETSubscriptionProcessor(subscriptionManagerMock,
                 new SiriMarshaller(), mock(LiveRouteManager.class), mock(FileStorageService.class),
                 new MetricsService(null, 0), mock(QuayAndStopPlaceMappingService.class));
 
@@ -172,7 +172,7 @@ public class NsbETSubscriptionProcessorTest {
             }
         };
 
-        NsbETSubscriptionProcessor processor = new NsbETSubscriptionProcessor(subscriptionManager, siriMarshaller, mock(LiveRouteManager.class),
+        ETSubscriptionProcessor processor = new ETSubscriptionProcessor(subscriptionManager, siriMarshaller, mock(LiveRouteManager.class),
                 mock(FileStorageService.class), metricsService, mappingMock);
 
         HashSet<Subscription> subscriptions = Sets.newHashSet(s1, s2);

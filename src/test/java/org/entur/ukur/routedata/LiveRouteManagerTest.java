@@ -24,7 +24,6 @@ import org.junit.Test;
 import uk.org.siri.siri20.*;
 
 import java.time.ZonedDateTime;
-import java.util.HashMap;
 
 import static org.junit.Assert.assertEquals;
 import static org.mockito.Mockito.mock;

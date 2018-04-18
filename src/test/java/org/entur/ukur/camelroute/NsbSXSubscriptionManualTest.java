@@ -67,7 +67,7 @@ public class NsbSXSubscriptionManualTest extends DatastoreTest {
     @Rule
     public WireMockRule wireMockRule = new WireMockRule(options().dynamicPort());
     private SubscriptionManager subscriptionManager;
-    private NsbSXSubscriptionProcessor nsbSXSubscriptionProcessor;
+    private SXSubscriptionProcessor SXSubscriptionProcessor;
     private LiveRouteManager liveRouteManager;
     private QuayAndStopPlaceMappingService quayAndStopPlaceMappingService;
     private SiriMarshaller siriMarshaller;
@@ -82,7 +82,7 @@ public class NsbSXSubscriptionManualTest extends DatastoreTest {
         quayAndStopPlaceMappingService = new QuayAndStopPlaceMappingService(metricsService);
         subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsService, new HashMap<>(), quayAndStopPlaceMappingService);
         liveRouteManager = new LiveRouteManager(dataStorageService, quayAndStopPlaceMappingService);
-        nsbSXSubscriptionProcessor = new NsbSXSubscriptionProcessor(subscriptionManager, siriMarshaller, liveRouteManager, mock(FileStorageService.class), metricsService);
+        SXSubscriptionProcessor = new SXSubscriptionProcessor(subscriptionManager, siriMarshaller, liveRouteManager, mock(FileStorageService.class), metricsService);
     }
 
     @Test
@@ -151,7 +151,7 @@ public class NsbSXSubscriptionManualTest extends DatastoreTest {
         for (int i = 0; i < sxMessages.size(); i++) {
             logger.info("About to process message {}/{} ...", (i+1), sxMessages.size());
             long start = System.currentTimeMillis();
-            nsbSXSubscriptionProcessor.process(createExchangeMock(new FileInputStream(sxMessages.get(i).toFile())));
+            SXSubscriptionProcessor.process(createExchangeMock(new FileInputStream(sxMessages.get(i).toFile())));
             logger.info("... processing took {} ms", String.format("%,d", (System.currentTimeMillis()-start)));
         }
 

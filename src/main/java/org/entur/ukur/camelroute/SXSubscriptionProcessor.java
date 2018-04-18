@@ -42,7 +42,7 @@ import java.util.*;
 import java.util.stream.Collectors;
 
 @Service
-public class NsbSXSubscriptionProcessor implements Processor {
+public class SXSubscriptionProcessor implements Processor {
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
     private SubscriptionManager subscriptionManager;
@@ -54,11 +54,11 @@ public class NsbSXSubscriptionProcessor implements Processor {
     private boolean storeMessagesToFile = false;
 
     @Autowired
-    public NsbSXSubscriptionProcessor(SubscriptionManager subscriptionManager,
-                                      SiriMarshaller siriMarshaller,
-                                      LiveRouteManager liveRouteManager,
-                                      FileStorageService fileStorageService,
-                                      MetricsService metricsService) {
+    public SXSubscriptionProcessor(SubscriptionManager subscriptionManager,
+                                   SiriMarshaller siriMarshaller,
+                                   LiveRouteManager liveRouteManager,
+                                   FileStorageService fileStorageService,
+                                   MetricsService metricsService) {
         this.subscriptionManager = subscriptionManager;
         this.siriMarshaller = siriMarshaller;
         this.liveRouteManager = liveRouteManager;
@@ -91,12 +91,6 @@ public class NsbSXSubscriptionProcessor implements Processor {
     }
 
     private boolean processPtSituationElement(PtSituationElement ptSituationElement) {
-        RequestorRef participantRef = ptSituationElement.getParticipantRef();
-        boolean isNSB = participantRef != null && "NSB".equalsIgnoreCase(participantRef.getValue());
-        if (!isNSB) {
-            logger.trace("Skips estimatedVehicleJourney (not NSB)");
-            return false;
-        }
         AffectsScopeStructure affects = ptSituationElement.getAffects();
         if (affects == null) {
             logger.info("Got PtSituationElement without any effects - nothing to notify");
@@ -241,7 +235,8 @@ public class NsbSXSubscriptionProcessor implements Processor {
                         if (subscribedOrEmpty(lineRef, subscription.getLineRefs()) && subscribedOrEmpty(vehicleJourneyRef, subscription.getVehicleRefs())){
                             if (!hasCompleteRoute) {
                                 subscriptions.add(subscription);
-                                //TODO: Hvis dubscription på stopp og kun ett av dem funnet: ikke legge til for å unngå unødvendige meldinger..!
+                                //TODO: Hvis subscription på stopp og kun ett av dem funnet: ikke legge til for å unngå unødvendige meldinger - men vurder stopcondition også!
+                                //TODO: ROR-298: Sjekk stopconditions!
                                 logger.trace("Has only affected stops and don't find route in LiveRouteService, adds all subscriptions on these stops - regardless of direction");
                             } else {
                                 if (affected(subscription, orderedListOfStops)) {
@@ -292,6 +287,7 @@ public class NsbSXSubscriptionProcessor implements Processor {
     }
 
     private boolean affected(Subscription subscription, List<String> orderedListOfStops) {
+        //TODO: ROR-298: Sjekke stopconditions!
         int from = findIndexOfOne(subscription.getFromStopPoints(), orderedListOfStops);
         int to = findIndexOfOne(subscription.getToStopPoints(), orderedListOfStops);
         boolean affected = from > -1 && to > -1 && from < to;

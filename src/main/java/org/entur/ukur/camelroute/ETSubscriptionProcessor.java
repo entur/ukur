@@ -38,7 +38,7 @@ import java.time.ZonedDateTime;
 import java.util.*;
 
 @Service
-public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
+public class ETSubscriptionProcessor implements org.apache.camel.Processor {
     private static final int DIRECTION_FROM = 1;
     private static final int DIRECTION_TO = 2;
 
@@ -55,12 +55,12 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
     private boolean storeMessagesToFile = false;
 
     @Autowired
-    public NsbETSubscriptionProcessor(SubscriptionManager subscriptionManager,
-                                      SiriMarshaller siriMarshaller,
-                                      LiveRouteManager liveRouteManager,
-                                      FileStorageService fileStorageService,
-                                      MetricsService metricsService,
-                                      QuayAndStopPlaceMappingService quayAndStopPlaceMappingService) {
+    public ETSubscriptionProcessor(SubscriptionManager subscriptionManager,
+                                   SiriMarshaller siriMarshaller,
+                                   LiveRouteManager liveRouteManager,
+                                   FileStorageService fileStorageService,
+                                   MetricsService metricsService,
+                                   QuayAndStopPlaceMappingService quayAndStopPlaceMappingService) {
         this.siriMarshaller = siriMarshaller;
         this.liveRouteManager = liveRouteManager;
         this.fileStorageService = fileStorageService;
@@ -97,12 +97,6 @@ public class NsbETSubscriptionProcessor implements org.apache.camel.Processor {
     }
 
     protected boolean processEstimatedVehicleJourney(EstimatedVehicleJourney estimatedVehicleJourney) {
-        OperatorRefStructure operatorRef = estimatedVehicleJourney.getOperatorRef();
-        boolean isNSB = operatorRef != null && "NSB".equalsIgnoreCase(operatorRef.getValue());
-        if (!isNSB) {
-            logger.trace("Skips estimatedVehicleJourney (not NSB)");
-            return false;
-        }
         Timer timer = metricsService.getTimer(MetricsService.TIMER_ET_PROCESS);
         Timer.Context time = timer.time();
         try {

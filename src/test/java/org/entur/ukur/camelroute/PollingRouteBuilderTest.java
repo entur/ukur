@@ -60,10 +60,10 @@ public class PollingRouteBuilderTest extends AbstractJUnit4SpringContextTests {
         assertEquals(0, metricsService.getTimer(MetricsService.TIMER_ET_PROCESS).getCount());
 
         etTemplate.sendBody("go!");
-        waitUntil(MetricsService.TIMER_ET_PROCESS, 1);
+        waitUntil(MetricsService.TIMER_ET_PROCESS, 10);
 
-        assertEquals(1, metricsService.getMeter("message.received.EstimatedVehicleJourney").getCount());
-        assertEquals(1, metricsService.getTimer(MetricsService.TIMER_ET_PROCESS).getCount());
+        assertEquals(10, metricsService.getMeter("message.received.EstimatedVehicleJourney").getCount());
+        assertEquals(10, metricsService.getTimer(MetricsService.TIMER_ET_PROCESS).getCount());
     }
 
     @Test
@@ -74,10 +74,10 @@ public class PollingRouteBuilderTest extends AbstractJUnit4SpringContextTests {
         assertEquals(0, metricsService.getTimer(MetricsService.TIMER_SX_PROCESS).getCount());
 
         sxTemplate.sendBody("go!");
-        waitUntil(MetricsService.TIMER_SX_PROCESS, 5);
+        waitUntil(MetricsService.TIMER_SX_PROCESS, 9);
 
-        assertEquals(5, metricsService.getMeter("message.received.PtSituationElement").getCount());
-        assertEquals(5, metricsService.getTimer(MetricsService.TIMER_SX_PROCESS).getCount());
+        assertEquals(9, metricsService.getMeter("message.received.PtSituationElement").getCount());
+        assertEquals(9, metricsService.getTimer(MetricsService.TIMER_SX_PROCESS).getCount());
     }
 
     private void waitUntil(String timer, int expectedCount) throws InterruptedException {
