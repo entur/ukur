@@ -21,9 +21,10 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class UkurConfiguration {
 
+
     private static final String QUEUE_PREFIX = "ukur";
-    public static final String ET_QUEUE = QUEUE_PREFIX + ".et";
-    public static final String SX_QUEUE = QUEUE_PREFIX + ".sx";
+    public static final String ET_QUEUE = QUEUE_PREFIX + ".et?timeToLive=300000&disableReplyTo=true"; //5 minutes time to live
+    public static final String SX_QUEUE = QUEUE_PREFIX + ".sx?timeToLive=900000&disableReplyTo=true"; //30 minutes time to live
 
     @Value("${rutebanken.kubernetes.url:}")
     private String kubernetesUrl;
