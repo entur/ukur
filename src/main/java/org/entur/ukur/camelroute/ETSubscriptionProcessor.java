@@ -37,6 +37,8 @@ import java.io.InputStream;
 import java.time.ZonedDateTime;
 import java.util.*;
 
+import static org.entur.ukur.xml.SiriObjectHelper.getStringValue;
+
 @Service
 public class ETSubscriptionProcessor implements org.apache.camel.Processor {
     private static final int DIRECTION_FROM = 1;
@@ -89,10 +91,15 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
             throw new IllegalArgumentException("No EstimatedVehicleJourney element...");
         }
         metricsService.registerReceivedMessage(EstimatedVehicleJourney.class);
-        if (processEstimatedVehicleJourney(estimatedVehicleJourney)) {
-            if (storeMessagesToFile) {
-                fileStorageService.writeToFile(estimatedVehicleJourney);
+
+        try {
+            if (processEstimatedVehicleJourney(estimatedVehicleJourney)) {
+                if (storeMessagesToFile) {
+                    fileStorageService.writeToFile(estimatedVehicleJourney);
+                }
             }
+        } catch (Exception e) {
+            logger.error("Caught error during processing of EstimatedVehicleJourney", e); //since the logging from camel does not include the stacktrace on gcp...
         }
     }
 
@@ -103,17 +110,17 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
             liveRouteManager.updateJourney(estimatedVehicleJourney);
             List<EstimatedCall> deviations = getEstimatedDelaysAndCancellations(estimatedVehicleJourney.getEstimatedCalls());
             if (deviations.isEmpty()) {
-                logger.trace("Processes NSB estimatedVehicleJourney ({}) - no estimated delays or cancellations", estimatedVehicleJourney.getDatedVehicleJourneyRef().getValue());
+                logger.trace("Processes EstimatedVehicleJourney ({}) - no estimated delays or cancellations", getStringValue(estimatedVehicleJourney.getDatedVehicleJourneyRef()));
             } else {
-                logger.debug("Processes NSB estimatedVehicleJourney ({}) - with {} estimated delays", estimatedVehicleJourney.getDatedVehicleJourneyRef().getValue(), deviations.size());
+                logger.debug("Processes EstimatedVehicleJourney ({}) - with {} estimated delays", getStringValue(estimatedVehicleJourney.getDatedVehicleJourneyRef()), deviations.size());
                 List<EstimatedCallAndSubscriptions> affectedSubscriptions = findAffectedSubscriptions(deviations, estimatedVehicleJourney);
-                String lineRef = estimatedVehicleJourney.getLineRef() == null ? null : estimatedVehicleJourney.getLineRef().getValue();
-                String vehicleRef = estimatedVehicleJourney.getVehicleRef() == null ? null : estimatedVehicleJourney.getVehicleRef().getValue();
+                String lineRef = getStringValue(estimatedVehicleJourney.getLineRef());
+                String vehicleRef = getStringValue(estimatedVehicleJourney.getVehicleRef());
                 for (EstimatedCallAndSubscriptions estimatedCallAndSubscriptions : affectedSubscriptions) {
                     HashSet<Subscription> subscriptions = estimatedCallAndSubscriptions.getSubscriptions();
                     subscriptions.removeIf(s -> notIncluded(lineRef, s.getLineRefs()) || notIncluded(vehicleRef, s.getVehicleRefs()));
                     EstimatedCall estimatedCall = estimatedCallAndSubscriptions.getEstimatedCall();
-                    logger.debug(" - For delayed departure from stopPlace {} there are {} affected subscriptions ", estimatedCall.getStopPointRef().getValue(), subscriptions.size());
+                    logger.debug(" - For delayed departure from stopPlace {} there are {} affected subscriptions ", getStringValue(estimatedCall.getStopPointRef()), subscriptions.size());
                     subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney);
                 }
                 HashSet<Subscription> subscriptionsOnLineOrVehicleRef = findSubscriptionsOnLineOrVehicleRef(lineRef, vehicleRef);
@@ -156,10 +163,10 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
         ArrayList<EstimatedCallAndSubscriptions> affectedSubscriptions = new ArrayList<>();
         for (EstimatedCall estimatedDelay : estimatedDelays) {
             HashSet<Subscription> subscriptions = new HashSet<>();
-            StopPointRef stopPointRef = estimatedDelay.getStopPointRef();
-            if (stopPointRef != null && StringUtils.startsWithIgnoreCase(stopPointRef.getValue(), "NSR:")) {
+            String stopPoint = getStringValue(estimatedDelay.getStopPointRef());
+            if (StringUtils.startsWithIgnoreCase(stopPoint, "NSR:")) {
                 //Bryr oss kun om stopPointRef på "nasjonalt format"
-                Set<Subscription> subs = subscriptionManager.getSubscriptionsForStopPoint(stopPointRef.getValue());
+                Set<Subscription> subs = subscriptionManager.getSubscriptionsForStopPoint(stopPoint);
                 for (Subscription sub : subs) {
                     if (validDirection(sub, stops)) {
                         subscriptions.add(sub);

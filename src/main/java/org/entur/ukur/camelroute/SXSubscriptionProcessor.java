@@ -41,6 +41,8 @@ import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static org.entur.ukur.xml.SiriObjectHelper.getStringValue;
+
 @Service
 public class SXSubscriptionProcessor implements Processor {
 
@@ -83,10 +85,14 @@ public class SXSubscriptionProcessor implements Processor {
             throw new IllegalArgumentException("No PtSituationElement element...");
         }
         metricsService.registerReceivedMessage(PtSituationElement.class);
-        if (processPtSituationElement(ptSituationElement)) {
-            if (storeMessagesToFile) {
-                fileStorageService.writeToFile(ptSituationElement);
+        try {
+            if (processPtSituationElement(ptSituationElement)) {
+                if (storeMessagesToFile) {
+                    fileStorageService.writeToFile(ptSituationElement);
+                }
             }
+        } catch (Exception e) {
+            logger.error("Caught error during processing of PtSituationElement", e); //since the logging from camel does not include the stacktrace on gcp...
         }
     }
 
@@ -98,7 +104,7 @@ public class SXSubscriptionProcessor implements Processor {
         }
 
         if (notValidNext24Hours(ptSituationElement.getValidityPeriods())) {
-            logger.info("Skips message that is not valid the next 24 hours (will be received again later) - situationNumber={}", ptSituationElement.getSituationNumber().getValue());
+            logger.info("Skips message that is not valid the next 24 hours (will be received again later) - situationNumber={}", getStringValue(ptSituationElement.getSituationNumber()));
             return false;
         }
 
@@ -111,7 +117,7 @@ public class SXSubscriptionProcessor implements Processor {
             if (vehicleJourneys != null) {
                 subscriptionsToNotify.addAll(findAffectedSubscriptions(vehicleJourneys));
             }
-            logger.debug("Processes NSB PtSituationElement ({}) - with {} affected stops", ptSituationElement.getSituationNumber().getValue(), stopsToNotify.size());
+            logger.debug("Processes PtSituationElement ({}) - with {} affected stops", getStringValue(ptSituationElement.getSituationNumber()), stopsToNotify.size());
             for (String ref : stopsToNotify) {
                 subscriptionsToNotify.addAll(subscriptionManager.getSubscriptionsForStopPoint(ref));
             }
@@ -154,7 +160,7 @@ public class SXSubscriptionProcessor implements Processor {
             List<AffectedStopPointStructure> affectedStopPoints = affectsStopPoints.getAffectedStopPoints();
             for (AffectedStopPointStructure affectedStopPoint : affectedStopPoints) {
                 StopPointRef stopPointRef = affectedStopPoint.getStopPointRef();
-                addStop(stopsToNotify, stopPointRef != null ? stopPointRef.getValue() : null);
+                addStop(stopsToNotify, getStringValue(stopPointRef));
             }
         }
 
@@ -163,7 +169,7 @@ public class SXSubscriptionProcessor implements Processor {
             List<AffectedStopPlaceStructure> affectedStopPlaces = stopPlaces.getAffectedStopPlaces();
             for (AffectedStopPlaceStructure affectedStopPlace : affectedStopPlaces) {
                 StopPlaceRef stopPlaceRef = affectedStopPlace.getStopPlaceRef();
-                addStop(stopsToNotify, stopPlaceRef != null ? stopPlaceRef.getValue() : null);
+                addStop(stopsToNotify, getStringValue(stopPlaceRef));
             }
         }
 
@@ -185,11 +191,11 @@ public class SXSubscriptionProcessor implements Processor {
                     if (affectedStopPointsAndLinkProjectionToNextStopPoint instanceof AffectedStopPointStructure) {
                         AffectedStopPointStructure affectedStopPoint = (AffectedStopPointStructure) affectedStopPointsAndLinkProjectionToNextStopPoint;
                         StopPointRef stopPointRef = affectedStopPoint.getStopPointRef();
-                        addStop(orderedListOfStops, stopPointRef != null ? stopPointRef.getValue() : null);
+                        addStop(orderedListOfStops, getStringValue(stopPointRef));
                     }
                 }
                 boolean hasCompleteRoute = !Boolean.TRUE.equals(stopPoints.isAffectedOnly());
-                String lineRef = affectedVehicleJourney.getLineRef() == null ? null : affectedVehicleJourney.getLineRef().getValue();
+                String lineRef = getStringValue(affectedVehicleJourney.getLineRef());
                 String vehicleJourneyRef = null;
 
                 List<VehicleJourneyRef> vehicleJourneyReves = affectedVehicleJourney.getVehicleJourneyReves();
@@ -198,7 +204,7 @@ public class SXSubscriptionProcessor implements Processor {
                 } else if (vehicleJourneyReves.size() > 1) {
                     logger.warn("More than one ({}) vehicleJourneyRef in AffectedVehicleJourneyStructure - 'norsk siri profil' only allows one", vehicleJourneyReves.size());
                 } else {
-                    vehicleJourneyRef = vehicleJourneyReves.get(0).getValue();
+                    vehicleJourneyRef = getStringValue(vehicleJourneyReves.get(0));
                     if (StringUtils.isBlank(vehicleJourneyRef)) {
                         logger.warn("Has a blank vehicleJourneyRef - can't look it up");
                     } else if (!hasCompleteRoute || lineRef == null) {

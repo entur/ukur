@@ -22,6 +22,7 @@ import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.service.QuayAndStopPlaceMappingService;
 import org.entur.ukur.xml.SiriMarshaller;
+import org.entur.ukur.xml.SiriObjectHelper;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +42,8 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 
 import static org.entur.ukur.service.MetricsService.GAUGE_PUSH_QUEUE;
+import static org.entur.ukur.xml.SiriObjectHelper.getBigIntegerValue;
+import static org.entur.ukur.xml.SiriObjectHelper.getStringValue;
 
 @Service
 public class SubscriptionManager {
@@ -131,7 +134,7 @@ public class SubscriptionManager {
                 Iterator<EstimatedCall> iterator = clone.getEstimatedCalls().getEstimatedCalls().iterator();
                 while (iterator.hasNext()) {
                     EstimatedCall call = iterator.next();
-                    String ref = call.getStopPointRef() == null ? "" : call.getStopPointRef().getValue();
+                    String ref = getStringValue(call.getStopPointRef());
                     if (!subscribedStops.contains(ref)) {
                         iterator.remove();
                     }
@@ -142,7 +145,7 @@ public class SubscriptionManager {
                 Iterator<RecordedCall> iterator = clone.getRecordedCalls().getRecordedCalls().iterator();
                 while (iterator.hasNext()) {
                     RecordedCall call = iterator.next();
-                    String ref = call.getStopPointRef() == null ? "" : call.getStopPointRef().getValue();
+                    String ref = getStringValue(call.getStopPointRef());
                     if (!subscribedStops.contains(ref)) {
                         iterator.remove();
                     }
@@ -181,7 +184,7 @@ public class SubscriptionManager {
                         Iterator<AffectedStopPlaceStructure> iterator = stopPlaces.getAffectedStopPlaces().iterator();
                         while (iterator.hasNext()) {
                             AffectedStopPlaceStructure stop = iterator.next();
-                            String ref = stop.getStopPlaceRef() == null ? "" : stop.getStopPlaceRef().getValue();
+                            String ref = getStringValue(stop.getStopPlaceRef());
                             if (!subscribedStops.contains(ref)) {
                                 iterator.remove();
                             }
@@ -212,7 +215,7 @@ public class SubscriptionManager {
                                             Serializable stop = stops.next();
                                             if (stop instanceof AffectedStopPointStructure) {
                                                 AffectedStopPointStructure affectedStopPoint = (AffectedStopPointStructure) stop;
-                                                String ref = affectedStopPoint.getStopPointRef() == null ? "" : affectedStopPoint.getStopPointRef().getValue();
+                                                String ref = getStringValue(affectedStopPoint.getStopPointRef());
                                                 if (!subscribedStops.contains(ref)) {
                                                     stops.remove();
                                                 }
@@ -236,8 +239,8 @@ public class SubscriptionManager {
             if (withAffects(clone)) {
                 pushMessage(subscription, clone);
             } else {
-                BigInteger version = clone.getVersion() == null ? null : clone.getVersion().getValue();
-                String situationNumber = clone.getSituationNumber() == null ? null : clone.getSituationNumber().getValue();
+                BigInteger version = SiriObjectHelper.getBigIntegerValue(clone.getVersion());
+                String situationNumber = getStringValue(clone.getSituationNumber());
                 logger.info("do not push PtSituationElement with situationnumber {} and version {} to subscription with id {} as all affects are removed", situationNumber, version, subscription.getId());
             }
         }
@@ -358,8 +361,9 @@ public class SubscriptionManager {
     private String calculateUniqueKey(Subscription subscription, Object siriElement) {
         if (siriElement instanceof PtSituationElement) {
             PtSituationElement situationElement = (PtSituationElement) siriElement;
-            String situationNumber = situationElement.getSituationNumber() == null ? UUID.randomUUID().toString() : situationElement.getSituationNumber().getValue();
-            int version = situationElement.getVersion() == null ? 0 : situationElement.getVersion().getValue().intValue();
+            String sitNumber = getStringValue(situationElement.getSituationNumber());
+            String situationNumber = sitNumber == null ? UUID.randomUUID().toString() : sitNumber;
+            BigInteger version = getBigIntegerValue(situationElement.getVersion());
             return subscription.getId()+"_"+situationNumber+"_"+version;
         }
         String content;

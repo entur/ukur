@@ -23,7 +23,6 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import uk.org.siri.siri20.EstimatedVehicleJourney;
-import uk.org.siri.siri20.LineRef;
 import uk.org.siri.siri20.PtSituationElement;
 
 import javax.xml.bind.JAXBException;
@@ -32,6 +31,8 @@ import java.io.FileWriter;
 import java.io.IOException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
+
+import static org.entur.ukur.xml.SiriObjectHelper.getStringValue;
 
 @Service
 public class FileStorageService {
@@ -76,18 +77,17 @@ public class FileStorageService {
     }
 
     private String getPushMessageFilename(EstimatedVehicleJourney estimatedVehicleJourney) {
-        String vehicleJourney = estimatedVehicleJourney.getVehicleRef() == null ? "null" : estimatedVehicleJourney.getVehicleRef().getValue();
-        LineRef lineRef = estimatedVehicleJourney.getLineRef();
-        String line = "null";
-        if (lineRef != null && StringUtils.containsIgnoreCase(lineRef.getValue(), ":Line:")) {
-            line = StringUtils.substringAfterLast(lineRef.getValue(), ":");
+        String vehicleJourney = getStringValue(estimatedVehicleJourney.getVehicleRef());
+        String line = getStringValue(estimatedVehicleJourney.getLineRef());
+        if (StringUtils.containsIgnoreCase(line, ":Line:")) {
+            line = StringUtils.substringAfterLast(line, ":");
         }
         String filename = LocalDateTime.now().format(formatter) + "_ET_" + line + "_" + vehicleJourney + ".xml";
         return filename.replaceAll(" ", "");
     }
 
     private String getPushMessageFilename(PtSituationElement ptSituationElement) {
-        String situationNumber = ptSituationElement.getSituationNumber() == null ? "null" : ptSituationElement.getSituationNumber().getValue();
+        String situationNumber = getStringValue(ptSituationElement.getSituationNumber());
         return LocalDateTime.now().format(formatter) + "_SX_" + situationNumber + ".xml";
     }
 

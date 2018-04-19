@@ -28,6 +28,8 @@ import java.util.ArrayList;
 import java.util.Collection;
 import java.util.Collections;
 
+import static org.entur.ukur.xml.SiriObjectHelper.getStringValue;
+
 @Service
 public class LiveRouteManager {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -47,13 +49,13 @@ public class LiveRouteManager {
             if (Boolean.TRUE.equals(journey.isIsCompleteStopSequence())) {
                 LiveJourney lj = new LiveJourney(journey, quayAndStopPlaceMappingService);
                 if (lj.getLastArrivalTime() == null) {
-                    logger.info("Got EstimatedVehicleJourney (VehicleRef={}) that we could not read LastArrivalTime from - skips it", journey.getVehicleRef().getValue());
+                    logger.info("Got EstimatedVehicleJourney (VehicleRef={}) that we could not read LastArrivalTime from - skips it", getStringValue(journey.getVehicleRef()));
                 } else {
                     dataStorageService.putCurrentJourney(lj);
                     logger.trace("Set journey with VehicleRef={}", lj.getVehicleRef());
                 }
             } else {
-                logger.warn("Got EstimatedVehicleJourney with incomplete StopSequence - skips it... (VehicleRef={})", journey.getVehicleRef().getValue());
+                logger.warn("Got EstimatedVehicleJourney with incomplete StopSequence - skips it... (VehicleRef={})", getStringValue(journey.getVehicleRef()));
             }
         }
     }
