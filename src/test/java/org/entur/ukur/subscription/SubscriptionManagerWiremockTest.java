@@ -64,7 +64,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         siriMarshaller = new SiriMarshaller();
         IMap<String, LiveJourney> liveJourneyIMap = new TestHazelcastInstanceFactory().newHazelcastInstance().getMap("journeys");
         liveJourneyIMap.clear();
-        MetricsService metricsService = new MetricsService(null, 0);
+        MetricsService metricsService = new MetricsService();
         dataStorageService = new DataStorageService(datastore, liveJourneyIMap);
         subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsService, alreadySentCache, mock(QuayAndStopPlaceMappingService.class));
     }

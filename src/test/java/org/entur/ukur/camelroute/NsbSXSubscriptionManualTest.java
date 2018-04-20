@@ -76,7 +76,7 @@ public class NsbSXSubscriptionManualTest extends DatastoreTest {
     public void setUp() throws Exception {
         super.setUp();
         IMap<String, LiveJourney> liveJourneyIMap = new TestHazelcastInstanceFactory().newHazelcastInstance().getMap("journeys");
-        MetricsService metricsService = new MetricsService(null, 0);
+        MetricsService metricsService = new MetricsService();
         siriMarshaller = new SiriMarshaller();
         DataStorageService dataStorageService = new DataStorageService(datastore,liveJourneyIMap);
         quayAndStopPlaceMappingService = new QuayAndStopPlaceMappingService(metricsService);

@@ -134,7 +134,7 @@ public class ETSubscriptionProcessorTest {
 
         ETSubscriptionProcessor processor = new ETSubscriptionProcessor(subscriptionManagerMock,
                 new SiriMarshaller(), mock(LiveRouteManager.class), mock(FileStorageService.class),
-                new MetricsService(null, 0), mock(QuayAndStopPlaceMappingService.class));
+                new MetricsService(), mock(QuayAndStopPlaceMappingService.class));
 
         ArgumentCaptor<HashSet> subscriptionsOnStopsCaptor= ArgumentCaptor.forClass(HashSet.class);
         ArgumentCaptor<HashSet> subscriptionsOnLineOrVehicleJourneyCaptor= ArgumentCaptor.forClass(HashSet.class);
@@ -160,7 +160,7 @@ public class ETSubscriptionProcessorTest {
         Subscription q1 = createSubscription("1", "2", true);
         Subscription s2 = createSubscription("2", "1", false);
 
-        MetricsService metricsService = new MetricsService(null, -1);
+        MetricsService metricsService = new MetricsService();
         SiriMarshaller siriMarshaller = new SiriMarshaller();
         DataStorageService dataStorageMock = mock(DataStorageService.class);
         HashSet<Subscription> subscriptionsNotified = new HashSet<>();

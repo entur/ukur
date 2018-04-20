@@ -38,7 +38,7 @@ public class SubscriptionManagerTest {
         DataStorageService storageMock = mock(DataStorageService.class);
         QuayAndStopPlaceMappingService mappingMock = mock(QuayAndStopPlaceMappingService.class);
         SubscriptionManager subscriptionManager = new SubscriptionManager(storageMock,
-                new SiriMarshaller(), new MetricsService(null, -1), new HashMap<>(), mappingMock);
+                new SiriMarshaller(), new MetricsService(), new HashMap<>(), mappingMock);
 
         when(mappingMock.mapQuayToStopPlace("NSR:Quay:1")).thenReturn("NSR:StopPlace:1");
         Subscription s1 = new Subscription();

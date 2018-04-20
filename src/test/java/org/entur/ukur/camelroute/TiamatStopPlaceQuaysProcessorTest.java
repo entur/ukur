@@ -70,7 +70,7 @@ public class TiamatStopPlaceQuaysProcessorTest {
                 "}";
 
         InputStream stream = IOUtils.toInputStream(json, "UTF-8");
-        QuayAndStopPlaceMappingService quayAndStopPlaceMappingService = new QuayAndStopPlaceMappingService(new MetricsService(null, 0));
+        QuayAndStopPlaceMappingService quayAndStopPlaceMappingService = new QuayAndStopPlaceMappingService(new MetricsService());
         TiamatStopPlaceQuaysProcessor processor = new TiamatStopPlaceQuaysProcessor(quayAndStopPlaceMappingService);
         Exchange exchangeMock = createExchangeMock(stream);
 
@@ -98,7 +98,7 @@ public class TiamatStopPlaceQuaysProcessorTest {
     @Test
     @Ignore
     public void verifyActualTiamatData() throws IOException {
-        QuayAndStopPlaceMappingService quayAndStopPlaceMappingService = new QuayAndStopPlaceMappingService(new MetricsService(null, 0));
+        QuayAndStopPlaceMappingService quayAndStopPlaceMappingService = new QuayAndStopPlaceMappingService(new MetricsService());
         TiamatStopPlaceQuaysProcessor processor = new TiamatStopPlaceQuaysProcessor(quayAndStopPlaceMappingService);
         Exchange exchangeMock = createExchangeMock(new FileInputStream("/home/jon/Documents/Entur/StopPlacesAndQuays.json"));
 

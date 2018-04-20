@@ -57,12 +57,27 @@ public class MetricsService {
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final MetricRegistry metrics = new MetricRegistry();
     private final boolean graphiteEnabled;
+    private final String nodename;
     private GraphiteReporter reporter;
     private Graphite graphite;
 
+    public MetricsService() {
+        nodename = "";
+        graphiteEnabled = false;
+        logger.warn("Test-only constructor called");
+    }
+
     @Autowired
     public MetricsService(@Value("${ukur.graphite.host:}") String graphiteHost,
-                          @Value("${ukur.graphite.port:2003}") int graphitePort) {
+                          @Value("${ukur.graphite.port:2003}") int graphitePort,
+                          ExtendedHazelcastService hazelcastService) {
+
+        if (hazelcastService != null) {
+            nodename = hazelcastService.getMyNodeName() + ".";
+        } else {
+            nodename = "local.";
+        }
+        logger.debug("Uses node number {}", nodename);
 
         if (Strings.isNullOrEmpty(graphiteHost) ) {
             graphiteEnabled = false;
@@ -70,7 +85,7 @@ public class MetricsService {
         } else {
             graphiteEnabled = true;
             String prefix = "app.ukur";
-            logger.info("Setting up metrics reporter with graphite server: host={}, port={}, prefix={}", graphiteHost, graphitePort, prefix);
+            logger.info("Setting up metrics reporter with Graphite server: host={}, port={}, prefix={}", graphiteHost, graphitePort, prefix);
             graphite = new Graphite(new InetSocketAddress(graphiteHost, graphitePort));
             reporter = GraphiteReporter.forRegistry(metrics)
                     .prefixedWith(prefix)
@@ -78,7 +93,7 @@ public class MetricsService {
                     .convertDurationsTo(TimeUnit.MILLISECONDS)
                     .filter(MetricFilter.ALL)
                     //each of the metric attributes below results in a 3.1mb database per metric in graphite - disables the one we don't need:
-                    .disabledMetricAttributes(Sets.newHashSet(STDDEV, P50, P75, P95, P98, P99, P999, M5_RATE, M15_RATE, MEAN_RATE))
+                    .disabledMetricAttributes(Sets.newHashSet(MAX, MEAN, MIN, STDDEV, P50, P75, P95, P98, P99, P999, M1_RATE, M5_RATE, M15_RATE))
                     .build(graphite);
         }
     }
@@ -112,22 +127,25 @@ public class MetricsService {
 
     @SuppressWarnings("unused") //Used directly from Camel route
     public void registerReceivedSubscribedMessage(String type) {
-        String counterName = "message.subs-received." + type;
+        String counterName = nodename +"message.subs-received." + type;
         metrics.meter(counterName).mark();
     }
 
     @SuppressWarnings("unused") //Used directly from Camel route
     public void registerSentMessage(String messagetype) {
-        String counterName = "message.sent." + messagetype;
+        String counterName = nodename +"message.sent." + messagetype;
         metrics.meter(counterName).mark();
     }
 
     public void registerReceivedMessage(Class messageClass) {
-        String counterName = "message.received." + messageClass.getSimpleName();
+        String counterName = nodename +"message.received." + messageClass.getSimpleName();
         metrics.meter(counterName).mark();
     }
 
     public Timer getTimer(String name) {
+        if (!name.startsWith(nodename)) {
+            name = nodename + name;
+        }
         return metrics.timer(name, () -> new Timer(new SlidingTimeWindowArrayReservoir(1, TimeUnit.MINUTES)));
     }
 
@@ -147,12 +165,16 @@ public class MetricsService {
         return metrics.getMeters();
     }
 
-    public Meter getMeter(String meterName) {
-        return metrics.meter(meterName);
+    public Meter getMeter(String name) {
+        if (!name.startsWith(nodename)) {
+            name = nodename + name;
+        }
+        return metrics.meter(name);
     }
 
     public void reset() {
         logger.warn("Resets all metrics!");
         metrics.removeMatching(MetricFilter.ALL);
     }
+
 }
