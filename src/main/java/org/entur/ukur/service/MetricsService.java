@@ -57,13 +57,11 @@ public class MetricsService {
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final MetricRegistry metrics = new MetricRegistry();
     private final boolean graphiteEnabled;
-    private final String nodename;
     private GraphiteReporter reporter;
     private Graphite graphite;
 
     public MetricsService() {
-        nodename = "";
-        graphiteEnabled = false;
+        this(null, -1, null);
         logger.warn("Test-only constructor called");
     }
 
@@ -72,19 +70,20 @@ public class MetricsService {
                           @Value("${ukur.graphite.port:2003}") int graphitePort,
                           ExtendedHazelcastService hazelcastService) {
 
+        String nodename;
         if (hazelcastService != null) {
-            nodename = hazelcastService.getMyNodeName() + ".";
+            nodename = hazelcastService.getMyNodeName();
         } else {
-            nodename = "local.";
+            nodename = "local";
         }
-        logger.debug("Uses node number {}", nodename);
+        logger.debug("Uses node name {}", nodename);
 
         if (Strings.isNullOrEmpty(graphiteHost) ) {
             graphiteEnabled = false;
             logger.info("Setting up local metrics service");
         } else {
             graphiteEnabled = true;
-            String prefix = "app.ukur";
+            String prefix = "app.ukur." + nodename;
             logger.info("Setting up metrics reporter with Graphite server: host={}, port={}, prefix={}", graphiteHost, graphitePort, prefix);
             graphite = new Graphite(new InetSocketAddress(graphiteHost, graphitePort));
             reporter = GraphiteReporter.forRegistry(metrics)
@@ -127,25 +126,22 @@ public class MetricsService {
 
     @SuppressWarnings("unused") //Used directly from Camel route
     public void registerReceivedSubscribedMessage(String type) {
-        String counterName = nodename +"message.subs-received." + type;
+        String counterName = "message.subs-received." + type;
         metrics.meter(counterName).mark();
     }
 
     @SuppressWarnings("unused") //Used directly from Camel route
     public void registerSentMessage(String messagetype) {
-        String counterName = nodename +"message.sent." + messagetype;
+        String counterName = "message.sent." + messagetype;
         metrics.meter(counterName).mark();
     }
 
     public void registerReceivedMessage(Class messageClass) {
-        String counterName = nodename +"message.received." + messageClass.getSimpleName();
+        String counterName = "message.received." + messageClass.getSimpleName();
         metrics.meter(counterName).mark();
     }
 
     public Timer getTimer(String name) {
-        if (!name.startsWith(nodename)) {
-            name = nodename + name;
-        }
         return metrics.timer(name, () -> new Timer(new SlidingTimeWindowArrayReservoir(1, TimeUnit.MINUTES)));
     }
 
@@ -166,9 +162,6 @@ public class MetricsService {
     }
 
     public Meter getMeter(String name) {
-        if (!name.startsWith(nodename)) {
-            name = nodename + name;
-        }
         return metrics.meter(name);
     }
 
@@ -176,5 +169,4 @@ public class MetricsService {
         logger.warn("Resets all metrics!");
         metrics.removeMatching(MetricFilter.ALL);
     }
-
 }
