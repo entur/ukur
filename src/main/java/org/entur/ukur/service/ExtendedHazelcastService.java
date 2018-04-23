@@ -16,7 +16,10 @@
 package org.entur.ukur.service;
 
 import com.hazelcast.config.MapConfig;
-import com.hazelcast.core.*;
+import com.hazelcast.core.Cluster;
+import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.core.IMap;
+import com.hazelcast.core.Member;
 import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.setup.UkurConfiguration;
 import org.rutebanken.hazelcasthelper.service.HazelCastService;
@@ -27,10 +30,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.hazelcast.core.LifecycleEvent.LifecycleState.SHUTTING_DOWN;
@@ -39,6 +39,7 @@ import static com.hazelcast.core.LifecycleEvent.LifecycleState.SHUTTING_DOWN;
 public class ExtendedHazelcastService extends HazelCastService {
 
     private static final String NODE_NAME_SETTER_LOCK = "nodeNameSetter";
+    static final String NODENUMBER_PREFIX = "nodenumber.";
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     public ExtendedHazelcastService(@Autowired KubernetesService kubernetesService, @Autowired UkurConfiguration cfg) {
@@ -85,66 +86,72 @@ public class ExtendedHazelcastService extends HazelCastService {
     public String getMyNodeName() {
         Cluster cluster = hazelcast.getCluster();
         if (cluster != null) {
-            Member localMember = cluster.getLocalMember();
-            if (localMember == null || localMember.getAddress() == null) {
-                logger.warn("Does not have localMember's address - returns node0");
-                return "node0";
-            }
-            String localhost = localMember.getAddress().getHost();
             IMap<String, String> sharedProperties = sharedProperties();
-            String localNameKey = getNodeNameKey(localhost);
-            String localNodeNumber = sharedProperties.get(localNameKey);
-            if (localNodeNumber != null) {
-                logger.debug("localMember already has a nodeNumber: {}", localNodeNumber);
-                return localNodeNumber;
-            } else {
-                hazelcast.getLifecycleService().addLifecycleListener(event -> {
-                    if (SHUTTING_DOWN.equals(event.getState())) {
-                        sharedProperties().remove(localNameKey);
-                        logger.info("Removed value for nodeNameKey = {} from sharedProperties", localNameKey);
-                    }
-                });
-            }
+            //collect these before we continue to avoid us accidentally remove the key of a node starting:
+            HashSet<String> nodenameKeys = sharedProperties.keySet().stream().filter(s -> s.startsWith(NODENUMBER_PREFIX)).collect(Collectors.toCollection(HashSet::new));
+            try {
+                Member localMember = cluster.getLocalMember();
+                if (localMember == null || localMember.getAddress() == null) {
+                    logger.warn("Does not have localMember's address - returns node0");
+                    return "node0";
+                }
+                String localhost = localMember.getAddress().getHost();
 
-            ArrayList<String> takenNodeNumbers = getTakenNodeNames(cluster, sharedProperties);
-            for (int i = 0; i < 1000; i++) {
-                String nameToCheck = "node" + i;
-                if (!takenNodeNumbers.contains(nameToCheck)) {
-                    logger.debug("Attempts to allocate node number '{}'", nameToCheck);
-                    if (sharedProperties.tryLock(NODE_NAME_SETTER_LOCK)) {
-                        try {
-                            sharedProperties.put(localNameKey, nameToCheck);
-                            List<String> sameNames = getTakenNodeNames(cluster, sharedProperties).stream().filter(s -> s.equals(nameToCheck)).collect(Collectors.toList());
-                            if (sameNames.size() > 1) {
-                                logger.warn("Some other node has already taken the name '{}' - this node finds a new name", nameToCheck);
-                                sharedProperties.remove(localNameKey);
-                            } else {
-                                logger.info("Returns node name {}", nameToCheck);
-                                return nameToCheck;
-                            }
-                        } finally {
-                            sharedProperties.unlock(NODE_NAME_SETTER_LOCK);
+                String localNameKey = getNodeNameKey(localhost);
+                String localNodeNumber = sharedProperties.get(localNameKey);
+                if (localNodeNumber != null) {
+                    logger.debug("localMember already has a nodeNumber: {}", localNodeNumber);
+                    return localNodeNumber;
+                } else {
+                    hazelcast.getLifecycleService().addLifecycleListener(event -> {
+                        if (SHUTTING_DOWN.equals(event.getState())) {
+                            sharedProperties().remove(localNameKey);
+                            logger.info("Hazelcast LifecycleListener: Removed value for nodeNameKey = {} from sharedProperties", localNameKey);
                         }
-                    } else {
-                        logger.warn("Did not get lock - runs method again");
-                        return getMyNodeName();
+                    });
+                }
+
+                ArrayList<String> takenNodeNumbers = getTakenNodeNames(cluster, sharedProperties);
+                for (int i = 0; i < 1000; i++) {
+                    String nameToCheck = "node" + i;
+                    if (!takenNodeNumbers.contains(nameToCheck)) {
+                        logger.debug("Attempts to allocate node number '{}'", nameToCheck);
+                        if (sharedProperties.tryLock(NODE_NAME_SETTER_LOCK)) {
+                            try {
+                                sharedProperties.put(localNameKey, nameToCheck);
+                                List<String> sameNames = getTakenNodeNames(cluster, sharedProperties).stream().filter(s -> s.equals(nameToCheck)).collect(Collectors.toList());
+                                if (sameNames.size() > 1) {
+                                    logger.warn("Some other node has already taken the name '{}' - this node finds a new name", nameToCheck);
+                                    sharedProperties.remove(localNameKey);
+                                } else {
+                                    logger.info("Returns node name {}", nameToCheck);
+                                    return nameToCheck;
+                                }
+                            } finally {
+                                sharedProperties.unlock(NODE_NAME_SETTER_LOCK);
+                            }
+                        } else {
+                            logger.warn("Did not get lock - runs method again");
+                            return getMyNodeName();
+                        }
                     }
                 }
+            } finally {
+                cleanOldNodeNames(cluster, nodenameKeys, sharedProperties);
             }
 
-            //TODO: add some mechanism to clean up old node names (the LifecycleListener is not guaranteed to run/succeed)
         }
         logger.debug("Not member of any hazelcast cluster - returns node0");
         return "node0";
     }
 
     private String getNodeNameKey(String host) {
-        return "nodenumber." + host;
+        return NODENUMBER_PREFIX + host;
     }
 
     private ArrayList<String> getTakenNodeNames(Cluster cluster, IMap<String, String> sharedProperties) {
         ArrayList<String> taken = new ArrayList<>();
-        Set<Member> members = cluster.getMembers(); //ordered by age - oldest first
+        Set<Member> members = cluster.getMembers();
         Member localMember = cluster.getLocalMember();
         if (members != null) {
             for (Member member : members) {
@@ -161,5 +168,24 @@ public class ExtendedHazelcastService extends HazelCastService {
             }
         }
         return taken;
+    }
+
+    private void cleanOldNodeNames(Cluster cluster, Set<String> nodenameKeys, IMap<String, String> sharedProperties) {
+        Set<Member> members = cluster.getMembers();
+        if (members != null) {
+            for (Member member : members) {
+                String host = member.getAddress().getHost();
+                nodenameKeys.remove(getNodeNameKey(host));
+            }
+            if (nodenameKeys.isEmpty()) {
+                logger.debug("No unused node names in shared properties");
+            } else {
+                logger.info("There are {} unused node names in shared properties - removes these keys: {}", nodenameKeys.size(), nodenameKeys);
+                for (String key : nodenameKeys) {
+                    sharedProperties.remove(key);
+                }
+            }
+        }
+
     }
 }

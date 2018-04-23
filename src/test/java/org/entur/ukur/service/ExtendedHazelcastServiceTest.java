@@ -19,6 +19,7 @@ import org.entur.ukur.setup.UkurConfiguration;
 import org.junit.Test;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNull;
 import static org.mockito.Mockito.mock;
 
 public class ExtendedHazelcastServiceTest {
@@ -30,8 +31,14 @@ public class ExtendedHazelcastServiceTest {
         ExtendedHazelcastService service = new ExtendedHazelcastService(new ExtendedKubernetesService(cfg), cfg);
         service.init();
 
+        service.sharedProperties().put(ExtendedHazelcastService.NODENUMBER_PREFIX+"somenode", "node0");
+        service.sharedProperties().put(ExtendedHazelcastService.NODENUMBER_PREFIX+"someothernode", "node1");
+
         String myNodeName = service.getMyNodeName();
         assertEquals("node0", myNodeName);
+
+        assertNull(service.sharedProperties().get(ExtendedHazelcastService.NODENUMBER_PREFIX+"somenode"));
+        assertNull(service.sharedProperties().get(ExtendedHazelcastService.NODENUMBER_PREFIX+"someothernode"));
     }
 
 }
