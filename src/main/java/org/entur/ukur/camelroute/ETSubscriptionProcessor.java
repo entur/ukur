@@ -110,7 +110,7 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
             liveRouteManager.updateJourney(estimatedVehicleJourney);
             List<EstimatedCall> deviations = getEstimatedDelaysAndCancellations(estimatedVehicleJourney.getEstimatedCalls());
             if (deviations.isEmpty()) {
-                logger.debug("Processes EstimatedVehicleJourney (LineRef={}, DatedVehicleJourneyRef={}) - no estimated delays or cancellations", getStringValue(estimatedVehicleJourney.getLineRef()), getStringValue(estimatedVehicleJourney.getDatedVehicleJourneyRef()));
+                logger.trace("Processes EstimatedVehicleJourney (LineRef={}, DatedVehicleJourneyRef={}) - no estimated delays or cancellations", getStringValue(estimatedVehicleJourney.getLineRef()), getStringValue(estimatedVehicleJourney.getDatedVehicleJourneyRef()));
             } else {
                 logger.debug("Processes EstimatedVehicleJourney (LineRef={}, DatedVehicleJourneyRef={}) - with {} estimated delays", getStringValue(estimatedVehicleJourney.getLineRef()), getStringValue(estimatedVehicleJourney.getDatedVehicleJourneyRef()), deviations.size());
                 List<EstimatedCallAndSubscriptions> affectedSubscriptions = findAffectedSubscriptions(deviations, estimatedVehicleJourney);
