@@ -110,9 +110,9 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
             liveRouteManager.updateJourney(estimatedVehicleJourney);
             List<EstimatedCall> deviations = getEstimatedDelaysAndCancellations(estimatedVehicleJourney.getEstimatedCalls());
             if (deviations.isEmpty()) {
-                logger.trace("Processes EstimatedVehicleJourney ({}) - no estimated delays or cancellations", getStringValue(estimatedVehicleJourney.getDatedVehicleJourneyRef()));
+                logger.debug("Processes EstimatedVehicleJourney (LineRef={}, DatedVehicleJourneyRef={}) - no estimated delays or cancellations", getStringValue(estimatedVehicleJourney.getLineRef()), getStringValue(estimatedVehicleJourney.getDatedVehicleJourneyRef()));
             } else {
-                logger.debug("Processes EstimatedVehicleJourney ({}) - with {} estimated delays", getStringValue(estimatedVehicleJourney.getDatedVehicleJourneyRef()), deviations.size());
+                logger.debug("Processes EstimatedVehicleJourney (LineRef={}, DatedVehicleJourneyRef={}) - with {} estimated delays", getStringValue(estimatedVehicleJourney.getLineRef()), getStringValue(estimatedVehicleJourney.getDatedVehicleJourneyRef()), deviations.size());
                 List<EstimatedCallAndSubscriptions> affectedSubscriptions = findAffectedSubscriptions(deviations, estimatedVehicleJourney);
                 String lineRef = getStringValue(estimatedVehicleJourney.getLineRef());
                 String vehicleRef = getStringValue(estimatedVehicleJourney.getVehicleRef());
