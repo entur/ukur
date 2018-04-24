@@ -5,7 +5,8 @@ Ukur detects and enable subscriptions for deviations in traffic based on real ti
 ## Subscriptions
 To subscribe, **post** subscription data to https://{BASE_URL}/subscription as `application/json`. 
 
-The subscription must contain a logical name, a public reachable push address and a list of to and from stops:
+The subscription must contain a logical name, a public reachable push address and what is subscribed upon: from and 
+to stops, lines and/or vehicles. 
 ```json
 {
    "name" : "Test subscription",
@@ -18,7 +19,7 @@ The subscription must contain a logical name, a public reachable push address an
  ```   
 After successfull creation of the new subscription, Ukur responds with the same object with
 the id-attribute set. This id can be used to remove the subscription by issuing a http **delete** 
-to https://{BASE_URL}/subscription/{subscriptionId}.
+to https://{BASE_URL}/subscription/{subscriptionId}. Update is not supported: delete and add instead.
 
 StopPoints are fully qualified national ids on stop places and quays, use 
 [Stoppestedsregisteret](https://stoppested.entur.org) to look them up. The SIRI

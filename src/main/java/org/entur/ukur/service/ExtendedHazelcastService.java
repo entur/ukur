@@ -92,16 +92,16 @@ public class ExtendedHazelcastService extends HazelCastService {
             try {
                 Member localMember = cluster.getLocalMember();
                 if (localMember == null || localMember.getAddress() == null) {
-                    logger.warn("Does not have localMember's address - returns node0");
+                    logger.warn("Does not have localMember's address - returns hardcoded node0");
                     return "node0";
                 }
                 String localhost = localMember.getAddress().getHost();
 
                 String localNameKey = getNodeNameKey(localhost);
-                String localNodeNumber = sharedProperties.get(localNameKey);
-                if (localNodeNumber != null) {
-                    logger.debug("localMember already has a nodeNumber: {}", localNodeNumber);
-                    return localNodeNumber;
+                String localNodeName = sharedProperties.get(localNameKey);
+                if (localNodeName != null) {
+                    logger.debug("localMember already has a node name: {}", localNodeName);
+                    return localNodeName;
                 } else {
                     hazelcast.getLifecycleService().addLifecycleListener(event -> {
                         if (SHUTTING_DOWN.equals(event.getState())) {
@@ -111,10 +111,10 @@ public class ExtendedHazelcastService extends HazelCastService {
                     });
                 }
 
-                ArrayList<String> takenNodeNumbers = getTakenNodeNames(cluster, sharedProperties);
+                ArrayList<String> takenNodeNames = getTakenNodeNames(cluster, sharedProperties);
                 for (int i = 0; i < 1000; i++) {
                     String nameToCheck = "node" + i;
-                    if (!takenNodeNumbers.contains(nameToCheck)) {
+                    if (!takenNodeNames.contains(nameToCheck)) {
                         logger.debug("Attempts to allocate node number '{}'", nameToCheck);
                         if (sharedProperties.tryLock(NODE_NAME_SETTER_LOCK)) {
                             try {
@@ -141,7 +141,7 @@ public class ExtendedHazelcastService extends HazelCastService {
             }
 
         }
-        logger.debug("Not member of any hazelcast cluster - returns node0");
+        logger.warn("Not member of any hazelcast cluster - returns hardcoded node0");
         return "node0";
     }
 
