@@ -99,26 +99,36 @@ public class SXSubscriptionProcessor implements Processor {
     private boolean processPtSituationElement(PtSituationElement ptSituationElement) {
         AffectsScopeStructure affects = ptSituationElement.getAffects();
         if (affects == null) {
-            logger.info("Got PtSituationElement without any effects - nothing to notify");
+            logger.debug("Got PtSituationElement without any effects - nothing to notify");
             return false;
         }
 
         if (notValidNext24Hours(ptSituationElement.getValidityPeriods())) {
-            logger.info("Skips message that is not valid the next 24 hours (will be received again later) - situationNumber={}", getStringValue(ptSituationElement.getSituationNumber()));
+            logger.debug("Skips message that is not valid the next 24 hours (will be received again later) - situationNumber={}", getStringValue(ptSituationElement.getSituationNumber()));
             return false;
         }
 
         com.codahale.metrics.Timer timer = metricsService.getTimer(MetricsService.TIMER_SX_PROCESS);
         Timer.Context time = timer.time();
         try {
-            HashSet<String> stopsToNotify = findAffectedStopPointRefs(affects);
             AffectsScopeStructure.VehicleJourneys vehicleJourneys = affects.getVehicleJourneys();
             HashSet<Subscription> subscriptionsToNotify = new HashSet<>();
-            if (vehicleJourneys != null) {
-                subscriptionsToNotify.addAll(findAffectedSubscriptions(vehicleJourneys));
+            int numberAffectedVehicleJourneys = 0;
+            if (vehicleJourneys != null && vehicleJourneys.getAffectedVehicleJourneies() != null) {
+                List<AffectedVehicleJourneyStructure> affectedVehicleJourneies = vehicleJourneys.getAffectedVehicleJourneies();
+                numberAffectedVehicleJourneys = affectedVehicleJourneies.size();
+                HashSet<Subscription> affectedVehicleJourneySubscriptions = findAffectedSubscriptions(affectedVehicleJourneies);
+                subscriptionsToNotify.addAll(affectedVehicleJourneySubscriptions);
             }
-            logger.debug("Processes PtSituationElement ({}) - with {} affected stops", getStringValue(ptSituationElement.getSituationNumber()), stopsToNotify.size());
-            for (String ref : stopsToNotify) {
+            HashSet<String> affectedLineRefs = findAffectedLineRefs(affects.getNetworks());
+            HashSet<String> affectedStopPlaceRefs = findAffectedStopPlaceRefs(affects.getStopPlaces());
+            logger.debug("Processes PtSituationElement ({}) - with {} StopPlaces, {} VehicleJourneys and {} LineRefs (networks)",
+                    getStringValue(ptSituationElement.getSituationNumber()), affectedStopPlaceRefs.size(), numberAffectedVehicleJourneys, affectedLineRefs.size());
+            for (String ref : affectedLineRefs) {
+                subscriptionsToNotify.addAll(subscriptionManager.getSubscriptionsForLineRef(ref));
+                affectedStopPlaceRefs.addAll(liveRouteManager.getStopsForLine(ref));
+            }
+            for (String ref : affectedStopPlaceRefs) {
                 subscriptionsToNotify.addAll(subscriptionManager.getSubscriptionsForStopPoint(ref));
             }
             logger.debug("There are {} subscriptions to notify", subscriptionsToNotify.size());
@@ -129,6 +139,24 @@ public class SXSubscriptionProcessor implements Processor {
             time.stop();
         }
         return true;
+    }
+
+    private HashSet<String> findAffectedLineRefs(AffectsScopeStructure.Networks networks) {
+        HashSet<String> affectedLineRefs = new HashSet<>();
+        if (networks != null) {
+            List<AffectsScopeStructure.Networks.AffectedNetwork> affectedNetworks = networks.getAffectedNetworks();
+            for (AffectsScopeStructure.Networks.AffectedNetwork network : affectedNetworks) {
+                List<AffectedLineStructure> affectedLines = network.getAffectedLines();
+                for (AffectedLineStructure affectedLine : affectedLines) {
+                    String lineRef = getStringValue(affectedLine.getLineRef());
+                    if (StringUtils.isNotBlank(lineRef)) {
+                        affectedLineRefs.add(lineRef);
+                        //TODO: It is legal to specify route as done for AffectedVehicleJourney: we should respect stopconditons the same (reusable) way
+                    }
+                }
+            }
+        }
+        return affectedLineRefs;
     }
 
     private boolean notValidNext24Hours(List<HalfOpenTimestampOutputRangeStructure> validityPeriods) {
@@ -148,23 +176,12 @@ public class SXSubscriptionProcessor implements Processor {
     }
 
     /**
-     *  Gå gjennom Affects|StopPoints og matche StopPointRef mot subscriptions
-     *  Gå gjennom Affects|StopPlacess og matche StopPlaceRef mot subscriptions <-- Litt usikker på denne, men tar med for nå
-	 *  Gå gjennom Affects|VehicleJourneys|AffectedVehicleJourney|Route|StopPoints|AffectedStopPoint og
+     * Gå gjennom Affects|StopPoints og matche StopPointRef mot subscriptions
+     * Gå gjennom Affects|StopPlacess og matche StopPlaceRef mot subscriptions <-- Litt usikker på denne, men tar med for nå
+     * Gå gjennom Affects|VehicleJourneys|AffectedVehicleJourney|Route|StopPoints|AffectedStopPoint og
      */
-    HashSet<String> findAffectedStopPointRefs(AffectsScopeStructure affects) {
+    HashSet<String> findAffectedStopPlaceRefs(AffectsScopeStructure.StopPlaces stopPlaces) {
         HashSet<String> stopsToNotify = new HashSet<>();
-
-        AffectsScopeStructure.StopPoints affectsStopPoints = affects.getStopPoints();
-        if (affectsStopPoints != null) {
-            List<AffectedStopPointStructure> affectedStopPoints = affectsStopPoints.getAffectedStopPoints();
-            for (AffectedStopPointStructure affectedStopPoint : affectedStopPoints) {
-                StopPointRef stopPointRef = affectedStopPoint.getStopPointRef();
-                addStop(stopsToNotify, getStringValue(stopPointRef));
-            }
-        }
-
-        AffectsScopeStructure.StopPlaces stopPlaces = affects.getStopPlaces();
         if (stopPlaces != null) {
             List<AffectedStopPlaceStructure> affectedStopPlaces = stopPlaces.getAffectedStopPlaces();
             for (AffectedStopPlaceStructure affectedStopPlace : affectedStopPlaces) {
@@ -172,14 +189,12 @@ public class SXSubscriptionProcessor implements Processor {
                 addStop(stopsToNotify, getStringValue(stopPlaceRef));
             }
         }
-
         return stopsToNotify;
     }
 
-    HashSet<Subscription> findAffectedSubscriptions(AffectsScopeStructure.VehicleJourneys vehicleJourneys) {
+    HashSet<Subscription> findAffectedSubscriptions(List<AffectedVehicleJourneyStructure> affectedVehicleJourneies) {
         HashMap<String, LiveJourney> journeys = null;
         HashSet<Subscription> subscriptions = new HashSet<>();
-        List<AffectedVehicleJourneyStructure> affectedVehicleJourneies = vehicleJourneys.getAffectedVehicleJourneies();
         for (AffectedVehicleJourneyStructure affectedVehicleJourney : affectedVehicleJourneies) {
             List<AffectedRouteStructure> routes = affectedVehicleJourney.getRoutes();
             for (AffectedRouteStructure route : routes) {
@@ -191,7 +206,16 @@ public class SXSubscriptionProcessor implements Processor {
                     if (affectedStopPointsAndLinkProjectionToNextStopPoint instanceof AffectedStopPointStructure) {
                         AffectedStopPointStructure affectedStopPoint = (AffectedStopPointStructure) affectedStopPointsAndLinkProjectionToNextStopPoint;
                         StopPointRef stopPointRef = affectedStopPoint.getStopPointRef();
-                        addStop(orderedListOfStops, getStringValue(stopPointRef));
+                        addStop(orderedListOfStops, getStringValue(stopPointRef)); //TODO: legg til affectedStopPoint.getStopConditions() så de kan tas høyde for!
+                        /*
+                        StopCondition(s) angir hvilke passasjerer meldingen gjelder for (kan f.eks. brukes for å beskrive relevans for av- og påstigning):
+                        - exceptionalStop (gjelder passasjerer som skal bytte)
+                        - destination (gjelder ved ankomst eller for avstigende passasjerer)
+                        - notStopping (gjelder ved passering, stopper ikke)
+                        - requestStop (gjelder når det er stopp kun ved forespørsel)
+                        - startPoint (gjelder ved avgang eller for påstigende passasjerer)
+                        - stop (default - normal stoppestedsoperasjon, dvs gjelder både ankomst og avgang / avstigning og påstigning / bytte)
+                         */
                     }
                 }
                 boolean hasCompleteRoute = !Boolean.TRUE.equals(stopPoints.isAffectedOnly());
@@ -238,7 +262,7 @@ public class SXSubscriptionProcessor implements Processor {
                     Set<Subscription> subscriptionsForStopPoint = subscriptionManager.getSubscriptionsForStopPoint(stop);
                     for (Subscription subscription : subscriptionsForStopPoint) {
                         //TODO: The vehicleJourneyRef usage below is NSB specific (in SX messages from NSB vehicleJourneyRef references vehicleRef in ET messages from BaneNOR)
-                        if (subscribedOrEmpty(lineRef, subscription.getLineRefs()) && subscribedOrEmpty(vehicleJourneyRef, subscription.getVehicleRefs())){
+                        if (subscribedOrEmpty(lineRef, subscription.getLineRefs()) && subscribedOrEmpty(vehicleJourneyRef, subscription.getVehicleRefs())) {
                             if (!hasCompleteRoute) {
                                 subscriptions.add(subscription);
                                 //TODO: Hvis subscription på stopp og kun ett av dem funnet: ikke legge til for å unngå unødvendige meldinger - men vurder stopcondition også!
@@ -263,13 +287,13 @@ public class SXSubscriptionProcessor implements Processor {
         HashSet<Subscription> subscriptions = new HashSet<>();
         if (StringUtils.isNotBlank(lineRef)) {
             Set<Subscription> subscriptionsForLineRef = subscriptionManager.getSubscriptionsForLineRef(lineRef);
-            subscriptionsForLineRef.removeIf(s->!subscribedOrEmpty(vehicleRef, s.getVehicleRefs()));
+            subscriptionsForLineRef.removeIf(s -> !subscribedOrEmpty(vehicleRef, s.getVehicleRefs()));
             logger.trace("Adds {} subscriptions regarding lineRef={}", subscriptionsForLineRef.size(), lineRef);
             subscriptions.addAll(subscriptionsForLineRef);
         }
         if (StringUtils.isNotBlank(vehicleRef)) {
             Set<Subscription> subscriptionsForvehicleRef = subscriptionManager.getSubscriptionsForvehicleRef(vehicleRef);
-            subscriptionsForvehicleRef.removeIf(s->!subscribedOrEmpty(lineRef, s.getLineRefs()));
+            subscriptionsForvehicleRef.removeIf(s -> !subscribedOrEmpty(lineRef, s.getLineRefs()));
             logger.trace("Adds {} subscriptions regarding vehicleRef={}", subscriptionsForvehicleRef.size(), vehicleRef);
             subscriptions.addAll(subscriptionsForvehicleRef);
         }
@@ -305,9 +329,9 @@ public class SXSubscriptionProcessor implements Processor {
 
     private int findIndexOfOne(Set<String> stops, List<String> orderedListOfStops) {
         for (int i = 0; i < orderedListOfStops.size(); i++) {
-             if (stops.contains(orderedListOfStops.get(i))) {
-                 return i;
-             }
+            if (stops.contains(orderedListOfStops.get(i))) {
+                return i;
+            }
         }
         return -1;
     }

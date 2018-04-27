@@ -39,6 +39,7 @@ import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static java.util.Arrays.asList;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
@@ -75,19 +76,19 @@ public class SXSubscriptionProcessorTest extends DatastoreTest {
         Subscription s0 = createSubscription("s0", "NSR:StopPlace:0", "NSR:StopPlace:2");
 
         //Only one in correct order
-        HashSet<Subscription> affectedSubscriptions = processor.findAffectedSubscriptions(createVehicleJourneys(Arrays.asList("1", "2", "3", "4"), null, false));
+        HashSet<Subscription> affectedSubscriptions = processor.findAffectedSubscriptions(createVehicleJourneys(asList("1", "2", "3", "4"), null, false));
         assertEquals(1, affectedSubscriptions.size());
         assertTrue(affectedSubscriptions.contains(s1));
 
         //None in the opposite order
-        affectedSubscriptions = processor.findAffectedSubscriptions(createVehicleJourneys(Arrays.asList("4", "3", "2", "1"), null, false));
+        affectedSubscriptions = processor.findAffectedSubscriptions(createVehicleJourneys(asList("4", "3", "2", "1"), null, false));
         assertTrue(affectedSubscriptions.isEmpty());
 
         //All when we don't know if all stops is present in route
-        assertPresent(Arrays.asList(s1, s0), processor.findAffectedSubscriptions(createVehicleJourneys(Collections.singletonList("2"), null, true)));
+        assertPresent(asList(s1, s0), processor.findAffectedSubscriptions(createVehicleJourneys(Collections.singletonList("2"), null, true)));
 
         //Only one when we look up the camelroute if not all stops is present in route
-        when(liveRouteManagerMock.getJourneys()).thenReturn(Collections.singletonList(createLiveJourney("line#1", "123", Arrays.asList("1", "2", "3"))));
+        when(liveRouteManagerMock.getJourneys()).thenReturn(Collections.singletonList(createLiveJourney("line#1", "123", asList("1", "2", "3"))));
         assertPresent(Collections.singletonList(s1), processor.findAffectedSubscriptions(createVehicleJourneys(Collections.singletonList("2"), "123", true)));
     }
 
@@ -138,14 +139,14 @@ public class SXSubscriptionProcessorTest extends DatastoreTest {
                 "</PtSituationElement>\n";
         PtSituationElement ptSituationElement = siriMarshaller.unmarshall(SX_with_one_affected_stop_on_journey, PtSituationElement.class);
 
-        when(liveRouteManagerMock.getJourneys()).thenReturn(Collections.singletonList(createLiveJourney("line#1", "64", Arrays.asList("1", "2", "440"))));
+        when(liveRouteManagerMock.getJourneys()).thenReturn(Collections.singletonList(createLiveJourney("line#1", "64", asList("1", "2", "440"))));
 
         assertNotNull(ptSituationElement);
         assertNotNull(ptSituationElement.getAffects());
 
-        HashSet<String> affectedStopPointRefs = processor.findAffectedStopPointRefs(ptSituationElement.getAffects());
+        HashSet<String> affectedStopPointRefs = processor.findAffectedStopPlaceRefs(ptSituationElement.getAffects().getStopPlaces());
         assertEquals(0, affectedStopPointRefs.size());
-        HashSet<Subscription> affectedSubscriptions = processor.findAffectedSubscriptions(ptSituationElement.getAffects().getVehicleJourneys());
+        HashSet<Subscription> affectedSubscriptions = processor.findAffectedSubscriptions(ptSituationElement.getAffects().getVehicleJourneys().getAffectedVehicleJourneies());
         assertEquals(0, affectedSubscriptions.size());
         //modify affected journey so we have no route data
         List<AffectedVehicleJourneyStructure> affectedVehicleJourneies = ptSituationElement.getAffects().getVehicleJourneys().getAffectedVehicleJourneies();
@@ -154,7 +155,7 @@ public class SXSubscriptionProcessorTest extends DatastoreTest {
         VehicleJourneyRef journeyRef = new VehicleJourneyRef();
         journeyRef.setValue("NoHit");
         vehicleJourneyReves.add(journeyRef);
-        affectedSubscriptions = processor.findAffectedSubscriptions(ptSituationElement.getAffects().getVehicleJourneys());
+        affectedSubscriptions = processor.findAffectedSubscriptions(ptSituationElement.getAffects().getVehicleJourneys().getAffectedVehicleJourneies());
         assertEquals(0, affectedSubscriptions.size());
     }
 
@@ -178,7 +179,7 @@ public class SXSubscriptionProcessorTest extends DatastoreTest {
         Subscription s_line_vehicle = createSubscription("line-vehicle", null, null, "line#1", "vehicle#1");
         Subscription s_line = createSubscription("line", null, null, "line#1", null);
         Subscription s_vehicle = createSubscription("vehicle", null, null, null, "vehicle#1");
-        List<Subscription> expectedSubscriptions = Arrays.asList(s_stops_vehicle, s_stops_line, s_stops_line_vehicle, s_line_vehicle, s_line, s_vehicle);
+        List<Subscription> expectedSubscriptions = asList(s_stops_vehicle, s_stops_line, s_stops_line_vehicle, s_line_vehicle, s_line, s_vehicle);
         //These are not supposed to be found as they have one or more conditions set that doesn't match:
         createSubscription("NOHIT1-from-to-vehicle", "NSR:StopPlace:40", "NSR:StopPlace:30", null, "vehicle#1");
         createSubscription("NOHIT2-from-to-vehicle", "NSR:StopPlace:10", "NSR:StopPlace:20", null, "vehicle#2");
@@ -191,8 +192,8 @@ public class SXSubscriptionProcessorTest extends DatastoreTest {
         createSubscription("NOHIT9-vehicle", null, null, null, "vehicle#2");
 
         ArrayList<LiveJourney> testRouteData = new ArrayList<>();
-        testRouteData.add(createLiveJourney("line#1", "vehicle#1", Arrays.asList("10", "20", "30", "40")));
-        testRouteData.add(createLiveJourney("line#x", "vehicle#x", Arrays.asList("10", "20", "30", "40")));
+        testRouteData.add(createLiveJourney("line#1", "vehicle#1", asList("10", "20", "30", "40")));
+        testRouteData.add(createLiveJourney("line#x", "vehicle#x", asList("10", "20", "30", "40")));
         when(liveRouteManagerMock.getJourneys()).thenReturn(testRouteData);
 
         AffectsScopeStructure.VehicleJourneys vehiclejourney = new AffectsScopeStructure.VehicleJourneys();
@@ -208,12 +209,12 @@ public class SXSubscriptionProcessorTest extends DatastoreTest {
         stopPoints.setAffectedOnly(true);
         stopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints().add(createAffectedStopPointStructure("NSR:StopPlace:10"));
         stopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints().add(createAffectedStopPointStructure("NSR:StopPlace:20"));
-        assertPresent(expectedSubscriptions, processor.findAffectedSubscriptions(vehiclejourney));
+        assertPresent(expectedSubscriptions, processor.findAffectedSubscriptions(vehiclejourney.getAffectedVehicleJourneies()));
 
         stopPoints.setAffectedOnly(false); //<-- Set to false, since it effects how the live route is used
         stopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints().add(createAffectedStopPointStructure("NSR:StopPlace:30"));
         stopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints().add(createAffectedStopPointStructure("NSR:StopPlace:40"));
-        assertPresent(expectedSubscriptions, processor.findAffectedSubscriptions(vehiclejourney));
+        assertPresent(expectedSubscriptions, processor.findAffectedSubscriptions(vehiclejourney.getAffectedVehicleJourneies()));
 
         AffectsScopeStructure.VehicleJourneys unsubscribedVehiclejourney = new AffectsScopeStructure.VehicleJourneys();
         AffectedVehicleJourneyStructure unsubscribedAffectedVehicleJourneyStructure = new AffectedVehicleJourneyStructure();
@@ -229,7 +230,7 @@ public class SXSubscriptionProcessorTest extends DatastoreTest {
         unsubscribedStopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints().add(createAffectedStopPointStructure("NSB:StopPlace:112"));
         unsubscribedStopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints().add(createAffectedStopPointStructure("NSB:StopPlace:113"));
         unsubscribedStopPoints.setAffectedOnly(true);
-        assertPresent(Collections.emptyList(), processor.findAffectedSubscriptions(unsubscribedVehiclejourney));
+        assertPresent(Collections.emptyList(), processor.findAffectedSubscriptions(unsubscribedVehiclejourney.getAffectedVehicleJourneies()));
     }
 
     private void assertPresent(List<Subscription> expectedSubscriptions, Collection<Subscription> actualSubscriptions) {
@@ -325,8 +326,7 @@ public class SXSubscriptionProcessorTest extends DatastoreTest {
         return new LiveJourney(someJourney, mock(QuayAndStopPlaceMappingService.class));
     }
 
-    private AffectsScopeStructure.VehicleJourneys createVehicleJourneys(List<String> stops, String vehicleJourneyRef, boolean affectedOnly) {
-        AffectsScopeStructure.VehicleJourneys vehicleJourneys = new AffectsScopeStructure.VehicleJourneys();
+    private List<AffectedVehicleJourneyStructure> createVehicleJourneys(List<String> stops, String vehicleJourneyRef, boolean affectedOnly) {
         AffectedVehicleJourneyStructure affectedVehicleJourneyStructure = new AffectedVehicleJourneyStructure();
         if (vehicleJourneyRef != null) {
             List<VehicleJourneyRef> vehicleJourneyReves = affectedVehicleJourneyStructure.getVehicleJourneyReves();
@@ -348,8 +348,7 @@ public class SXSubscriptionProcessorTest extends DatastoreTest {
         }
 
         affectedVehicleJourneyStructure.getRoutes().add(routeStructure);
-        vehicleJourneys.getAffectedVehicleJourneies().add(affectedVehicleJourneyStructure);
-        return vehicleJourneys;
+        return Collections.singletonList(affectedVehicleJourneyStructure);
     }
 
 }

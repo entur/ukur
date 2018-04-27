@@ -24,9 +24,8 @@ import org.springframework.stereotype.Service;
 import uk.org.siri.siri20.EstimatedVehicleJourney;
 
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.Collection;
-import java.util.Collections;
+import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.entur.ukur.xml.SiriObjectHelper.getStringValue;
 
@@ -88,4 +87,17 @@ public class LiveRouteManager {
         return routes;
     }
 
+    public Collection<String> getStopsForLine(String lineRef) {
+        HashSet<String> stops = new HashSet<>();
+        if (lineRef != null) {
+            //TODO: This is not very efficient...
+            Collection<LiveJourney> journeys = getJourneys(lineRef);
+            for (LiveJourney journey : journeys) {
+                List<Call> calls = journey.getCalls();
+                stops.addAll(calls.stream().map(Call::getStopPointRef).collect(Collectors.toList()));
+            }
+        }
+
+        return stops;
+    }
 }
