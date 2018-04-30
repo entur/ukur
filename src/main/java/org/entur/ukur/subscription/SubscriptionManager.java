@@ -167,7 +167,7 @@ public class SubscriptionManager {
             PtSituationElement clone = clone(ptSituationElement);
             AffectsScopeStructure affects = clone.getAffects();
             if (affects != null) {
-                //make sure elements not covered by the norwegian profile are empty:
+                //clears elements not covered by the norwegian profile to reduce size on push-message:
                 affects.setAreaOfInterest(null);
                 affects.setExtensions(null);
                 affects.setOperators(null);
@@ -175,65 +175,14 @@ public class SubscriptionManager {
                 affects.setStopPoints(null);
                 affects.setRoads(null);
                 affects.setVehicles(null);
-                affects.setNetworks(null); //TODO: networks are part of the profile, but ignored for now
-
-                if (!subscription.hasNoStops()) {
-                    //Removes affected StopPlaces not subscribed upon
-                    AffectsScopeStructure.StopPlaces stopPlaces = affects.getStopPlaces();
-                    if (stopPlaces != null && stopPlaces.getAffectedStopPlaces() != null) {
-                        Iterator<AffectedStopPlaceStructure> iterator = stopPlaces.getAffectedStopPlaces().iterator();
-                        while (iterator.hasNext()) {
-                            AffectedStopPlaceStructure stop = iterator.next();
-                            String ref = getStringValue(stop.getStopPlaceRef());
-                            if (!subscribedStops.contains(ref)) {
-                                iterator.remove();
-                            }
-                        }
-                    }
-                } else {
-                    //Mulig dette ikke er helt riktig...
+                //removes part not subscribed upon (to reduce size on push-message):
+                removeUnsubscribedNetworks(subscription, affects.getNetworks());
+                if (subscription.hasNoStops()) {
                     affects.setStopPlaces(null);
+                } else {
+                    removeUnsubscribedStopPlaces(subscribedStops, affects.getStopPlaces());
                 }
-                //Removes affected VehicleJourneys (and unsubscribed stops) without any stops, lines or vehicles subscribed upon
-                AffectsScopeStructure.VehicleJourneys vehicleJourneys = affects.getVehicleJourneys();
-                if (vehicleJourneys != null && vehicleJourneys.getAffectedVehicleJourneies() != null) {
-                    Iterator<AffectedVehicleJourneyStructure> iterator = vehicleJourneys.getAffectedVehicleJourneies().iterator();
-                    while (iterator.hasNext()) {
-                        AffectedVehicleJourneyStructure journeyStructure = iterator.next();
-                        boolean removeJourney = true;
-                        if (isSubscribed(subscription, journeyStructure) && journeyStructure.getRoutes() != null) {
-                            List<AffectedRouteStructure> routes = journeyStructure.getRoutes();
-                            if (!subscription.hasNoStops()) {
-                                Iterator<AffectedRouteStructure> routeStructureIterator = routes.iterator();
-                                while (routeStructureIterator.hasNext()) {
-                                    AffectedRouteStructure routeStructure = routeStructureIterator.next();
-                                    AffectedRouteStructure.StopPoints stopPoints = routeStructure.getStopPoints();
-                                    if (stopPoints != null && stopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints() != null) {
-                                        List<Serializable> affectedStopPointsAndLinkProjectionToNextStopPoints = stopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints();
-                                        Iterator<Serializable> stops = affectedStopPointsAndLinkProjectionToNextStopPoints.iterator();
-                                        while (stops.hasNext()) {
-                                            Serializable stop = stops.next();
-                                            if (stop instanceof AffectedStopPointStructure) {
-                                                AffectedStopPointStructure affectedStopPoint = (AffectedStopPointStructure) stop;
-                                                String ref = getStringValue(affectedStopPoint.getStopPointRef());
-                                                if (!subscribedStops.contains(ref)) {
-                                                    stops.remove();
-                                                }
-                                            }
-                                        }
-                                        if (affectedStopPointsAndLinkProjectionToNextStopPoints.isEmpty()) {
-                                            routeStructureIterator.remove();
-                                        }
-                                    }
-                                }
-                            }
-                            removeJourney = routes.isEmpty();
-                        }
-                        if (removeJourney) {
-                            iterator.remove();
-                        }
-                    }
-                }
+                removeUnsubscribedJourneys(subscription, subscribedStops, affects.getVehicleJourneys());
             }
 
             if (withAffects(clone)) {
@@ -246,6 +195,86 @@ public class SubscriptionManager {
         }
     }
 
+    private void removeUnsubscribedJourneys(Subscription subscription, Set<String> subscribedStops, AffectsScopeStructure.VehicleJourneys vehicleJourneys) {
+        //Removes affected VehicleJourneys (and unsubscribed stops) without any stops, lines or vehicles subscribed upon
+        if (vehicleJourneys != null && vehicleJourneys.getAffectedVehicleJourneies() != null) {
+            Iterator<AffectedVehicleJourneyStructure> iterator = vehicleJourneys.getAffectedVehicleJourneies().iterator();
+            while (iterator.hasNext()) {
+                AffectedVehicleJourneyStructure journeyStructure = iterator.next();
+                boolean removeJourney = true;
+                if (isSubscribed(subscription, journeyStructure) && journeyStructure.getRoutes() != null) {
+                    List<AffectedRouteStructure> routes = journeyStructure.getRoutes();
+                    if (!subscription.hasNoStops()) {
+                        Iterator<AffectedRouteStructure> routeStructureIterator = routes.iterator();
+                        while (routeStructureIterator.hasNext()) {
+                            AffectedRouteStructure routeStructure = routeStructureIterator.next();
+                            AffectedRouteStructure.StopPoints stopPoints = routeStructure.getStopPoints();
+                            if (stopPoints != null && stopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints() != null) {
+                                List<Serializable> affectedStopPointsAndLinkProjectionToNextStopPoints = stopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints();
+                                Iterator<Serializable> stops = affectedStopPointsAndLinkProjectionToNextStopPoints.iterator();
+                                while (stops.hasNext()) {
+                                    Serializable stop = stops.next();
+                                    if (stop instanceof AffectedStopPointStructure) {
+                                        AffectedStopPointStructure affectedStopPoint = (AffectedStopPointStructure) stop;
+                                        String ref = getStringValue(affectedStopPoint.getStopPointRef());
+                                        if (!subscribedStops.contains(ref)) {
+                                            stops.remove();
+                                        }
+                                    }
+                                }
+                                if (affectedStopPointsAndLinkProjectionToNextStopPoints.isEmpty()) {
+                                    routeStructureIterator.remove();
+                                }
+                            }
+                        }
+                    }
+                    removeJourney = routes.isEmpty();
+                }
+                if (removeJourney) {
+                    iterator.remove();
+                }
+            }
+        }
+    }
+
+    private void removeUnsubscribedStopPlaces(Set<String> subscribedStops, AffectsScopeStructure.StopPlaces stopPlaces) {
+        if (stopPlaces != null && stopPlaces.getAffectedStopPlaces() != null) {
+            Iterator<AffectedStopPlaceStructure> iterator = stopPlaces.getAffectedStopPlaces().iterator();
+            while (iterator.hasNext()) {
+                AffectedStopPlaceStructure stop = iterator.next();
+                String ref = getStringValue(stop.getStopPlaceRef());
+                if (!subscribedStops.contains(ref)) {
+                    iterator.remove();
+                }
+            }
+        }
+    }
+
+    private void removeUnsubscribedNetworks(Subscription subscription, AffectsScopeStructure.Networks networks) {
+        if (networks != null && networks.getAffectedNetworks() != null) {
+            Iterator<AffectsScopeStructure.Networks.AffectedNetwork> networkIterator = networks.getAffectedNetworks().iterator();
+            while (networkIterator.hasNext()) {
+                AffectsScopeStructure.Networks.AffectedNetwork affectedNetwork = networkIterator.next();
+                boolean keep = false;
+                List<AffectedLineStructure> affectedLines = affectedNetwork.getAffectedLines();
+                if (affectedLines != null) {
+                    Iterator<AffectedLineStructure> lineIterator = affectedLines.iterator();
+                    while (lineIterator.hasNext()) {
+                        AffectedLineStructure line = lineIterator.next();
+                        if (subscription.getLineRefs().contains(getStringValue(line.getLineRef()))) {
+                            keep = true;
+                        } else {
+                            lineIterator.remove();
+                        }
+                    }
+                }
+                if (!keep) {
+                    networkIterator.remove();
+                }
+            }
+        }
+    }
+
     private boolean withAffects(PtSituationElement element) {
         AffectsScopeStructure affects = element.getAffects();
         if (affects == null) {
@@ -253,9 +282,11 @@ public class SubscriptionManager {
         }
         List<AffectedStopPlaceStructure> stopPlaces = affects.getStopPlaces() == null ? null : affects.getStopPlaces().getAffectedStopPlaces();
         List<AffectedVehicleJourneyStructure> vehicleJourneys = affects.getVehicleJourneys() == null ? null : affects.getVehicleJourneys().getAffectedVehicleJourneies();
+        List<AffectsScopeStructure.Networks.AffectedNetwork> networks = affects.getNetworks() == null ? null : affects.getNetworks().getAffectedNetworks();
         boolean hasStopPlace = stopPlaces != null && !stopPlaces.isEmpty();
         boolean hasVehicleJourney = vehicleJourneys != null && !vehicleJourneys.isEmpty();
-        return hasStopPlace || hasVehicleJourney;
+        boolean hasNetworks = networks != null && !networks.isEmpty();
+        return hasStopPlace || hasVehicleJourney || hasNetworks;
     }
 
     private boolean isSubscribed(Subscription subscription, AffectedVehicleJourneyStructure journey) {

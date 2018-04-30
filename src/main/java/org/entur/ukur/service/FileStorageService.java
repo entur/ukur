@@ -54,21 +54,35 @@ public class FileStorageService {
 
     public void writeToFile(EstimatedVehicleJourney estimatedVehicleJourney) {
         String filename = getPushMessageFilename(estimatedVehicleJourney);
-        logger.trace("Writes EstimatedVehicleJourney to file {}", filename);
         String xmlString = toXMLString(estimatedVehicleJourney);
-        writeMessageToFile(xmlString, filename);
+        String[] lineRefArray = StringUtils.split(getStringValue(estimatedVehicleJourney.getLineRef()), ':');
+        String subfolder;
+        if (lineRefArray == null || lineRefArray.length < 1 || StringUtils.isBlank(lineRefArray[0]) || "-".equals(lineRefArray[0])) {
+            subfolder = "empty";
+        } else {
+            subfolder = StringUtils.lowerCase(lineRefArray[0]);
+        }
+        logger.trace("Writes EstimatedVehicleJourney to file {} in subfolder {}", filename, subfolder);
+        writeMessageToFile(xmlString, subfolder, filename);
     }
 
     public void writeToFile(PtSituationElement ptSituationElement) {
         String filename = getPushMessageFilename(ptSituationElement);
-        logger.trace("Writes PtSituationElement to file {}", filename);
         String xmlString = toXMLString(ptSituationElement);
-        writeMessageToFile(xmlString, filename);
+        String subfolder = StringUtils.lowerCase(getStringValue(ptSituationElement.getParticipantRef()));
+        if (StringUtils.isBlank(subfolder) || "-".equals(subfolder)) {
+            subfolder = "empty";
+        }
+        logger.trace("Writes PtSituationElement to file {} in subfolder {}", filename, subfolder);
+        writeMessageToFile(xmlString, subfolder, filename);
     }
 
-    private void writeMessageToFile(String xml, String pushMessageFilename) {
+    private void writeMessageToFile(String xml, String subfolder, String pushMessageFilename) {
         try {
-            FileWriter fw = new FileWriter(new File(folder, pushMessageFilename));
+            File targetFolder = new File(folder, subfolder);
+            //noinspection ResultOfMethodCallIgnored
+            targetFolder.mkdir();
+            FileWriter fw = new FileWriter(new File(targetFolder, pushMessageFilename));
             fw.write(xml);
             fw.close();
         } catch (IOException e) {

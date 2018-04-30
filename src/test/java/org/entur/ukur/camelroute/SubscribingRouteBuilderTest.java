@@ -27,6 +27,7 @@ import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.service.QuayAndStopPlaceMappingService;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.xml.SiriMarshaller;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.slf4j.Logger;
@@ -86,11 +87,15 @@ public class SubscribingRouteBuilderTest extends AbstractJUnit4SpringContextTest
     public SubscribingRouteBuilderTest() throws JAXBException {
     }
 
+    @Before
+    public void setUp() throws Exception {
+        metricsService.reset();
+        reset();
+        waitUntilReceiverIsReady();
+    }
+
     @Test
     public void testETreceive() throws Exception {
-        metricsService.reset();
-        waitUntilReceiverIsReady();
-
         assertEquals(0, metricsService.getMeter("message.received.EstimatedVehicleJourney").getCount());
         assertEquals(0, metricsService.getMeter("message.subs-received.et").getCount());
         assertEquals(0, metricsService.getTimer(MetricsService.TIMER_ET_PROCESS).getCount());
@@ -105,9 +110,6 @@ public class SubscribingRouteBuilderTest extends AbstractJUnit4SpringContextTest
 
     @Test
     public void testSXreceive() throws Exception {
-        metricsService.reset();
-        waitUntilReceiverIsReady();
-
         assertEquals(0, metricsService.getMeter("message.received.PtSituationElement").getCount());
         assertEquals(0, metricsService.getTimer(MetricsService.TIMER_SX_PROCESS).getCount());
         assertEquals(0, metricsService.getMeter("message.subs-received.sx").getCount());
@@ -122,9 +124,6 @@ public class SubscribingRouteBuilderTest extends AbstractJUnit4SpringContextTest
 
     @Test
     public void testPushOnSXFromJourneyLookup() throws Exception {
-        metricsService.reset();
-        waitUntilReceiverIsReady();
-
         assertEquals(0, metricsService.getMeter("message.received.PtSituationElement").getCount());
         assertEquals(0, metricsService.getTimer(MetricsService.TIMER_SX_PROCESS).getCount());
         assertEquals(0, metricsService.getMeter("message.received.EstimatedVehicleJourney").getCount());
@@ -178,6 +177,36 @@ public class SubscribingRouteBuilderTest extends AbstractJUnit4SpringContextTest
         assertEquals(1, l1Messages.size());
         assertEquals(1, osloAskerMessages.size());
     }
+
+    @Test
+    public void testRuterSX() throws Exception {
+        assertEquals(0, metricsService.getMeter("message.received.PtSituationElement").getCount());
+        assertEquals(0, metricsService.getTimer(MetricsService.TIMER_SX_PROCESS).getCount());
+        assertEquals(0, metricsService.getTimer(MetricsService.TIMER_PUSH).getCount());
+
+        stubFor(post(urlMatching("/push.*/sx"))
+                .withHeader("Content-Type", equalTo("application/xml"))
+                .willReturn(aResponse()));
+
+        String line400Url = "/push1/sx";
+        Subscription lineL1 = createSubscription(line400Url, null, null, "RUT:Line:400", "Line 400");
+        logger.info("TestControl: Created subscription for line L1 with id = {}", lineL1.getId());
+
+        logger.info("TestControl: Sends SX messages that will trigger notifications");
+        postFile("/sx-ruter.xml", "sx");
+        waitUntil(MetricsService.TIMER_SX_PROCESS, 1);
+        waitUntil(MetricsService.TIMER_PUSH, 1);
+        Thread.sleep(100); //Sleeps a little longer to detect if we send an unwanted push message
+
+        logger.info("TestControl: Asserts expected results");
+        assertEquals(1, metricsService.getMeter("message.received.PtSituationElement").getCount());
+        assertEquals(1, metricsService.getTimer(MetricsService.TIMER_SX_PROCESS).getCount());
+        assertEquals(1, metricsService.getTimer(MetricsService.TIMER_PUSH).getCount());
+        List<PtSituationElement> l1Messages = getReceivedMessages(line400Url);
+        logger.info("TestControl: received {} messages for subscription on L1", l1Messages.size());
+        assertEquals(1, l1Messages.size());
+    }
+
 
     private List<PtSituationElement> getReceivedMessages(String pushAddress) throws JAXBException, XMLStreamException {
         List<LoggedRequest> loggedRequests = findAll(postRequestedFor(urlEqualTo(pushAddress)));
