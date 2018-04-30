@@ -100,7 +100,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
     private final TiamatStopPlaceQuaysProcessor tiamatStopPlaceQuaysProcessor;
     private final Namespaces siriNamespace = new Namespaces("s", "http://www.siri.org.uk/siri");
     private final int HEARTBEAT_INTERVAL_MS = 60_000;
-    private final int SUBSCRIPTION_DURATION_MIN = 12*60;
+    private final int SUBSCRIPTION_DURATION_MIN = 60;
 
     @Autowired
     public UkurCamelRouteBuilder(UkurConfiguration config,
