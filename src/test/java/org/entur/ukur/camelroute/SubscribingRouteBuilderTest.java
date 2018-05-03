@@ -189,7 +189,7 @@ public class SubscribingRouteBuilderTest extends AbstractJUnit4SpringContextTest
                 .willReturn(aResponse()));
 
         String line400Url = "/push1/sx";
-        Subscription lineL1 = createSubscription(line400Url, null, null, "RUT:Line:400", "Line 400");
+        Subscription lineL1 = createSubscription(line400Url, null, null, "RUT:Line:5", "Line 5");
         logger.info("TestControl: Created subscription for line L1 with id = {}", lineL1.getId());
 
         logger.info("TestControl: Sends SX messages that will trigger notifications");

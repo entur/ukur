@@ -116,6 +116,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
         this.sharedProperties = sharedProperties;
         this.metricsService = metricsService;
         nodeStarted = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
+        siriNamespace.add("ns2", "http://www.ifopt.org.uk/acsb");
     }
 
     @Override
@@ -281,7 +282,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                         logger.debug("Received XML with {} EstimatedVehicleJourneys", Math.round(total));
                     }
                 })
-                .split(siriNamespace.xpath("//s:EstimatedVehicleJourney"))
+                .split(siriNamespace.xpath("//s:EstimatedVehicleJourney[not(ns2:ServiceFeatureRef/text()='freightTrain')]"))
                 .bean(metricsService, "registerSentMessage('EstimatedVehicleJourney')")
                 .to("activemq:queue:" + UkurConfiguration.ET_QUEUE);
     }

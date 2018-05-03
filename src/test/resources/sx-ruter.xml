@@ -20,15 +20,15 @@
   <ScopeType>line</ScopeType>
   <Keywords/>
   <Summary>Innstilt avgang</Summary>
-  <Description>Avgangen fra Oslo Bussterminal kl. 09:23 er innstilt mellom Oslo Bussterminal og Helsfyr.</Description>
+  <Description>Denne teksten og Affects.Networks.AffectedNetwork.AffectedLine er endret</Description>
   <Detail>Dette skyldes teknisk feil.
  </Detail>
   <Affects>
     <Networks>
       <AffectedNetwork>
         <AffectedLine>
-          <LineRef>RUT:Line:400</LineRef>
-          <PublishedLineName>400</PublishedLineName>
+          <LineRef>RUT:Line:5</LineRef>
+          <PublishedLineName>5</PublishedLineName>
         </AffectedLine>
       </AffectedNetwork>
     </Networks>

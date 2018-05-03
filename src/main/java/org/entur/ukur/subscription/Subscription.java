@@ -133,6 +133,14 @@ public class Subscription implements Serializable {
         return Objects.hash(id);
     }
 
+    @Override
+    public String toString() {
+        return "Subscription{" +
+                "id='" + id + '\'' +
+                ", name='" + name + '\'' +
+                '}';
+    }
+
     public void resetFailedPushCounter() {
         failedPushCounter = 0;
     }

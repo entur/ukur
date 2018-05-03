@@ -104,6 +104,10 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
     }
 
     protected boolean processEstimatedVehicleJourney(EstimatedVehicleJourney estimatedVehicleJourney) {
+        if (shouldIgnoreJourney(estimatedVehicleJourney)) {
+            logger.debug("Ignores EstimatedVehicleJourney with LineRef {}", getStringValue(estimatedVehicleJourney.getLineRef()));
+            return false;
+        }
         Timer timer = metricsService.getTimer(MetricsService.TIMER_ET_PROCESS);
         Timer.Context time = timer.time();
         try {
@@ -132,6 +136,17 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
             time.stop();
         }
         return true;
+    }
+
+    private boolean shouldIgnoreJourney(EstimatedVehicleJourney estimatedVehicleJourney) {
+        List<ServiceFeatureRef> serviceFeatureReves = estimatedVehicleJourney.getServiceFeatureReves();
+        for (ServiceFeatureRef serviceFeature : serviceFeatureReves) {
+            if (StringUtils.equalsIgnoreCase("freightTrain", getStringValue(serviceFeature))) {
+                logger.trace("shouldIgnoreJourney returns true because the estimatedVehicleJourney regards a freightTrain");
+                return true;
+            }
+        }
+        return false;
     }
 
     private boolean notIncluded(String value, Set<String> values) {

@@ -2705,6 +2705,40 @@
                     <IsCompleteStopSequence>true</IsCompleteStopSequence>
                 </EstimatedVehicleJourney>
                 <EstimatedVehicleJourney>
+                    <LineRef>NSB:Line:Godslinje1</LineRef>
+                    <DirectionRef>Test</DirectionRef>
+                    <DatedVehicleJourneyRef>87654:2018-01-17</DatedVehicleJourneyRef>
+                    <VehicleMode>rail</VehicleMode>
+                    <OperatorRef>NSB</OperatorRef>
+                    <ns2:ServiceFeatureRef>freightTrain</ns2:ServiceFeatureRef>
+                    <MonitoringError/>
+                    <VehicleRef>87654</VehicleRef>
+                    <EstimatedCalls>
+                        <EstimatedCall>
+                            <StopPointRef>NSR:Quay:1111</StopPointRef>
+                            <StopPointName>Test-start</StopPointName>
+                            <RequestStop>false</RequestStop>
+                            <ArrivalBoardingActivity>alighting</ArrivalBoardingActivity>
+                            <AimedDepartureTime>2018-01-17T12:54:00+01:00</AimedDepartureTime>
+                            <ExpectedDepartureTime>2018-01-17T12:54:00+01:00</ExpectedDepartureTime>
+                            <DepartureStatus>onTime</DepartureStatus>
+                            <DeparturePlatformName>1</DeparturePlatformName>
+                            <DepartureBoardingActivity>boarding</DepartureBoardingActivity>
+                        </EstimatedCall>
+                        <EstimatedCall>
+                            <StopPointRef>NSR:Quay:2222</StopPointRef>
+                            <StopPointName>Test-stop</StopPointName>
+                            <RequestStop>false</RequestStop>
+                            <AimedArrivalTime>2018-01-17T12:55:30+01:00</AimedArrivalTime>
+                            <ExpectedArrivalTime>2018-01-17T12:55:30+01:00</ExpectedArrivalTime>
+                            <ArrivalStatus>onTime</ArrivalStatus>
+                            <ArrivalPlatformName>6</ArrivalPlatformName>
+                            <ArrivalBoardingActivity>alighting</ArrivalBoardingActivity>
+                        </EstimatedCall>
+                    </EstimatedCalls>
+                    <IsCompleteStopSequence>true</IsCompleteStopSequence>
+                </EstimatedVehicleJourney>
+                <EstimatedVehicleJourney>
                     <LineRef>NSB:Line:-</LineRef>
                     <DirectionRef>Egersund</DirectionRef>
                     <DatedVehicleJourneyRef>3036:2018-01-17</DatedVehicleJourneyRef>

@@ -102,6 +102,9 @@ public class FileStorageService {
 
     private String getPushMessageFilename(PtSituationElement ptSituationElement) {
         String situationNumber = getStringValue(ptSituationElement.getSituationNumber());
+        if (StringUtils.contains(situationNumber, ":")) {
+            situationNumber = StringUtils.substringAfterLast(situationNumber, ":");
+        }
         return LocalDateTime.now().format(formatter) + "_SX_" + situationNumber + ".xml";
     }
 

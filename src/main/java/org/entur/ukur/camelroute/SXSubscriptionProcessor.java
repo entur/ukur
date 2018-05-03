@@ -151,7 +151,7 @@ public class SXSubscriptionProcessor implements Processor {
                     String lineRef = getStringValue(affectedLine.getLineRef());
                     if (StringUtils.isNotBlank(lineRef)) {
                         affectedLineRefs.add(lineRef);
-                        //TODO: It is legal to specify route as done for AffectedVehicleJourney: we should respect stopconditons the same (reusable) way
+                        //TODO: ROR-298: It is legal to specify route as done for AffectedVehicleJourney: we should respect stopconditons the same (reusable) way
                     }
                 }
             }
@@ -206,7 +206,7 @@ public class SXSubscriptionProcessor implements Processor {
                     if (affectedStopPointsAndLinkProjectionToNextStopPoint instanceof AffectedStopPointStructure) {
                         AffectedStopPointStructure affectedStopPoint = (AffectedStopPointStructure) affectedStopPointsAndLinkProjectionToNextStopPoint;
                         StopPointRef stopPointRef = affectedStopPoint.getStopPointRef();
-                        addStop(orderedListOfStops, getStringValue(stopPointRef)); //TODO: legg til affectedStopPoint.getStopConditions() så de kan tas høyde for!
+                        addStop(orderedListOfStops, getStringValue(stopPointRef)); //TODO: ROR-298: legg til affectedStopPoint.getStopConditions() så de kan tas høyde for!
                         /*
                         StopCondition(s) angir hvilke passasjerer meldingen gjelder for (kan f.eks. brukes for å beskrive relevans for av- og påstigning):
                         - exceptionalStop (gjelder passasjerer som skal bytte)
