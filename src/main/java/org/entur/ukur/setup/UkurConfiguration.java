@@ -15,6 +15,7 @@
 
 package org.entur.ukur.setup;
 
+import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
@@ -40,6 +41,9 @@ public class UkurConfiguration {
 
     @Value("${ukur.camel.anshar.url}")
     private String ansharURL;
+
+    @Value("${ukur.camel.anshar.subscriptionPostfix:/subscribe}")
+    private String ansharSubscriptionPostfix;
 
     @Value("${ukur.camel.anshar.receiver.baseurl}")
     private String ownSubscriptionURL;
@@ -98,6 +102,13 @@ public class UkurConfiguration {
         return null;
     }
 
+    private String getAnsharSubscriptionPostfix() {
+        if (!ansharSubscriptionPostfix.startsWith("/")) {
+            return "/"+ansharSubscriptionPostfix;
+        }
+        return ansharSubscriptionPostfix;
+    }
+
     public String getAnsharETCamelUrl(String requestorId) {
         return getAnsharURL() + "/rest/et?requestorId=" + requestorId + "&maxSize=500";
     }
@@ -107,7 +118,7 @@ public class UkurConfiguration {
     }
 
     public String getAnsharSubscriptionUrl() {
-        return getAnsharURL() + "/subscribe";
+        return getAnsharURL() + getAnsharSubscriptionPostfix();
     }
 
     public String getOwnSubscriptionURL() {
