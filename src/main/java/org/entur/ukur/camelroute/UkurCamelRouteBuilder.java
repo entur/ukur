@@ -304,12 +304,12 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                     .endChoice()
                 .when(PredicateBuilder.and(exchange -> sxEnabled, header("type").isEqualTo("sx")))
                     .bean(metricsService, "registerReceivedSubscribedMessage(${header.type} )")
-                    .wireTap("seda:handleSubscribedSituationExchange")
+                    .to("activemq:queue:" + UkurConfiguration.SUB_SX_QUEUE)
                     .setBody(simple("OK\n\n"))
                     .endChoice()
                 .when(PredicateBuilder.and(exchange -> etEnabled, header("type").isEqualTo("et")))
                     .bean(metricsService, "registerReceivedSubscribedMessage(${header.type} )")
-                    .wireTap("seda:handleSubscribedEstimatedTimetable")
+                    .to("activemq:queue:" + UkurConfiguration.SUB_ET_QUEUE)
                     .setBody(simple("OK\n\n"))
                     .endChoice()
                 .otherwise()
@@ -332,13 +332,13 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
             sharedProperties.set(key, value);
         };
 
-        from("seda:handleSubscribedSituationExchange")
+        from("activemq:queue:" + UkurConfiguration.SUB_SX_QUEUE)
                 .routeId("Handle subscribed SX message")
                 .convertBodyTo(Document.class)
                 .process(heartbeatRegistrer)
                 .to("direct:processPtSituationElements");
 
-        from("seda:handleSubscribedEstimatedTimetable")
+        from("activemq:queue:" + UkurConfiguration.SUB_ET_QUEUE)
                 .routeId("Handle subscribed ET message")
                 .convertBodyTo(Document.class)
                 .process(heartbeatRegistrer)

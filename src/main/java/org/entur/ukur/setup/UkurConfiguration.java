@@ -15,7 +15,6 @@
 
 package org.entur.ukur.setup;
 
-import org.apache.commons.lang3.StringUtils;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Configuration;
 
@@ -26,6 +25,8 @@ public class UkurConfiguration {
     private static final String QUEUE_PREFIX = "ukur";
     public static final String ET_QUEUE = QUEUE_PREFIX + ".et?timeToLive=300000&disableReplyTo=true"; //5 minutes time to live
     public static final String SX_QUEUE = QUEUE_PREFIX + ".sx?timeToLive=900000&disableReplyTo=true"; //30 minutes time to live
+    public static final String SUB_SX_QUEUE = QUEUE_PREFIX + ".sub_sx?timeToLive=900000&disableReplyTo=true"; //30 minutes time to live
+    public static final String SUB_ET_QUEUE = QUEUE_PREFIX + ".sub_et?timeToLive=900000&disableReplyTo=true"; //30 minutes time to live
 
     @Value("${rutebanken.kubernetes.url:}")
     private String kubernetesUrl;
