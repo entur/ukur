@@ -284,9 +284,14 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
         ZonedDateTime now = ZonedDateTime.now();
         ZonedDateTime expectedDepartureTime = call.getExpectedDepartureTime();
         if (expectedDepartureTime != null) {
-            return now.isBefore(call.getExpectedDepartureTime());
+            return now.isBefore(expectedDepartureTime);
         } else {
-            return now.isBefore(call.getAimedDepartureTime());
+            ZonedDateTime aimedDepartureTime = call.getAimedDepartureTime();
+            if (aimedDepartureTime != null) {
+                return now.isBefore(aimedDepartureTime);
+            } else {
+                return false;
+            }
         }
     }
 
