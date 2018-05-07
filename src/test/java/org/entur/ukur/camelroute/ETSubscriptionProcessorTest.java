@@ -155,10 +155,10 @@ public class ETSubscriptionProcessorTest {
     }
 
     @Test
-    public void findAffectedStopPlaceOnlySubscriptionOnETMessageWithQuays() throws JAXBException {
-        Subscription s1 = createSubscription("1", "2", false);
-        Subscription q1 = createSubscription("1", "2", true);
-        Subscription s2 = createSubscription("2", "1", false);
+    public void findAffectedStopPlaceOnlySubscriptionOnETMessageWithQuays() throws Exception {
+        Subscription s1 = createSubscription("s1", "1", "2", false);
+        Subscription q1 = createSubscription("q1", "1", "2", true);
+        Subscription s2 = createSubscription("s2", "2", "1", false);
 
         MetricsService metricsService = new MetricsService();
         SiriMarshaller siriMarshaller = new SiriMarshaller();
@@ -199,7 +199,8 @@ public class ETSubscriptionProcessorTest {
         journey.setOperatorRef(operatorRef);
         journey.setDatedVehicleJourneyRef(new DatedVehicleJourneyRef());
 
-        assertTrue(processor.processEstimatedVehicleJourney(journey));
+        boolean processed = processor.processEstimatedVehicleJourney(journey);
+        assertTrue(processed);
         assertEquals(2, subscriptionsNotified.size());
         assertThat(subscriptionsNotified, hasItem(s1));
         assertThat(subscriptionsNotified, hasItem(q1));
@@ -209,8 +210,9 @@ public class ETSubscriptionProcessorTest {
 
     private int subscriptionCounter = 0;
 
-    private Subscription createSubscription(Set<Subscription> subscriptions, String from, String to, String vehicleJourney, String line, boolean createQuay) {
+    private Subscription createSubscription(String name, Set<Subscription> subscriptions, String from, String to, String vehicleJourney, String line, boolean createQuay) {
         Subscription subscription = new Subscription();
+        subscription.setName(name);
         subscription.setId(Integer.toString(subscriptionCounter++));
         String stopPrefix;
         if (createQuay) {
@@ -236,8 +238,16 @@ public class ETSubscriptionProcessorTest {
         return subscription;
     }
 
+    private Subscription createSubscription(Set<Subscription> subscriptions, String from, String to, String vehicleJourney, String line, boolean createQuay) {
+        return createSubscription(null, subscriptions, from, to, vehicleJourney, line, createQuay);
+    }
+
+    private Subscription createSubscription(String name, String from, String to, boolean createQuay) {
+        return createSubscription(name, null, from, to, null, null, createQuay);
+    }
+
     private Subscription createSubscription(String from, String to, boolean createQuay) {
-        return createSubscription(null, from, to, null, null, createQuay);
+        return createSubscription(null, null, from, to, null, null, createQuay);
     }
 
     private void addDelayedEstimatedCall(EstimatedVehicleJourney.EstimatedCalls estimatedCalls, String stopPointRef, ZonedDateTime time, boolean createQuay) {

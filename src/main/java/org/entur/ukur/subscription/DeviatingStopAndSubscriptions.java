@@ -15,22 +15,20 @@
 
 package org.entur.ukur.subscription;
 
-import uk.org.siri.siri20.EstimatedCall;
-
 import java.util.HashSet;
 
-public class EstimatedCallAndSubscriptions {
+public class DeviatingStopAndSubscriptions {
 
-    private final EstimatedCall estimatedCall;
+    private final DeviatingStop deviatingStop;
     private final HashSet<Subscription> subscriptions;
 
-    public EstimatedCallAndSubscriptions(EstimatedCall estimatedCall, HashSet<Subscription> subscriptions) {
-        this.estimatedCall = estimatedCall;
+    public DeviatingStopAndSubscriptions(DeviatingStop deviatingStop, HashSet<Subscription> subscriptions) {
+        this.deviatingStop = deviatingStop;
         this.subscriptions = subscriptions;
     }
 
-    public EstimatedCall getEstimatedCall() {
-        return estimatedCall;
+    public DeviatingStop getDeviatingStop() {
+        return deviatingStop;
     }
 
     public HashSet<Subscription> getSubscriptions() {

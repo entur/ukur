@@ -22,7 +22,8 @@ import org.entur.ukur.routedata.LiveRouteManager;
 import org.entur.ukur.service.FileStorageService;
 import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.service.QuayAndStopPlaceMappingService;
-import org.entur.ukur.subscription.EstimatedCallAndSubscriptions;
+import org.entur.ukur.subscription.DeviatingStop;
+import org.entur.ukur.subscription.DeviatingStopAndSubscriptions;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionManager;
 import org.entur.ukur.xml.SiriMarshaller;
@@ -112,21 +113,23 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
         Timer.Context time = timer.time();
         try {
             liveRouteManager.updateJourney(estimatedVehicleJourney);
-            List<EstimatedCall> deviations = getEstimatedDelaysAndCancellations(estimatedVehicleJourney.getEstimatedCalls());
+            List<DeviatingStop> deviations = getEstimatedDelaysAndCancellations(estimatedVehicleJourney);
             if (deviations.isEmpty()) {
                 logger.trace("Processes EstimatedVehicleJourney (LineRef={}, DatedVehicleJourneyRef={}) - no estimated delays or cancellations", getStringValue(estimatedVehicleJourney.getLineRef()), getStringValue(estimatedVehicleJourney.getDatedVehicleJourneyRef()));
             } else {
                 logger.debug("Processes EstimatedVehicleJourney (LineRef={}, DatedVehicleJourneyRef={}) - with {} estimated delays", getStringValue(estimatedVehicleJourney.getLineRef()), getStringValue(estimatedVehicleJourney.getDatedVehicleJourneyRef()), deviations.size());
-                List<EstimatedCallAndSubscriptions> affectedSubscriptions = findAffectedSubscriptions(deviations, estimatedVehicleJourney);
+                List<DeviatingStopAndSubscriptions> affectedSubscriptions = findAffectedSubscriptions(deviations, estimatedVehicleJourney);
                 String lineRef = getStringValue(estimatedVehicleJourney.getLineRef());
                 String vehicleRef = getStringValue(estimatedVehicleJourney.getVehicleRef());
-                for (EstimatedCallAndSubscriptions estimatedCallAndSubscriptions : affectedSubscriptions) {
-                    HashSet<Subscription> subscriptions = estimatedCallAndSubscriptions.getSubscriptions();
+                HashSet<Subscription> subscriptionsToNoNotify = new HashSet<>();
+                for (DeviatingStopAndSubscriptions deviatingStopAndSubscriptions : affectedSubscriptions) {
+                    HashSet<Subscription> subscriptions = deviatingStopAndSubscriptions.getSubscriptions();
                     subscriptions.removeIf(s -> notIncluded(lineRef, s.getLineRefs()) || notIncluded(vehicleRef, s.getVehicleRefs()));
-                    EstimatedCall estimatedCall = estimatedCallAndSubscriptions.getEstimatedCall();
-                    logger.debug(" - For delayed departure from stopPlace {} there are {} affected subscriptions ", getStringValue(estimatedCall.getStopPointRef()), subscriptions.size());
-                    subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney);
+                    DeviatingStop stop = deviatingStopAndSubscriptions.getDeviatingStop();
+                    logger.debug(" - For delayed/cancelled departure from stopPlace {} there are {} affected subscriptions ", stop.getStopPointRef(), subscriptions.size());
+                    subscriptionsToNoNotify.addAll(subscriptions); //accumulates subscriptions as these are normally found twice (from and to)
                 }
+                subscriptionManager.notifySubscriptionsOnStops(subscriptionsToNoNotify, estimatedVehicleJourney);
                 HashSet<Subscription> subscriptionsOnLineOrVehicleRef = findSubscriptionsOnLineOrVehicleRef(lineRef, vehicleRef);
                 if (!subscriptionsOnLineOrVehicleRef.isEmpty()) {
                     subscriptionManager.notifySubscriptionsWithFullMessage(subscriptionsOnLineOrVehicleRef, estimatedVehicleJourney);
@@ -173,39 +176,52 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
     }
 
 
-    private List<EstimatedCallAndSubscriptions> findAffectedSubscriptions(List<EstimatedCall> estimatedDelays, EstimatedVehicleJourney estimatedVehicleJourney) {
+    private List<DeviatingStopAndSubscriptions> findAffectedSubscriptions(List<DeviatingStop> deviations, EstimatedVehicleJourney estimatedVehicleJourney) {
         HashMap<String, StopData> stops = getStopData(estimatedVehicleJourney);
-        ArrayList<EstimatedCallAndSubscriptions> affectedSubscriptions = new ArrayList<>();
-        for (EstimatedCall estimatedDelay : estimatedDelays) {
+        ArrayList<DeviatingStopAndSubscriptions> affectedSubscriptions = new ArrayList<>();
+        for (DeviatingStop deviation : deviations) {
             HashSet<Subscription> subscriptions = new HashSet<>();
-            String stopPoint = getStringValue(estimatedDelay.getStopPointRef());
+            String stopPoint = deviation.getStopPointRef();
             if (StringUtils.startsWithIgnoreCase(stopPoint, "NSR:")) {
                 //Bryr oss kun om stopPointRef på "nasjonalt format"
                 Set<Subscription> subs = subscriptionManager.getSubscriptionsForStopPoint(stopPoint);
                 for (Subscription sub : subs) {
                     if (validDirection(sub, stops)) {
-                        subscriptions.add(sub);
+                        if ( deviation.isCancelled() || subscripbedStopDelayed(sub, stopPoint, deviation) ) {
+                            subscriptions.add(sub);
+                        }
                     }
-                    /*
-                    TODO: For nå holder vi gyldighet på subscriptions utenfor...
-                    Men hva vil egentlig trigge et "treff"?
-                    - en avgang som normalt skulle gått(fra-StopPointRef)/ankommet(til-StopPointRef) innenfor tidsrommet
-                    - en avgang som nå (forsinket) går(fra-StopPointRef)/ankommer(til-StopPointRef) innenfor tidsrommet
-                     */
                 }
-                //TODO: Må skille mellom to og from stops ved å se på arrival og departure status
             }
             if (!subscriptions.isEmpty()) {
-                affectedSubscriptions.add(new EstimatedCallAndSubscriptions(estimatedDelay, subscriptions));
+                affectedSubscriptions.add(new DeviatingStopAndSubscriptions(deviation, subscriptions));
             }
         }
         return affectedSubscriptions;
     }
 
+    private boolean subscripbedStopDelayed(Subscription sub, String stopPoint, DeviatingStop deviation) {
+        if ( (sub.getFromStopPoints().contains(stopPoint) && deviation.isDelayedDeparture()) ||
+                (sub.getToStopPoints().contains(stopPoint) && deviation.isDelayedArrival()) ) {
+            return true;
+        }
+
+        if (stopPoint.startsWith("NSR:Quay:")) {
+            String stopPlaceId = quayAndStopPlaceMappingService.mapQuayToStopPlace(stopPoint);
+            if (stopPlaceId != null) {
+                if ( (sub.getFromStopPoints().contains(stopPlaceId) && deviation.isDelayedDeparture()) ||
+                        (sub.getToStopPoints().contains(stopPlaceId) && deviation.isDelayedArrival()) ) {
+                    return true;
+                }
+            }
+        }
+
+        return false;
+    }
+
     protected boolean validDirection(Subscription subscription, HashMap<String, StopData> stops) {
         ZonedDateTime fromTime = findOne(stops, subscription.getFromStopPoints(), DIRECTION_FROM);
         ZonedDateTime toTime = findOne(stops, subscription.getToStopPoints(), DIRECTION_TO);
-        //TODO: Tror kanskje denne logikken vil ha problemer med feks tbane-ringen...
         return fromTime != null && toTime != null && fromTime.isBefore(toTime);
     }
 
@@ -244,23 +260,41 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
         return stops;
     }
 
-    private List<EstimatedCall> getEstimatedDelaysAndCancellations(EstimatedVehicleJourney.EstimatedCalls estimatedCalls) {
-        List<EstimatedCall> delayed = new ArrayList<>();
-        for (EstimatedCall estimatedCall : estimatedCalls.getEstimatedCalls()) {
-            if (Boolean.TRUE.equals(estimatedCall.isCancellation())) {
-                delayed.add(estimatedCall);
-            } else if (estimatedCall.getDepartureStatus() == CallStatusEnumeration.DELAYED) {
-                // Noen ganger har vi kun AimedDepartureTime (og ikke ExpectedDepartureTime) da vet vi ikke hvor stor forsinkelse...
-                // Dette pga måten data blir samlet inn på (Anshar) - det vil komme en ny melding senere med ExpectedDepartureTime også
-                if (estimatedCall.getExpectedDepartureTime() != null && estimatedCall.getAimedDepartureTime() != null) {
-                    delayed.add(estimatedCall);
+    private List<DeviatingStop> getEstimatedDelaysAndCancellations(EstimatedVehicleJourney estimatedVehicleJourney) {
+        EstimatedVehicleJourney.EstimatedCalls estimatedCalls = estimatedVehicleJourney.getEstimatedCalls();
+        boolean cancelledJourney = Boolean.TRUE.equals(estimatedVehicleJourney.isCancellation());
+        List<DeviatingStop> deviations = new ArrayList<>();
+        for (EstimatedCall call : estimatedCalls.getEstimatedCalls()) {
+            if (futureEstimatedCall(call)) {
+                if (cancelledJourney || Boolean.TRUE.equals(call.isCancellation())) {
+                    deviations.add(DeviatingStop.cancelled(getStringValue(call.getStopPointRef())));
                 } else {
-                    logger.debug("Have a delayed EstimatedCall, but can't calculate delay - ignores it");
+                    boolean delayedDeparture = call.getDepartureStatus() == CallStatusEnumeration.DELAYED || isDelayed(call.getAimedDepartureTime(), call.getExpectedDepartureTime());
+                    boolean delayedArrival = call.getArrivalStatus() == CallStatusEnumeration.DELAYED || isDelayed(call.getAimedArrivalTime(), call.getExpectedArrivalTime());
+                    if (delayedArrival || delayedDeparture) {
+                        deviations.add(DeviatingStop.delayed(getStringValue(call.getStopPointRef()), delayedDeparture, delayedArrival));
+                    }
                 }
             }
-            //TODO: Må også se på  arrivalstatus så vi kan skille mellom to og from stops skikkelig
         }
-        return delayed;
+        return deviations;
+    }
+
+    private boolean futureEstimatedCall(EstimatedCall call) {
+        ZonedDateTime now = ZonedDateTime.now();
+        ZonedDateTime expectedDepartureTime = call.getExpectedDepartureTime();
+        if (expectedDepartureTime != null) {
+            return now.isBefore(call.getExpectedDepartureTime());
+        } else {
+            return now.isBefore(call.getAimedDepartureTime());
+        }
+    }
+
+    private boolean isDelayed(ZonedDateTime aimed, ZonedDateTime expected) {
+        if (aimed != null && expected != null) {
+            return expected.isAfter(aimed);
+        }
+        return false;
     }
 
     //TODO: case of stop ids given are relevant... That's not nessecary!
@@ -319,4 +353,5 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
             return departureBoardingActivity;
         }
     }
+
 }
