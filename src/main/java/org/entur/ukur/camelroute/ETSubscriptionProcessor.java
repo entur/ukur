@@ -77,34 +77,35 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
      * Expects inputstream with XML with EstimatedVehicleJourney as root element.
      */
     @Override
-    public void process(Exchange exchange) throws Exception {
-        InputStream xml = exchange.getIn().getBody(InputStream.class);
-        logger.debug("Reveived XML with size {} bytes", String.format("%,d", xml.available()));
-        Timer timer = metricsService.getTimer(MetricsService.TIMER_ET_UNMARSHALL);
-        Timer.Context time = timer.time();
-        EstimatedVehicleJourney estimatedVehicleJourney;
+    public void process(Exchange exchange) {
         try {
-            estimatedVehicleJourney = siriMarshaller.unmarshall(xml, EstimatedVehicleJourney.class);
-        } finally {
-            time.stop();
-        }
-        if (estimatedVehicleJourney == null) {
-            throw new IllegalArgumentException("No EstimatedVehicleJourney element...");
-        }
-        metricsService.registerReceivedMessage(EstimatedVehicleJourney.class);
+            InputStream xml = exchange.getIn().getBody(InputStream.class);
+            logger.debug("Reveived XML with size {} bytes", String.format("%,d", xml.available()));
+            Timer timer = metricsService.getTimer(MetricsService.TIMER_ET_UNMARSHALL);
+            Timer.Context time = timer.time();
+            EstimatedVehicleJourney estimatedVehicleJourney;
+            try {
+                estimatedVehicleJourney = siriMarshaller.unmarshall(xml, EstimatedVehicleJourney.class);
+            } finally {
+                time.stop();
+            }
+            if (estimatedVehicleJourney == null) {
+                throw new IllegalArgumentException("No EstimatedVehicleJourney element...");
+            }
+            metricsService.registerReceivedMessage(EstimatedVehicleJourney.class);
 
-        try {
             if (processEstimatedVehicleJourney(estimatedVehicleJourney)) {
                 if (storeMessagesToFile) {
                     fileStorageService.writeToFile(estimatedVehicleJourney);
                 }
             }
         } catch (Exception e) {
-            logger.error("Caught error during processing of EstimatedVehicleJourney", e); //since the logging from camel does not include the stacktrace on gcp...
+            //We always want to acknowlede so things don't end up on DLQ
+            logger.error("Caught error during processing of exchange with expected EstimatedVehicleJourney", e);
         }
     }
 
-    protected boolean processEstimatedVehicleJourney(EstimatedVehicleJourney estimatedVehicleJourney) {
+    boolean processEstimatedVehicleJourney(EstimatedVehicleJourney estimatedVehicleJourney) {
         if (shouldIgnoreJourney(estimatedVehicleJourney)) {
             logger.debug("Ignores EstimatedVehicleJourney with LineRef {}", getStringValue(estimatedVehicleJourney.getLineRef()));
             return false;
@@ -209,23 +210,21 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
         if (stopPoint.startsWith("NSR:Quay:")) {
             String stopPlaceId = quayAndStopPlaceMappingService.mapQuayToStopPlace(stopPoint);
             if (stopPlaceId != null) {
-                if ( (sub.getFromStopPoints().contains(stopPlaceId) && deviation.isDelayedDeparture()) ||
-                        (sub.getToStopPoints().contains(stopPlaceId) && deviation.isDelayedArrival()) ) {
-                    return true;
-                }
+                return (sub.getFromStopPoints().contains(stopPlaceId) && deviation.isDelayedDeparture()) ||
+                        (sub.getToStopPoints().contains(stopPlaceId) && deviation.isDelayedArrival());
             }
         }
 
         return false;
     }
 
-    protected boolean validDirection(Subscription subscription, HashMap<String, StopData> stops) {
+    boolean validDirection(Subscription subscription, HashMap<String, StopData> stops) {
         ZonedDateTime fromTime = findOne(stops, subscription.getFromStopPoints(), DIRECTION_FROM);
         ZonedDateTime toTime = findOne(stops, subscription.getToStopPoints(), DIRECTION_TO);
         return fromTime != null && toTime != null && fromTime.isBefore(toTime);
     }
 
-    protected HashMap<String, StopData> getStopData(EstimatedVehicleJourney journey) {
+    HashMap<String, StopData> getStopData(EstimatedVehicleJourney journey) {
         HashMap<String, StopData> stops = new HashMap<>();
         if (journey.getRecordedCalls() != null && journey.getRecordedCalls().getRecordedCalls() != null) {
             for (RecordedCall call : journey.getRecordedCalls().getRecordedCalls()) {

@@ -70,8 +70,8 @@ import static org.entur.ukur.camelroute.policy.SingletonRoutePolicyFactory.SINGL
 public class UkurCamelRouteBuilder extends SpringRouteBuilder {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
-    public  static final String ROUTE_ET_RETRIEVER = "seda:retrieveAnsharET";
-    public  static final String ROUTE_SX_RETRIEVER = "seda:retrieveAnsharSX";
+            static final String ROUTE_ET_RETRIEVER = "seda:retrieveAnsharET";
+            static final String ROUTE_SX_RETRIEVER = "seda:retrieveAnsharSX";
     private static final String SIRI_VERSION = "2.0";
     private static final String ROUTE_FLUSHJOURNEYS = "seda:flushOldJourneys";
     private static final String ROUTE_TIAMAT_MAP = "seda:getStopPlacesAndQuays";
@@ -304,12 +304,12 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                     .endChoice()
                 .when(PredicateBuilder.and(exchange -> sxEnabled, header("type").isEqualTo("sx")))
                     .bean(metricsService, "registerReceivedSubscribedMessage(${header.type} )")
-                    .to("activemq:queue:" + UkurConfiguration.SUB_SX_QUEUE)
+                    .wireTap("direct:receivePtSituationElements")
                     .setBody(simple("OK\n\n"))
                     .endChoice()
                 .when(PredicateBuilder.and(exchange -> etEnabled, header("type").isEqualTo("et")))
                     .bean(metricsService, "registerReceivedSubscribedMessage(${header.type} )")
-                    .to("activemq:queue:" + UkurConfiguration.SUB_ET_QUEUE)
+                    .wireTap("direct:receiveEstimatedVehicleJourneys")
                     .setBody(simple("OK\n\n"))
                     .endChoice()
                 .otherwise()
@@ -332,13 +332,13 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
             sharedProperties.set(key, value);
         };
 
-        from("activemq:queue:" + UkurConfiguration.SUB_SX_QUEUE)
+        from("direct:receivePtSituationElements")
                 .routeId("Handle subscribed SX message")
                 .convertBodyTo(Document.class)
                 .process(heartbeatRegistrer)
                 .to("direct:processPtSituationElements");
 
-        from("activemq:queue:" + UkurConfiguration.SUB_ET_QUEUE)
+        from("direct:receiveEstimatedVehicleJourneys")
                 .routeId("Handle subscribed ET message")
                 .convertBodyTo(Document.class)
                 .process(heartbeatRegistrer)

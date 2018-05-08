@@ -70,29 +70,31 @@ public class SXSubscriptionProcessor implements Processor {
     }
 
     @Override
-    public void process(Exchange exchange) throws Exception {
-        InputStream xml = exchange.getIn().getBody(InputStream.class);
-        logger.debug("Reveived XML with size {} bytes", String.format("%,d", xml.available()));
-        Timer timer = metricsService.getTimer(MetricsService.TIMER_SX_UNMARSHALL);
-        Timer.Context time = timer.time();
-        PtSituationElement ptSituationElement;
+    public void process(Exchange exchange) {
         try {
-            ptSituationElement = siriMarshaller.unmarshall(xml, PtSituationElement.class);
-        } finally {
-            time.stop();
-        }
-        if (ptSituationElement == null) {
-            throw new IllegalArgumentException("No PtSituationElement element...");
-        }
-        metricsService.registerReceivedMessage(PtSituationElement.class);
-        try {
+            InputStream xml = exchange.getIn().getBody(InputStream.class);
+            logger.debug("Reveived XML with size {} bytes", String.format("%,d", xml.available()));
+            Timer timer = metricsService.getTimer(MetricsService.TIMER_SX_UNMARSHALL);
+            Timer.Context time = timer.time();
+            PtSituationElement ptSituationElement;
+            try {
+                ptSituationElement = siriMarshaller.unmarshall(xml, PtSituationElement.class);
+            } finally {
+                time.stop();
+            }
+            if (ptSituationElement == null) {
+                throw new IllegalArgumentException("No PtSituationElement element...");
+            }
+            metricsService.registerReceivedMessage(PtSituationElement.class);
+
             if (processPtSituationElement(ptSituationElement)) {
                 if (storeMessagesToFile) {
                     fileStorageService.writeToFile(ptSituationElement);
                 }
             }
         } catch (Exception e) {
-            logger.error("Caught error during processing of PtSituationElement", e); //since the logging from camel does not include the stacktrace on gcp...
+            //We always want to acknowlede so things don't end up on DLQ
+            logger.error("Caught error during processing of exchange with expected PtSituationElement", e);
         }
     }
 
