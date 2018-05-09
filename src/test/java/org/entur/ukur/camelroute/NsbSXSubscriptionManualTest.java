@@ -35,6 +35,7 @@ import org.entur.ukur.subscription.SubscriptionManager;
 import org.entur.ukur.testsupport.DatastoreTest;
 import org.entur.ukur.xml.SiriMarshaller;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -86,6 +87,7 @@ public class NsbSXSubscriptionManualTest extends DatastoreTest {
     }
 
     @Test
+    @Ignore //So idea don't run it as part of package/folder tests
     public void prosessRecordedSXMessages() throws Exception {
 
         LoggerContext logCtx = (LoggerContext) LoggerFactory.getILoggerFactory();

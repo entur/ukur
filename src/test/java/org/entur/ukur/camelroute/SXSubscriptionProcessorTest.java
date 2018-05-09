@@ -160,36 +160,15 @@ public class SXSubscriptionProcessorTest extends DatastoreTest {
     }
 
     @Test
-    public void testSubscriptionsWithLineAndVehicleAndStops() {
-        /*
-        Test these subscription variants (with both hits and no hits)
-        - from-to (already tested above)
-        - from-to-vehicle
-        - from-to-line
-        - from-to-line-vehicle
-        - line-vehicle
-        - line
-        - vehicle
-         */
-
+    public void testSubscriptionsWithLineAndStops() {
         //These are supposed to be found
-        Subscription s_stops_vehicle = createSubscription("from-to-vehicle", "NSR:StopPlace:10", "NSR:StopPlace:20", null, "vehicle#1");
-        Subscription s_stops_line = createSubscription("from-to-line", "NSR:StopPlace:10", "NSR:StopPlace:20", "line#1", null);
-        Subscription s_stops_line_vehicle = createSubscription("from-to-line-vehicle", "NSR:StopPlace:10", "NSR:StopPlace:20", "line#1", "vehicle#1");
-        Subscription s_line_vehicle = createSubscription("line-vehicle", null, null, "line#1", "vehicle#1");
-        Subscription s_line = createSubscription("line", null, null, "line#1", null);
-        Subscription s_vehicle = createSubscription("vehicle", null, null, null, "vehicle#1");
-        List<Subscription> expectedSubscriptions = asList(s_stops_vehicle, s_stops_line, s_stops_line_vehicle, s_line_vehicle, s_line, s_vehicle);
+        Subscription s_stops_line = createSubscription("from-to-line", "NSR:StopPlace:10", "NSR:StopPlace:20", "line#1");
+        Subscription s_line = createSubscription("line", null, null, "line#1");
+        List<Subscription> expectedSubscriptions = asList(s_stops_line, s_line);
         //These are not supposed to be found as they have one or more conditions set that doesn't match:
-        createSubscription("NOHIT1-from-to-vehicle", "NSR:StopPlace:40", "NSR:StopPlace:30", null, "vehicle#1");
-        createSubscription("NOHIT2-from-to-vehicle", "NSR:StopPlace:10", "NSR:StopPlace:20", null, "vehicle#2");
-        createSubscription("NOHIT3-from-to-line", "NSR:StopPlace:40", "NSR:StopPlace:30", "line#1", null);
-        createSubscription("NOHIT4-from-to-line", "NSR:StopPlace:10", "NSR:StopPlace:20", "line#2", null);
-        createSubscription("NOHIT5-from-to-line-vehicle", "NSR:StopPlace:40", "NSR:StopPlace:30", "line#1", "vehicle#1");
-        createSubscription("NOHIT6-line-vehicle", null, null, "line#1", "vehicle#2");
-        createSubscription("NOHIT7-line-vehicle", null, null, "line#2", "vehicle#1");
-        createSubscription("NOHIT8-line", null, null, "line#2", null);
-        createSubscription("NOHIT9-vehicle", null, null, null, "vehicle#2");
+        createSubscription("NOHIT3-from-to-line", "NSR:StopPlace:40", "NSR:StopPlace:30", "line#1");
+        createSubscription("NOHIT4-from-to-line", "NSR:StopPlace:10", "NSR:StopPlace:20", "line#2");
+        createSubscription("NOHIT8-line", null, null, "line#2");
 
         ArrayList<LiveJourney> testRouteData = new ArrayList<>();
         testRouteData.add(createLiveJourney("line#1", "vehicle#1", asList("10", "20", "30", "40")));
@@ -280,19 +259,18 @@ public class SXSubscriptionProcessorTest extends DatastoreTest {
         return stopPointRef;
     }
 
-    private Subscription createSubscription(String name, String fromStop, String toStop, String line, String vehicle) {
+    private Subscription createSubscription(String name, String fromStop, String toStop, String line) {
         Subscription s = new Subscription();
         s.setPushAddress("push");
         if (name != null) s.setName(name);
         if (fromStop != null) s.addFromStopPoint(fromStop);
         if (toStop != null) s.addToStopPoint(toStop);
         if (line != null) s.addLineRef(line);
-        if (vehicle != null) s.addVehicleRef(vehicle);
         return subscriptionManager.add(s);
     }
 
     private Subscription createSubscription(String name, String fromStop, String toStop) {
-        return createSubscription(name, fromStop, toStop, null, null);
+        return createSubscription(name, fromStop, toStop, null);
     }
 
     private LiveJourney createLiveJourney(String line, String vehicleRef, List<String> stops) {

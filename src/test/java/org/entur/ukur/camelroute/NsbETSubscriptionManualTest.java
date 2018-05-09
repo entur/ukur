@@ -35,6 +35,7 @@ import org.entur.ukur.subscription.SubscriptionManager;
 import org.entur.ukur.testsupport.DatastoreTest;
 import org.entur.ukur.xml.SiriMarshaller;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -84,6 +85,7 @@ public class NsbETSubscriptionManualTest extends DatastoreTest {
     }
 
     @Test
+    @Ignore //So idea don't run it as part of package/folder tests
     public void prosessRecordedETMessages() throws Exception {
 
         LoggerContext logCtx = (LoggerContext) LoggerFactory.getILoggerFactory();
@@ -144,11 +146,11 @@ public class NsbETSubscriptionManualTest extends DatastoreTest {
         lineL13.addLineRef("NSB:Line:L13");
         subscriptionManager.add(lineL13);
 
-        Subscription vehicle1625 = new Subscription();
-        vehicle1625.setName("Vehicle 1625");
-        vehicle1625.setPushAddress(pushAddressBase + "/subscription4");
-        vehicle1625.addVehicleRef("1625");
-        subscriptionManager.add(vehicle1625);
+        Subscription codespaceABC = new Subscription();
+        codespaceABC.setName("Vehicle 1625");
+        codespaceABC.setPushAddress(pushAddressBase + "/subscription4");
+        codespaceABC.addCodespace("ABC");
+        subscriptionManager.add(codespaceABC);
 
         assertEquals(4, subscriptionManager.listAll().size());
 

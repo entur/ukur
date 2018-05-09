@@ -188,23 +188,30 @@ public class SubscribingRouteBuilderTest extends AbstractJUnit4SpringContextTest
                 .withHeader("Content-Type", equalTo("application/xml"))
                 .willReturn(aResponse()));
 
-        String line400Url = "/push1/sx";
-        Subscription lineL1 = createSubscription(line400Url, null, null, "RUT:Line:5", "Line 5");
-        logger.info("TestControl: Created subscription for line L1 with id = {}", lineL1.getId());
+        String line5Url = "/push1/sx";
+        Subscription line5 = createSubscription(line5Url, null, null, "RUT:Line:5", "Line 5");
+        logger.info("TestControl: Created subscription for line 5 with id = {}", line5.getId());
+
+        String codespaceUrl = "/push2/sx";
+        Subscription codespace = createSubscription(codespaceUrl, null, null, null, "codespace RUT", "RUT");
+        logger.info("TestControl: Created subscription for codespace RUT with id = {}", codespace.getId());
 
         logger.info("TestControl: Sends SX messages that will trigger notifications");
         postFile("/sx-ruter.xml", "sx");
         waitUntil(MetricsService.TIMER_SX_PROCESS, 1);
-        waitUntil(MetricsService.TIMER_PUSH, 1);
+        waitUntil(MetricsService.TIMER_PUSH, 2);
         Thread.sleep(100); //Sleeps a little longer to detect if we send an unwanted push message
 
         logger.info("TestControl: Asserts expected results");
         assertEquals(1, metricsService.getMeter("message.received.PtSituationElement").getCount());
         assertEquals(1, metricsService.getTimer(MetricsService.TIMER_SX_PROCESS).getCount());
-        assertEquals(1, metricsService.getTimer(MetricsService.TIMER_PUSH).getCount());
-        List<PtSituationElement> l1Messages = getReceivedMessages(line400Url);
-        logger.info("TestControl: received {} messages for subscription on L1", l1Messages.size());
-        assertEquals(1, l1Messages.size());
+        assertEquals(2, metricsService.getTimer(MetricsService.TIMER_PUSH).getCount());
+        List<PtSituationElement> l5Messages = getReceivedMessages(line5Url);
+        logger.info("TestControl: received {} messages for subscription on Line 5", l5Messages.size());
+        assertEquals(1, l5Messages.size());
+        List<PtSituationElement> rutMessages = getReceivedMessages(codespaceUrl);
+        logger.info("TestControl: received {} messages for subscription on codespace RUT", rutMessages.size());
+        assertEquals(1, rutMessages.size());
     }
 
 
@@ -218,10 +225,15 @@ public class SubscribingRouteBuilderTest extends AbstractJUnit4SpringContextTest
     }
 
     private Subscription createSubscription(String pushAddress, String from, String to, String line, String name) throws Exception {
+        return createSubscription(pushAddress, from, to, line, name, null);
+    }
+
+    private Subscription createSubscription(String pushAddress, String from, String to, String line, String name, String codespace) throws Exception {
         Subscription subscription = new Subscription();
         if (from != null) subscription.addFromStopPoint(from);
         if (to != null) subscription.addToStopPoint(to);
         if (line != null) subscription.addLineRef(line);
+        if (codespace != null) subscription.addCodespace(codespace);
         subscription.setName(name);
         pushAddress = pushAddress.substring(0, pushAddress.length()-3); //last '/et' (or '/sx') is added by the subscription manager
         subscription.setPushAddress("http://localhost:" + config.getWiremockPort() + pushAddress);

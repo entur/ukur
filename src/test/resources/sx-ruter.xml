@@ -1,7 +1,7 @@
 <?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <PtSituationElement xmlns="http://www.siri.org.uk/siri" xmlns:ns2="http://www.ifopt.org.uk/acsb" xmlns:ns4="http://datex2.eu/schema/2_0RC1/2_0" xmlns:ns3="http://www.ifopt.org.uk/ifopt">
   <CreationTime>2018-04-24T09:37:01.3347538+02:00</CreationTime>
-  <ParticipantRef>rutersx</ParticipantRef>
+  <ParticipantRef>RUT</ParticipantRef>
   <SituationNumber>50708</SituationNumber>
   <Source>
     <SourceType>web</SourceType>

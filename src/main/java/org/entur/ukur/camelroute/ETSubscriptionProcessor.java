@@ -22,10 +22,7 @@ import org.entur.ukur.routedata.LiveRouteManager;
 import org.entur.ukur.service.FileStorageService;
 import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.service.QuayAndStopPlaceMappingService;
-import org.entur.ukur.subscription.DeviatingStop;
-import org.entur.ukur.subscription.DeviatingStopAndSubscriptions;
-import org.entur.ukur.subscription.Subscription;
-import org.entur.ukur.subscription.SubscriptionManager;
+import org.entur.ukur.subscription.*;
 import org.entur.ukur.xml.SiriMarshaller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -38,6 +35,7 @@ import java.io.InputStream;
 import java.time.ZonedDateTime;
 import java.util.*;
 
+import static org.entur.ukur.subscription.SubscriptionTypeEnum.ET;
 import static org.entur.ukur.xml.SiriObjectHelper.getStringValue;
 
 @Service
@@ -121,17 +119,16 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
                 logger.debug("Processes EstimatedVehicleJourney (LineRef={}, DatedVehicleJourneyRef={}) - with {} estimated delays", getStringValue(estimatedVehicleJourney.getLineRef()), getStringValue(estimatedVehicleJourney.getDatedVehicleJourneyRef()), deviations.size());
                 List<DeviatingStopAndSubscriptions> affectedSubscriptions = findAffectedSubscriptions(deviations, estimatedVehicleJourney);
                 String lineRef = getStringValue(estimatedVehicleJourney.getLineRef());
-                String vehicleRef = getStringValue(estimatedVehicleJourney.getVehicleRef());
                 HashSet<Subscription> subscriptionsToNoNotify = new HashSet<>();
                 for (DeviatingStopAndSubscriptions deviatingStopAndSubscriptions : affectedSubscriptions) {
                     HashSet<Subscription> subscriptions = deviatingStopAndSubscriptions.getSubscriptions();
-                    subscriptions.removeIf(s -> notIncluded(lineRef, s.getLineRefs()) || notIncluded(vehicleRef, s.getVehicleRefs()));
+                    subscriptions.removeIf(s -> notIncluded(lineRef, s.getLineRefs()));
                     DeviatingStop stop = deviatingStopAndSubscriptions.getDeviatingStop();
                     logger.debug(" - For delayed/cancelled departure from stopPlace {} there are {} affected subscriptions ", stop.getStopPointRef(), subscriptions.size());
                     subscriptionsToNoNotify.addAll(subscriptions); //accumulates subscriptions as these are normally found twice (from and to)
                 }
                 subscriptionManager.notifySubscriptionsOnStops(subscriptionsToNoNotify, estimatedVehicleJourney);
-                HashSet<Subscription> subscriptionsOnLineOrVehicleRef = findSubscriptionsOnLineOrVehicleRef(lineRef, vehicleRef);
+                HashSet<Subscription> subscriptionsOnLineOrVehicleRef = findSubscriptionsOnLineOrVehicleRef(lineRef);
                 if (!subscriptionsOnLineOrVehicleRef.isEmpty()) {
                     subscriptionManager.notifySubscriptionsWithFullMessage(subscriptionsOnLineOrVehicleRef, estimatedVehicleJourney);
                 }
@@ -157,21 +154,11 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
         return !values.isEmpty() && StringUtils.isNotBlank(value) && !values.contains(value);
     }
 
-    private HashSet<Subscription> findSubscriptionsOnLineOrVehicleRef(String lineRef, String vehicleRef) {
+    private HashSet<Subscription> findSubscriptionsOnLineOrVehicleRef(String lineRef) {
         HashSet<Subscription> subscriptions = new HashSet<>();
         if (StringUtils.isNotBlank(lineRef)) {
-            Set<Subscription> lineRefSubscriptions = subscriptionManager.getSubscriptionsForLineRef(lineRef);
-            if (StringUtils.isNotBlank(vehicleRef)) {
-                lineRefSubscriptions.removeIf(s -> !s.getVehicleRefs().isEmpty() && !s.getVehicleRefs().contains(vehicleRef));
-            }
+            Set<Subscription> lineRefSubscriptions = subscriptionManager.getSubscriptionsForLineRef(lineRef, ET);
             subscriptions.addAll(lineRefSubscriptions);
-        }
-        if (StringUtils.isNotBlank(vehicleRef)) {
-            Set<Subscription> vehicleRefSubscriptions = subscriptionManager.getSubscriptionsForvehicleRef(vehicleRef);
-            if (StringUtils.isNotBlank(lineRef)) {
-                vehicleRefSubscriptions.removeIf(s -> !s.getLineRefs().isEmpty() && !s.getLineRefs().contains(lineRef));
-            }
-            subscriptions.addAll(vehicleRefSubscriptions);
         }
         return subscriptions;
     }
@@ -185,7 +172,7 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
             String stopPoint = deviation.getStopPointRef();
             if (StringUtils.startsWithIgnoreCase(stopPoint, "NSR:")) {
                 //Bryr oss kun om stopPointRef på "nasjonalt format"
-                Set<Subscription> subs = subscriptionManager.getSubscriptionsForStopPoint(stopPoint);
+                Set<Subscription> subs = subscriptionManager.getSubscriptionsForStopPoint(stopPoint, ET);
                 for (Subscription sub : subs) {
                     if (validDirection(sub, stops)) {
                         if ( deviation.isCancelled() || subscripbedStopDelayed(sub, stopPoint, deviation) ) {

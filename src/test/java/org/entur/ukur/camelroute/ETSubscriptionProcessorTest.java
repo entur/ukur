@@ -37,6 +37,7 @@ import java.util.HashSet;
 import java.util.Set;
 
 import static junit.framework.TestCase.assertTrue;
+import static org.entur.ukur.subscription.SubscriptionTypeEnum.ET;
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.junit.Assert.*;
 import static org.mockito.Matchers.eq;
@@ -111,26 +112,20 @@ public class ETSubscriptionProcessorTest {
 
         Set<Subscription> subscriptionsForStopPoint = new HashSet<>();
         //Expects these to be found:
-        Subscription s_R1_E1 = createSubscription(subscriptionsForStopPoint, "R1", "E1", null, null, false);
-        Subscription s_R1_E1_v = createSubscription(subscriptionsForStopPoint, "R1", "E1", "1234", null, false);
-        Subscription s_R1_E1_v_l = createSubscription(subscriptionsForStopPoint, "R1", "E1", "1234", "NSB:Line:1", false);
-        Subscription s_R1_E1_l = createSubscription(subscriptionsForStopPoint, "R1", "E1", null, "NSB:Line:1", false);
-        Subscription s_l_v = createSubscription(subscriptionsForStopPoint, null, null, "1234", "NSB:Line:1", false);
-        Subscription s_l = createSubscription(subscriptionsForStopPoint, null, null, null, "NSB:Line:1", false);
-        Subscription s_v = createSubscription(subscriptionsForStopPoint, null, null, "1234", null, false);
+        Subscription s_R1_E1 = createSubscription(subscriptionsForStopPoint, "R1", "E1", null, false);
+        Subscription s_R1_E1_l = createSubscription(subscriptionsForStopPoint, "R1", "E1", "NSB:Line:1", false);
+        Subscription s_l = createSubscription(subscriptionsForStopPoint, null, null, "NSB:Line:1", false);
         //These should not be found:
-        createSubscription(subscriptionsForStopPoint, "E1", "R1", null, null, false);
-        createSubscription(subscriptionsForStopPoint, "R1", "E1", "4444", "NSB:Line:2", false);
-        Subscription s_l_vx = createSubscription(subscriptionsForStopPoint, null, null, "4444", "NSB:Line:1", false);
-        Subscription s_lx_v = createSubscription(subscriptionsForStopPoint, null, null, "1234", "NSB:Line:2", false);
-        createSubscription(subscriptionsForStopPoint, "x1", "E1", "1234", "NSB:Line:1", false);
-        createSubscription(subscriptionsForStopPoint, "R1", "x1", "1234", "NSB:Line:1", false);
+        createSubscription(subscriptionsForStopPoint, "E1", "R1", null , false);
+        createSubscription(subscriptionsForStopPoint, "R1", "E1", "NSB:Line:2", false);
+        Subscription s_l_vx = createSubscription(subscriptionsForStopPoint, null, null, "NSB:Line:1", false);
+        createSubscription(subscriptionsForStopPoint, "x1", "E1", "NSB:Line:1", false);
+        createSubscription(subscriptionsForStopPoint, "R1", "x1","NSB:Line:1", false);
 
         SubscriptionManager subscriptionManagerMock = mock(SubscriptionManager.class); //must be somewhat carefull so we don't spend to much time testing the mock...
-        when((subscriptionManagerMock.getSubscriptionsForStopPoint("NSR:StopPlace:E1"))).thenReturn(subscriptionsForStopPoint);
-        when((subscriptionManagerMock.getSubscriptionsForStopPoint("NSR:StopPlace:R1"))).thenReturn(subscriptionsForStopPoint);
-        when((subscriptionManagerMock.getSubscriptionsForLineRef("NSB:Line:1"))).thenReturn(new HashSet<>(Arrays.asList(s_l, s_l_v, s_l_vx)));
-        when((subscriptionManagerMock.getSubscriptionsForvehicleRef("1234"))).thenReturn(new HashSet<>(Arrays.asList(s_l_v, s_v, s_lx_v)));
+        when((subscriptionManagerMock.getSubscriptionsForStopPoint("NSR:StopPlace:E1", ET))).thenReturn(subscriptionsForStopPoint);
+        when((subscriptionManagerMock.getSubscriptionsForStopPoint("NSR:StopPlace:R1", ET))).thenReturn(subscriptionsForStopPoint);
+        when((subscriptionManagerMock.getSubscriptionsForLineRef("NSB:Line:1", ET))).thenReturn(new HashSet<>(Arrays.asList(s_l, s_l_vx)));
 
         ETSubscriptionProcessor processor = new ETSubscriptionProcessor(subscriptionManagerMock,
                 new SiriMarshaller(), mock(LiveRouteManager.class), mock(FileStorageService.class),
@@ -142,16 +137,12 @@ public class ETSubscriptionProcessorTest {
         verify(subscriptionManagerMock).notifySubscriptionsOnStops(subscriptionsOnStopsCaptor.capture(), eq(journey));
         verify(subscriptionManagerMock).notifySubscriptionsWithFullMessage(subscriptionsOnLineOrVehicleJourneyCaptor.capture(), eq(journey));
         HashSet<Subscription> notifiedSubscriptionsOnStops = subscriptionsOnStopsCaptor.getValue();
-        assertEquals(4, notifiedSubscriptionsOnStops.size());
+        assertEquals(2, notifiedSubscriptionsOnStops.size());
         assertTrue(notifiedSubscriptionsOnStops.contains(s_R1_E1));
-        assertTrue(notifiedSubscriptionsOnStops.contains(s_R1_E1_v));
-        assertTrue(notifiedSubscriptionsOnStops.contains(s_R1_E1_v_l));
         assertTrue(notifiedSubscriptionsOnStops.contains(s_R1_E1_l));
         HashSet<Subscription> notifiedSubscriptionsWithFullMessage = subscriptionsOnLineOrVehicleJourneyCaptor.getValue();
-        assertEquals(3, notifiedSubscriptionsWithFullMessage.size());
-        assertTrue(notifiedSubscriptionsWithFullMessage.contains(s_l_v));
+        assertEquals(2, notifiedSubscriptionsWithFullMessage.size());
         assertTrue(notifiedSubscriptionsWithFullMessage.contains(s_l));
-        assertTrue(notifiedSubscriptionsWithFullMessage.contains(s_v));
     }
 
     @Test
@@ -176,10 +167,10 @@ public class ETSubscriptionProcessorTest {
                 mock(FileStorageService.class), metricsService, mappingMock);
 
         HashSet<Subscription> subscriptions = Sets.newHashSet(s1, s2);
-        when(dataStorageMock.getSubscriptionsForStopPoint("NSR:StopPlace:1")).thenReturn(subscriptions);
-        when(dataStorageMock.getSubscriptionsForStopPoint("NSR:StopPlace:2")).thenReturn(subscriptions);
-        when(dataStorageMock.getSubscriptionsForStopPoint("NSR:Quay:1")).thenReturn(Sets.newHashSet(q1));
-        when(dataStorageMock.getSubscriptionsForStopPoint("NSR:Quay:2")).thenReturn(Sets.newHashSet(q1));
+        when(dataStorageMock.getSubscriptionsForStopPoint("NSR:StopPlace:1", ET)).thenReturn(subscriptions);
+        when(dataStorageMock.getSubscriptionsForStopPoint("NSR:StopPlace:2", ET)).thenReturn(subscriptions);
+        when(dataStorageMock.getSubscriptionsForStopPoint("NSR:Quay:1", ET)).thenReturn(Sets.newHashSet(q1));
+        when(dataStorageMock.getSubscriptionsForStopPoint("NSR:Quay:2", ET)).thenReturn(Sets.newHashSet(q1));
         when(mappingMock.mapQuayToStopPlace("NSR:Quay:1")).thenReturn("NSR:StopPlace:1");
         when(mappingMock.mapQuayToStopPlace("NSR:Quay:2")).thenReturn("NSR:StopPlace:2");
 
@@ -210,7 +201,7 @@ public class ETSubscriptionProcessorTest {
 
     private int subscriptionCounter = 0;
 
-    private Subscription createSubscription(String name, Set<Subscription> subscriptions, String from, String to, String vehicleJourney, String line, boolean createQuay) {
+    private Subscription createSubscription(String name, Set<Subscription> subscriptions, String from, String to, String line, boolean createQuay) {
         Subscription subscription = new Subscription();
         subscription.setName(name);
         subscription.setId(Integer.toString(subscriptionCounter++));
@@ -226,9 +217,6 @@ public class ETSubscriptionProcessorTest {
         if (to != null) {
             subscription.addToStopPoint(stopPrefix +to);
         }
-        if (vehicleJourney != null) {
-            subscription.addVehicleRef(vehicleJourney);
-        }
         if (line!= null) {
             subscription.addLineRef(line);
         }
@@ -238,16 +226,16 @@ public class ETSubscriptionProcessorTest {
         return subscription;
     }
 
-    private Subscription createSubscription(Set<Subscription> subscriptions, String from, String to, String vehicleJourney, String line, boolean createQuay) {
-        return createSubscription(null, subscriptions, from, to, vehicleJourney, line, createQuay);
+    private Subscription createSubscription(Set<Subscription> subscriptions, String from, String to, String line, boolean createQuay) {
+        return createSubscription(null, subscriptions, from, to, line, createQuay);
     }
 
     private Subscription createSubscription(String name, String from, String to, boolean createQuay) {
-        return createSubscription(name, null, from, to, null, null, createQuay);
+        return createSubscription(name, null, from, to, null, createQuay);
     }
 
     private Subscription createSubscription(String from, String to, boolean createQuay) {
-        return createSubscription(null, null, from, to, null, null, createQuay);
+        return createSubscription(null, null, from, to, null, createQuay);
     }
 
     private void addDelayedEstimatedCall(EstimatedVehicleJourney.EstimatedCalls estimatedCalls, String stopPointRef, ZonedDateTime time, boolean createQuay) {

@@ -101,28 +101,28 @@ public class SubscriptionManager {
         return result;
     }
 
-    public Set<Subscription> getSubscriptionsForStopPoint(String stopPointRef) {
+    public Set<Subscription> getSubscriptionsForStopPoint(String stopPointRef, SubscriptionTypeEnum type) {
         HashSet<Subscription> subscriptions = new HashSet<>();
         if (stopPointRef.startsWith("NSR:Quay:")) {
             String stopPlace = quayAndStopPlaceMappingService.mapQuayToStopPlace(stopPointRef);
             if (StringUtils.isNotBlank(stopPlace)) {
-                Set<Subscription> subscriptionsForStopPlace = dataStorageService.getSubscriptionsForStopPoint(stopPlace);
+                Set<Subscription> subscriptionsForStopPlace = dataStorageService.getSubscriptionsForStopPoint(stopPlace, type);
                 logger.trace("Found {} subscriptions for stopPlace {} which quay {} is part of", subscriptionsForStopPlace.size(), stopPlace, stopPointRef);
                 subscriptions.addAll(subscriptionsForStopPlace);
             }
         }
-        Set<Subscription> subscriptionsForStopPoint = dataStorageService.getSubscriptionsForStopPoint(stopPointRef);
+        Set<Subscription> subscriptionsForStopPoint = dataStorageService.getSubscriptionsForStopPoint(stopPointRef, type);
         logger.trace("Found {} subscriptions for {}", subscriptionsForStopPoint.size(), stopPointRef);
         subscriptions.addAll(subscriptionsForStopPoint);
         return subscriptions;
     }
 
-    public Set<Subscription> getSubscriptionsForLineRef(String lineRef) {
-        return dataStorageService.getSubscriptionsForLineRefAndNoStops(lineRef);
+    public Set<Subscription> getSubscriptionsForLineRef(String lineRef, SubscriptionTypeEnum type) {
+        return dataStorageService.getSubscriptionsForLineRefAndNoStops(lineRef, type);
     }
 
-    public Set<Subscription> getSubscriptionsForvehicleRef(String vehicleRef) {
-        return dataStorageService.getSubscriptionsForvehicleRefAndNoStops(vehicleRef);
+    public Set<Subscription> getSubscriptionsForCodespace(String codespace, SubscriptionTypeEnum type) {
+        return dataStorageService.getSubscriptionsForCodespaceAndNoStops(codespace, type);
     }
 
     public void notifySubscriptionsOnStops(HashSet<Subscription> subscriptions, EstimatedVehicleJourney estimatedVehicleJourney) {
@@ -176,13 +176,16 @@ public class SubscriptionManager {
                 affects.setRoads(null);
                 affects.setVehicles(null);
                 //removes part not subscribed upon (to reduce size on push-message):
-                removeUnsubscribedNetworks(subscription, affects.getNetworks());
-                if (subscription.hasNoStops()) {
-                    affects.setStopPlaces(null);
-                } else {
-                    removeUnsubscribedStopPlaces(subscribedStops, affects.getStopPlaces());
+                //TODO: make sure codespace subscriptions receive all...
+                if (subscription.getCodespaces().isEmpty() || !subscription.hasNoStops() || !subscription.getLineRefs().isEmpty()) {
+                    removeUnsubscribedNetworks(subscription, affects.getNetworks());
+                    if (subscription.hasNoStops()) {
+                        affects.setStopPlaces(null);
+                    } else {
+                        removeUnsubscribedStopPlaces(subscribedStops, affects.getStopPlaces());
+                    }
+                    removeUnsubscribedJourneys(subscription, subscribedStops, affects.getVehicleJourneys());
                 }
-                removeUnsubscribedJourneys(subscription, subscribedStops, affects.getVehicleJourneys());
             }
 
             if (withAffects(clone)) {
@@ -292,23 +295,10 @@ public class SubscriptionManager {
     private boolean isSubscribed(Subscription subscription, AffectedVehicleJourneyStructure journey) {
         if (!subscription.getLineRefs().isEmpty() && journey.getLineRef() != null) {
             String lineref = journey.getLineRef().getValue();
-            if (StringUtils.isNotBlank(lineref) && !subscription.getLineRefs().contains(lineref)) {
-                return false;
-            }
-        }
-        if (!subscription.getVehicleRefs().isEmpty() && journey.getVehicleJourneyReves() != null) {
-            boolean vehicleRefOk = true;
-            for (VehicleJourneyRef vehicleJourneyRef : journey.getVehicleJourneyReves()) {
-                String value = vehicleJourneyRef.getValue();
-                if (StringUtils.isNotBlank(value) && !subscription.getVehicleRefs().contains(value)) {
-                    vehicleRefOk = false;
-                }
-            }
-            return vehicleRefOk;
+            return !StringUtils.isNotBlank(lineref) || subscription.getLineRefs().contains(lineref);
         }
         return true;
     }
-
 
     @SuppressWarnings({"unused", "UnusedReturnValue"}) //Used from Camel REST api
     public Subscription add(Subscription s) {
@@ -321,10 +311,10 @@ public class SubscriptionManager {
         s.normalizeAndRemoveIgnoredStops();
         boolean noToStops = s.getToStopPoints().isEmpty();
         boolean noFromStops = s.getFromStopPoints().isEmpty();
-        boolean noVehicleRefs = s.getVehicleRefs().isEmpty();
+        boolean noCodespaces = s.getCodespaces().isEmpty();
         boolean noLineRefs = s.getLineRefs().isEmpty();
-        if (noToStops && noFromStops && noVehicleRefs && noLineRefs) {
-            throw new IllegalArgumentException("No criterias given, must have at least one lineRef, one vehicleRef or a fromStop and a toStop");
+        if (noToStops && noFromStops && noCodespaces && noLineRefs) {
+            throw new IllegalArgumentException("No criterias given, must have at least one lineRef, one codespace or a fromStop and a toStop");
         }
         if ( (noFromStops && !noToStops) || (noToStops && !noFromStops)) {
             throw new IllegalArgumentException("Must have both TO and FROM stops");

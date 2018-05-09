@@ -28,6 +28,7 @@ import java.util.Collection;
 import java.util.Iterator;
 import java.util.Set;
 
+import static org.entur.ukur.subscription.SubscriptionTypeEnum.*;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.*;
 
@@ -44,7 +45,8 @@ public class DataStorageServiceTest extends DatastoreTest {
         subscription.addToStopPoint("NSR:Quay:2");
         subscription.addLineRef("NSB:Line:Test1");
         subscription.addLineRef("NSB:Line:Test2");
-        subscription.addVehicleRef("1234");
+        subscription.addCodespace("ABC");
+        subscription.setType(ET);
 
         //add new
         Subscription addedSubscription = service.addSubscription(subscription);
@@ -54,7 +56,7 @@ public class DataStorageServiceTest extends DatastoreTest {
         assertEquals(subscription.getPushAddress(), addedSubscription.getPushAddress());
         assertThat(addedSubscription.getFromStopPoints(), is(subscription.getFromStopPoints()));
         assertThat(addedSubscription.getToStopPoints(), is(subscription.getToStopPoints()));
-        assertThat(addedSubscription.getVehicleRefs(), is(subscription.getVehicleRefs()));
+        assertThat(addedSubscription.getCodespaces(), is(subscription.getCodespaces()));
         assertThat(addedSubscription.getLineRefs(), is(subscription.getLineRefs()));
 
         //makes sure it's listed
@@ -71,16 +73,21 @@ public class DataStorageServiceTest extends DatastoreTest {
         anotherSubscription.setName("Test#2");
         anotherSubscription.addFromStopPoint("NSR:Quay:3");
         anotherSubscription.addToStopPoint("NSR:Quay:2");
+        anotherSubscription.setType(ET);
         Subscription anotherAddedSubscription = service.addSubscription(anotherSubscription);
 
         //make sure it is counted
         assertEquals(2, service.getNumberOfSubscriptions());
 
         //search for subscriptions with quay 3
-        Set<Subscription> subscriptionsForStopPoint = service.getSubscriptionsForStopPoint("NSR:Quay:3");
+        Set<Subscription> subscriptionsForStopPoint = service.getSubscriptionsForStopPoint("NSR:Quay:3", ET);
         assertEquals(1, subscriptionsForStopPoint.size());
         Subscription s = subscriptionsForStopPoint.iterator().next();
         assertEquals(anotherAddedSubscription.getId(), s.getId());
+
+        //test various subscriptions types on stoppoint
+        assertEquals(0, service.getSubscriptionsForStopPoint("NSR:Quay:3", ALL).size());
+        assertEquals(0, service.getSubscriptionsForStopPoint("NSR:Quay:3", SX).size());
 
         //update the subscription so it no longer has quay 3 - instead 33 that should not be found even though it still contains the previous value
         s.removeFromStopPoint("NSR:Quay:3");
@@ -108,11 +115,11 @@ public class DataStorageServiceTest extends DatastoreTest {
         assertEquals(2, service.getNumberOfSubscriptions());
 
         //but no results for subscriptions with quay 3 (as it was modified to 33)
-        subscriptionsForStopPoint = service.getSubscriptionsForStopPoint("NSR:Quay:3");
+        subscriptionsForStopPoint = service.getSubscriptionsForStopPoint("NSR:Quay:3", ALL);
         assertEquals(0, subscriptionsForStopPoint.size());
 
         //both subscriptions has quay 2
-        subscriptionsForStopPoint = service.getSubscriptionsForStopPoint("NSR:Quay:2");
+        subscriptionsForStopPoint = service.getSubscriptionsForStopPoint("NSR:Quay:2", ET);
         assertEquals(2, subscriptionsForStopPoint.size());
 
         //Makes sure lineRefs and vehicleJourneyRefs are found (only new subscription has them set without stops - the first one has them also but with stops)
@@ -120,18 +127,27 @@ public class DataStorageServiceTest extends DatastoreTest {
         subscriptionWithOnlyLineAndVehicleJourney.setPushAddress("http://someotherhost/test_line_vehiclejourney");
         subscriptionWithOnlyLineAndVehicleJourney.setName("Test#3");
         subscriptionWithOnlyLineAndVehicleJourney.addLineRef("NSB:Line:Test1");
-        subscriptionWithOnlyLineAndVehicleJourney.addVehicleRef("1234");
-        subscriptionWithOnlyLineAndVehicleJourney.addVehicleRef("5678");
+        subscriptionWithOnlyLineAndVehicleJourney.addCodespace("ABC");
+        subscriptionWithOnlyLineAndVehicleJourney.addCodespace("DEF");
+        subscriptionWithOnlyLineAndVehicleJourney.setType(SX);
         Subscription newSubscription = service.addSubscription(subscriptionWithOnlyLineAndVehicleJourney);
         assertEquals(3, service.getNumberOfSubscriptions());
-        //Find vehiclejourney
-        Set<Subscription> subscriptionsForvehicleJourneyRef = service.getSubscriptionsForvehicleRefAndNoStops("1234");
+        //Find codespace
+        Set<Subscription> subscriptionsForvehicleJourneyRef = service.getSubscriptionsForCodespaceAndNoStops("ABC", SX);
         assertEquals(1, subscriptionsForvehicleJourneyRef.size());
         assertEquals(newSubscription.getId(), subscriptionsForvehicleJourneyRef.iterator().next().getId());
+        //test various subscriptions types on codespace
+        assertEquals(0, service.getSubscriptionsForCodespaceAndNoStops("ABC", ALL).size());
+        assertEquals(0, service.getSubscriptionsForCodespaceAndNoStops("ABC", ET).size());
+
         //Find line
-        Set<Subscription> subscriptionsForLineRef = service.getSubscriptionsForLineRefAndNoStops("NSB:Line:Test1");
+        Set<Subscription> subscriptionsForLineRef = service.getSubscriptionsForLineRefAndNoStops("NSB:Line:Test1", SX);
         assertEquals(1, subscriptionsForLineRef.size());
         assertEquals(newSubscription.getId(), subscriptionsForLineRef.iterator().next().getId());
+        //test various subscriptions types on line
+        assertEquals(0, service.getSubscriptionsForLineRefAndNoStops("NSB:Line:Test1", ALL).size());
+        assertEquals(0, service.getSubscriptionsForLineRefAndNoStops("NSB:Line:Test1", ET).size());
+
 
         //delete the second subscription
         assertEquals(3, service.getNumberOfSubscriptions());
@@ -164,13 +180,13 @@ public class DataStorageServiceTest extends DatastoreTest {
         notLineOnlySubscription.addToStopPoint("NSR:Quay:2");
         service.addSubscription(notLineOnlySubscription);
 
-        int unexistingVehicleRef1 = service.getSubscriptionsForvehicleRefAndNoStops("unexisting").size();
-        int unexistingVehicleRef2 = service.getSubscriptionsForvehicleRefAndNoStops(line).size();
-        int unexistingLineRef = service.getSubscriptionsForLineRefAndNoStops("unexisting").size();
-        int existingLineRef = service.getSubscriptionsForLineRefAndNoStops(line).size();
-        logger.debug("Found {} with vehicleref=unexisting, {} with vechicleref={}, {} with lineref=unexisting and {} with lineref={}", unexistingVehicleRef1, unexistingVehicleRef2, line, unexistingLineRef, existingLineRef, line);
-        assertEquals(0, unexistingVehicleRef1);
-        assertEquals(0, unexistingVehicleRef2);
+        int unexistingCodespace1 = service.getSubscriptionsForCodespaceAndNoStops("unexisting", ALL).size();
+        int unexistingCodespace2 = service.getSubscriptionsForCodespaceAndNoStops(line, ALL).size();
+        int unexistingLineRef = service.getSubscriptionsForLineRefAndNoStops("unexisting", ALL).size();
+        int existingLineRef = service.getSubscriptionsForLineRefAndNoStops(line, ALL).size();
+        logger.debug("Found {} with codespace=unexisting, {} with codespace={}, {} with lineref=unexisting and {} with lineref={}", unexistingCodespace1, unexistingCodespace2, line, unexistingLineRef, existingLineRef, line);
+        assertEquals(0, unexistingCodespace1);
+        assertEquals(0, unexistingCodespace2);
         assertEquals(0, unexistingLineRef);
         assertEquals(1, existingLineRef);
     }

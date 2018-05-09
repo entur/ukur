@@ -275,7 +275,6 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
                 .withHeader("Content-Type", equalTo("application/xml"))
                 .willReturn(aResponse()));
         Subscription subscriptionWithStop = createSubscription(urlWithStop, "NSR:StopPlace:1", "NSR:StopPlace:3", "NSB:Line:Line1");
-        subscriptionWithStop.addVehicleRef("1234");
         HashSet<Subscription> subscriptions = new HashSet<>();
         subscriptions.add(subscriptionWithStop);
         subscriptionManager.notifySubscriptions(subscriptions, createPtSituationElement());
@@ -287,12 +286,32 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         assertNotNull(msgForSubsciptionWithStops.getAffects().getVehicleJourneys());
         List<AffectedVehicleJourneyStructure> affectedVehicleJourneies = msgForSubsciptionWithStops.getAffects().getVehicleJourneys().getAffectedVehicleJourneies();
         assertNotNull(affectedVehicleJourneies);
-        assertEquals(1, affectedVehicleJourneies.size());
+        assertEquals(2, affectedVehicleJourneies.size());
         AffectedVehicleJourneyStructure affectedVehicleJourney = affectedVehicleJourneies.get(0);
         assertEquals("NSB:Line:Line1", affectedVehicleJourney.getLineRef().getValue());
-        assertEquals("1234", affectedVehicleJourney.getVehicleJourneyReves().get(0).getValue());
         AffectedRouteStructure.StopPoints stopPoints = affectedVehicleJourney.getRoutes().get(0).getStopPoints();
         assertEquals(2, stopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints().size());
+    }
+
+    @Test
+    public void testSXPushMessageForSubscriptionWithCodespace() throws JAXBException, XMLStreamException {
+        String urlWithStop = "/push/1/sx";
+        stubFor(post(urlEqualTo(urlWithStop))
+                .withHeader("Content-Type", equalTo("application/xml"))
+                .willReturn(aResponse()));
+        Subscription subscriptionWithStop = createSubscription(urlWithStop, null, null, null, "NSB");
+        HashSet<Subscription> subscriptions = new HashSet<>();
+        subscriptions.add(subscriptionWithStop);
+        subscriptionManager.notifySubscriptions(subscriptions, createPtSituationElement());
+
+        waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(urlWithStop)));
+        PtSituationElement msgForSubsciptionWithStops = getPushedPtSituationElement(urlWithStop);
+        //For subscriptions with should all unsubscribed stops, and journeys with unsubscribed vehiclerefs og linerefs
+        assertNotNull(msgForSubsciptionWithStops.getAffects());
+        assertNotNull(msgForSubsciptionWithStops.getAffects().getVehicleJourneys());
+        List<AffectedVehicleJourneyStructure> affectedVehicleJourneies = msgForSubsciptionWithStops.getAffects().getVehicleJourneys().getAffectedVehicleJourneies();
+        assertNotNull(affectedVehicleJourneies);
+        assertEquals(3, affectedVehicleJourneies.size());
     }
 
     @Test
@@ -486,10 +505,15 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
     }
 
     private Subscription createSubscription(String pushAddress, String from, String to, String line) {
+        return createSubscription(pushAddress, from, to, line, null);
+    }
+
+    private Subscription createSubscription(String pushAddress, String from, String to, String line, String codespace) {
         Subscription subscription = new Subscription();
         if (from != null) subscription.addFromStopPoint(from);
         if (to != null) subscription.addToStopPoint(to);
         if (line != null) subscription.addLineRef(line);
+        if (codespace != null) subscription.addCodespace(codespace);
         subscription.setName("Push over http test");
         pushAddress = pushAddress.substring(0, pushAddress.length()-3); //last '/et' (or '/sx') is added by the subscription manager
         subscription.setPushAddress("http://localhost:" + wireMockRule.port() + pushAddress);

@@ -41,6 +41,7 @@ import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
+import static org.entur.ukur.subscription.SubscriptionTypeEnum.SX;
 import static org.entur.ukur.xml.SiriObjectHelper.getStringValue;
 
 @Service
@@ -127,11 +128,33 @@ public class SXSubscriptionProcessor implements Processor {
             logger.debug("Processes PtSituationElement ({}) - with {} StopPlaces, {} VehicleJourneys and {} LineRefs (networks)",
                     getStringValue(ptSituationElement.getSituationNumber()), affectedStopPlaceRefs.size(), numberAffectedVehicleJourneys, affectedLineRefs.size());
             for (String ref : affectedLineRefs) {
-                subscriptionsToNotify.addAll(subscriptionManager.getSubscriptionsForLineRef(ref));
+                subscriptionsToNotify.addAll(subscriptionManager.getSubscriptionsForLineRef(ref, SX));
                 affectedStopPlaceRefs.addAll(liveRouteManager.getStopsForLine(ref));
             }
             for (String ref : affectedStopPlaceRefs) {
-                subscriptionsToNotify.addAll(subscriptionManager.getSubscriptionsForStopPoint(ref));
+                subscriptionsToNotify.addAll(subscriptionManager.getSubscriptionsForStopPoint(ref, SX));
+            }
+
+            String codespace = getStringValue(ptSituationElement.getParticipantRef());
+            if (codespace != null) {
+                int before = subscriptionsToNotify.size();
+                subscriptionsToNotify.removeIf(s -> !s.getCodespaces().isEmpty() && !s.getCodespaces().contains(codespace));
+                if (logger.isDebugEnabled()) {
+                    int after = subscriptionsToNotify.size();
+                    if (after != before) {
+                        logger.debug("Removed {} subscriptions that has limited codespace to something other than {}", (before-after), codespace);
+                    }
+                }
+                Set<Subscription> subscriptionsForCodespace = subscriptionManager.getSubscriptionsForCodespace(codespace, SX);
+                if (!subscriptionsForCodespace.isEmpty()) {
+                    logger.debug("There are {} subscriptions on codespace (ParticipantRef) {}", subscriptionsForCodespace.size(), codespace);
+                    subscriptionsToNotify.addAll(subscriptionsForCodespace);
+                }
+            } else {
+                int before = subscriptionsToNotify.size();
+                subscriptionsToNotify.removeIf(s -> !s.getCodespaces().isEmpty());
+                int after = subscriptionsToNotify.size();
+                logger.debug("No codespace (ParticipantRef) on ptSituationElement, removes {} subscriptions that specify codespaces", before-after);
             }
             logger.debug("There are {} subscriptions to notify", subscriptionsToNotify.size());
             if (!subscriptionsToNotify.isEmpty()) {
@@ -222,15 +245,13 @@ public class SXSubscriptionProcessor implements Processor {
                 }
                 boolean hasCompleteRoute = !Boolean.TRUE.equals(stopPoints.isAffectedOnly());
                 String lineRef = getStringValue(affectedVehicleJourney.getLineRef());
-                String vehicleJourneyRef = null;
-
                 List<VehicleJourneyRef> vehicleJourneyReves = affectedVehicleJourney.getVehicleJourneyReves();
                 if (vehicleJourneyReves == null || vehicleJourneyReves.isEmpty()) {
                     logger.trace("No vehicleJourneyRef in AffectedVehicleJourneyStructure");
                 } else if (vehicleJourneyReves.size() > 1) {
                     logger.warn("More than one ({}) vehicleJourneyRef in AffectedVehicleJourneyStructure - 'norsk siri profil' only allows one", vehicleJourneyReves.size());
                 } else {
-                    vehicleJourneyRef = getStringValue(vehicleJourneyReves.get(0));
+                    String vehicleJourneyRef = getStringValue(vehicleJourneyReves.get(0));
                     if (StringUtils.isBlank(vehicleJourneyRef)) {
                         logger.warn("Has a blank vehicleJourneyRef - can't look it up");
                     } else if (!hasCompleteRoute || lineRef == null) {
@@ -261,10 +282,10 @@ public class SXSubscriptionProcessor implements Processor {
                 }
 
                 for (String stop : orderedListOfStops) {
-                    Set<Subscription> subscriptionsForStopPoint = subscriptionManager.getSubscriptionsForStopPoint(stop);
+                    Set<Subscription> subscriptionsForStopPoint = subscriptionManager.getSubscriptionsForStopPoint(stop, SX);
                     for (Subscription subscription : subscriptionsForStopPoint) {
-                        //TODO: The vehicleJourneyRef usage below is NSB specific (in SX messages from NSB vehicleJourneyRef references vehicleRef in ET messages from BaneNOR)
-                        if (subscribedOrEmpty(lineRef, subscription.getLineRefs()) && subscribedOrEmpty(vehicleJourneyRef, subscription.getVehicleRefs())) {
+                        Set<String> subscribedLines = subscription.getLineRefs();
+                        if (subscribedLines.isEmpty() || (StringUtils.isNotBlank(lineRef) && subscribedLines.contains(lineRef)) ) {
                             if (!hasCompleteRoute) {
                                 subscriptions.add(subscription);
                                 //TODO: Hvis subscription på stopp og kun ett av dem funnet: ikke legge til for å unngå unødvendige meldinger - men vurder stopcondition også!
@@ -278,34 +299,22 @@ public class SXSubscriptionProcessor implements Processor {
                         }
                     }
                 }
-                //TODO: The vehicleJourneyRef usage below is NSB specific (in SX messages from NSB vehicleJourneyRef references vehicleRef in ET messages from BaneNOR)
-                subscriptions.addAll(findSubscriptionsOnLineOrVehicle(lineRef, vehicleJourneyRef));
+                subscriptions.addAll(findSubscriptionsOnLineOrVehicle(lineRef));
             }
         }
+
         return subscriptions;
     }
 
-    private HashSet<Subscription> findSubscriptionsOnLineOrVehicle(String lineRef, String vehicleRef) {
+    private HashSet<Subscription> findSubscriptionsOnLineOrVehicle(String lineRef) {
         HashSet<Subscription> subscriptions = new HashSet<>();
         if (StringUtils.isNotBlank(lineRef)) {
-            Set<Subscription> subscriptionsForLineRef = subscriptionManager.getSubscriptionsForLineRef(lineRef);
-            subscriptionsForLineRef.removeIf(s -> !subscribedOrEmpty(vehicleRef, s.getVehicleRefs()));
+            Set<Subscription> subscriptionsForLineRef = subscriptionManager.getSubscriptionsForLineRef(lineRef, SX);
             logger.trace("Adds {} subscriptions regarding lineRef={}", subscriptionsForLineRef.size(), lineRef);
             subscriptions.addAll(subscriptionsForLineRef);
         }
-        if (StringUtils.isNotBlank(vehicleRef)) {
-            Set<Subscription> subscriptionsForvehicleRef = subscriptionManager.getSubscriptionsForvehicleRef(vehicleRef);
-            subscriptionsForvehicleRef.removeIf(s -> !subscribedOrEmpty(lineRef, s.getLineRefs()));
-            logger.trace("Adds {} subscriptions regarding vehicleRef={}", subscriptionsForvehicleRef.size(), vehicleRef);
-            subscriptions.addAll(subscriptionsForvehicleRef);
-        }
         return subscriptions;
     }
-
-    private boolean subscribedOrEmpty(String value, Set<String> values) {
-        return values.isEmpty() || StringUtils.isBlank(value) || values.contains(value);
-    }
-
 
     private HashMap<String, LiveJourney> getJourneys() {
         HashMap<String, LiveJourney> journeys;//only get journeys once per PtSituationElement since access can be slow (hazelcast)

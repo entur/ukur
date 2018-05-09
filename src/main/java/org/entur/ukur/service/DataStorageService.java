@@ -22,11 +22,13 @@ import com.hazelcast.core.IMap;
 import org.apache.commons.lang3.StringUtils;
 import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.subscription.Subscription;
+import org.entur.ukur.subscription.SubscriptionTypeEnum;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import java.time.ZonedDateTime;
 import java.util.*;
+import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
 public class DataStorageService {
@@ -53,28 +55,38 @@ public class DataStorageService {
         return convertSubscription(datastore.run(query));
     }
 
-    public Set<Subscription> getSubscriptionsForStopPoint(String stopPointRef) {
+    public Set<Subscription> getSubscriptionsForStopPoint(String stopPointRef, SubscriptionTypeEnum type) {
         // De to spørringene under kan muligens erstattes med en composite index
         Collection<Subscription> toStopPlaces = convertSubscription(findContaining("toStopPlaces", stopPointRef));
         Collection<Subscription> fromStopPlaces = convertSubscription(findContaining("fromStopPlaces", stopPointRef));
         HashSet<Subscription> subscriptions = new HashSet<>();
         subscriptions.addAll(toStopPlaces);
         subscriptions.addAll(fromStopPlaces);
+        //TODO: This should be done in the query (done like this now since we don't want to update existing subscriptions yet)
+        subscriptions.removeIf(notMatchingType(type));
         logger.trace("Found {} unique subscriptions containing '{}' ({} in toStopPlaces and {} in fromStopPlaces)",
                 stopPointRef,subscriptions.size(), toStopPlaces.size(), fromStopPlaces.size());
         return subscriptions;
     }
 
-    public Set<Subscription> getSubscriptionsForLineRefAndNoStops(String lineRef) {
+    public Set<Subscription> getSubscriptionsForLineRefAndNoStops(String lineRef, SubscriptionTypeEnum type) {
         Set<Subscription> subscriptions = convertSubscription(findContainingWithoutStops("lineRefs", lineRef));
+        //TODO: This should be done in the query (done like this now since we don't want to update existing subscriptions yet)
+        subscriptions.removeIf(notMatchingType(type));
         logger.trace("Found {} unique subscriptions containing '{}' in lineRefs", subscriptions.size(), lineRef);
         return subscriptions;
     }
 
-    public Set<Subscription> getSubscriptionsForvehicleRefAndNoStops(String vehicleRef) {
-        Set<Subscription> subscriptions = convertSubscription(findContainingWithoutStops("vehicleRefs", vehicleRef));
-        logger.trace("Found {} unique subscriptions containing '{}' in vehicleRefs", subscriptions.size(), vehicleRef);
+    public Set<Subscription> getSubscriptionsForCodespaceAndNoStops(String codespace, SubscriptionTypeEnum type) {
+        Set<Subscription> subscriptions = convertSubscription(findContainingWithoutStops("codespaces", codespace));
+        //TODO: This should be done in the query (done like this now since we don't want to update existing subscriptions yet)
+        subscriptions.removeIf(notMatchingType(type));
+        logger.trace("Found {} unique subscriptions containing '{}' in codespaces", subscriptions.size(), codespace);
         return subscriptions;
+    }
+
+    private Predicate<Subscription> notMatchingType(SubscriptionTypeEnum type) {
+        return s -> s.getType() != SubscriptionTypeEnum.ALL && s.getType() != type;
     }
 
     public Subscription addSubscription(Subscription subscription) {
@@ -170,7 +182,8 @@ public class DataStorageService {
         appendStringValueList(builder, "fromStopPlaces", s.getFromStopPoints());
         appendStringValueList(builder, "toStopPlaces", s.getToStopPoints());
         appendStringValueList(builder, "lineRefs", s.getLineRefs());
-        appendStringValueList(builder, "vehicleRefs", s.getVehicleRefs());
+        appendStringValueList(builder, "codespaces", s.getCodespaces());
+        appendStringValueList(builder, "types", toNameList(s.getType()));
         return builder.build();
     }
 
@@ -191,8 +204,31 @@ public class DataStorageService {
         subscription.setFromStopPlaces(convertValueListToStrings(entity, "fromStopPlaces"));
         subscription.setToStopPlaces(convertValueListToStrings(entity, "toStopPlaces"));
         subscription.setLineRefs(convertValueListToStrings(entity, "lineRefs"));
-        subscription.setVehicleRefs(convertValueListToStrings(entity, "vehicleRefs"));
+        subscription.setCodespaces(convertValueListToStrings(entity, "codespaces"));
+        subscription.setType(toTypeEnum(convertValueListToStrings(entity, "types")));
         return subscription;
+    }
+
+    private SubscriptionTypeEnum toTypeEnum(Set<String> types) {
+        if (types.isEmpty() || types.contains(SubscriptionTypeEnum.ALL.name())) {
+            return SubscriptionTypeEnum.ALL;
+        }
+        if (types.size() > 1) {
+            logger.warn("There is a Subscription entity with more than one value in 'types' without ALL (we just pick one). Values: {}", types.toArray());
+        }
+        return SubscriptionTypeEnum.valueOf(types.iterator().next());
+    }
+
+    /**
+     * Since Datastore does not support OR in queries, we store all values in a list. And since we also store ALL,
+     * we are able to update subscriptions as we add more types.
+     */
+    private Collection<String> toNameList(SubscriptionTypeEnum type) {
+        if (type == null || type == SubscriptionTypeEnum.ALL) {
+            return Arrays.stream(SubscriptionTypeEnum.values()).map(Enum::name).collect(Collectors.toList());
+        } else {
+            return Collections.singletonList(type.name());
+        }
     }
 
     private void appendStringValueList(Entity.Builder builder, String name, Collection<String> stops) {
@@ -213,5 +249,4 @@ public class DataStorageService {
         }
         return Collections.emptySet();
     }
-
 }

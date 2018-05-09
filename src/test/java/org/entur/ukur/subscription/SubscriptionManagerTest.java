@@ -26,6 +26,7 @@ import java.util.Collections;
 import java.util.HashMap;
 import java.util.Set;
 
+import static org.entur.ukur.subscription.SubscriptionTypeEnum.ET;
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
@@ -45,14 +46,14 @@ public class SubscriptionManagerTest {
         s1.setId("s1");
         Subscription s2 = new Subscription();
         s2.setId("s2");
-        when(storageMock.getSubscriptionsForStopPoint("NSR:Quay:1")).thenReturn(Collections.singleton(s1));
-        when(storageMock.getSubscriptionsForStopPoint("NSR:StopPlace:1")).thenReturn(Collections.singleton(s2));
+        when(storageMock.getSubscriptionsForStopPoint("NSR:Quay:1", ET)).thenReturn(Collections.singleton(s1));
+        when(storageMock.getSubscriptionsForStopPoint("NSR:StopPlace:1", ET)).thenReturn(Collections.singleton(s2));
 
-        Set<Subscription> subscriptionsForStopPlace = subscriptionManager.getSubscriptionsForStopPoint("NSR:StopPlace:1");
+        Set<Subscription> subscriptionsForStopPlace = subscriptionManager.getSubscriptionsForStopPoint("NSR:StopPlace:1", ET);
         assertEquals(1, subscriptionsForStopPlace.size());
         assertThat(subscriptionsForStopPlace, hasItem(s2));
 
-        Set<Subscription> subscriptionsForQuay = subscriptionManager.getSubscriptionsForStopPoint("NSR:Quay:1");
+        Set<Subscription> subscriptionsForQuay = subscriptionManager.getSubscriptionsForStopPoint("NSR:Quay:1", ET);
         assertEquals(2, subscriptionsForQuay.size());
         assertThat(subscriptionsForQuay, hasItem(s1));
         assertThat(subscriptionsForQuay, hasItem(s2));

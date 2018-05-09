@@ -29,7 +29,8 @@ public class Subscription implements Serializable {
     private HashSet<String> fromStopPoints = new HashSet<>();
     private HashSet<String> toStopPoints = new HashSet<>();
     private HashSet<String> lineRefs = new HashSet<>();
-    private HashSet<String> vehicleRefs = new HashSet<>();
+    private HashSet<String> codespaces = new HashSet<>();
+    private SubscriptionTypeEnum type = SubscriptionTypeEnum.ALL;
     @JsonIgnore
     private long failedPushCounter = 0;
 
@@ -82,17 +83,17 @@ public class Subscription implements Serializable {
         lineRefs.add(lineref);
     }
 
-    public void addVehicleRef(String ref) {
-        vehicleRefs.add(ref);
+    public void addCodespace(String ref) {
+        codespaces.add(ref);
     }
 
-    public Set<String> getVehicleRefs() {
-        return Collections.unmodifiableSet(vehicleRefs);
+    public Set<String> getCodespaces() {
+        return Collections.unmodifiableSet(codespaces);
     }
 
-    public void setVehicleRefs(Collection<String> vehicleRefs) {
-        this.vehicleRefs.clear();
-        this.vehicleRefs.addAll(vehicleRefs);
+    public void setCodespaces(Collection<String> codespaces) {
+        this.codespaces.clear();
+        this.codespaces.addAll(codespaces);
     }
 
     public String getName() {
@@ -120,6 +121,20 @@ public class Subscription implements Serializable {
         this.pushAddress = pushAddress;
     }
 
+    public SubscriptionTypeEnum getType() {
+        if (type == null) {
+            type = SubscriptionTypeEnum.ALL;
+        }
+        return type;
+    }
+
+    public void setType(SubscriptionTypeEnum type) {
+        if (type == null) {
+            type = SubscriptionTypeEnum.ALL;
+        }
+        this.type = type;
+    }
+
     @Override
     public boolean equals(Object o) {
         if (this == o) return true;
@@ -141,7 +156,7 @@ public class Subscription implements Serializable {
                 '}';
     }
 
-    public void resetFailedPushCounter() {
+    void resetFailedPushCounter() {
         failedPushCounter = 0;
     }
 
@@ -154,7 +169,7 @@ public class Subscription implements Serializable {
         return failedPushCounter;
     }
 
-    public void normalizeAndRemoveIgnoredStops() {
+    void normalizeAndRemoveIgnoredStops() {
         fromStopPoints = normalizeAndRemoveIgnoredStops(fromStopPoints);
         toStopPoints = normalizeAndRemoveIgnoredStops(toStopPoints);
     }
@@ -174,7 +189,7 @@ public class Subscription implements Serializable {
         this.failedPushCounter = failedPushCounter;
     }
 
-    public boolean hasNoStops() {
+    boolean hasNoStops() {
         return fromStopPoints.isEmpty() && toStopPoints.isEmpty();
     }
 }
