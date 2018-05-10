@@ -168,6 +168,17 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .process(tiamatStopPlaceQuaysProcessor)
                 .to("metrics:timer:" + MetricsService.TIMER_TIAMAT + "?action=stop")
                 .end();
+
+        //If messages time out, they end up on the dead letter queue - this routes removes them and logs error
+        from("activemq:queue:" + UkurConfiguration.ET_DLQ)
+                .routeId("ET DLQ ActiveMQ Listener")
+                .log(LoggingLevel.ERROR, "Received and removed a message from the ET DLQ")
+                .end();
+        from("activemq:queue:" + UkurConfiguration.SX_DLQ)
+                .routeId("SX DLQ ActiveMQ Listener")
+                .log(LoggingLevel.ERROR, "Received and removed a message from the SX DLQ")
+                .end();
+
     }
 
     private void createRestRoutes(int jettyPort, boolean etEnabled, boolean sxEnabled, boolean createSubscriptionReceievers) {
