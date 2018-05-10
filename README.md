@@ -6,20 +6,24 @@ Ukur detects and enable subscriptions for deviations in traffic based on real ti
 To subscribe, **post** subscription data to https://{BASE_URL}/subscription as `application/json`. 
 
 The subscription must contain a logical name, a public reachable push address and what is subscribed upon: from and 
-to stops, lines and/or vehicles. 
+to stops and/or lines and/or codespaces. 
 ```json
 {
    "name" : "Test subscription",
    "pushAddress": "https://myserver/push",
+   "type": "ALL",
    "fromStopPoints" : [ "NSR:Quay:551", "NSR:Quay:553", "NSR:Quay:550" ],
    "toStopPoints" : [ "NSR:Quay:695", "NSR:Quay:696" ],
    "lineRefs" : ["NSB:Line:L14", "NSB:Line:R11"],
-   "vehicleRefs" : ["504", "806"]
+   "codespaces" : ["NSB", "RUT"]
  }
  ```   
 After successfull creation of the new subscription, Ukur responds with the same object with
 the id-attribute set. This id can be used to remove the subscription by issuing a http **delete** 
 to https://{BASE_URL}/subscription/{subscriptionId}. Update is not supported: delete and add instead.
+
+Type is used to specify if ALL messages should be pushed, or just ET or SX. (Legal values are 
+ALL, SX and ET - ALL is used if none is specified.)
 
 StopPoints are fully qualified national ids on stop places and quays, use 
 [Stoppestedsregisteret](https://stoppested.entur.org) to look them up. The SIRI
@@ -29,15 +33,17 @@ between quays and stop places in Ukur - yet...). Stops not following the nationa
 are ignored (as they never will be referenced). Also both from and to StopPoints must be 
 present to receive push messages.
 
-LineRefs and vehicleRefs are used to subscribe on entire lines, vehicles or limit from-to 
-messages to just those regarding one or more lines and/or vehicles. 
+LineRefs and codespaces are used to subscribe on entire lines or all messages from a provider, or limit from-to 
+messages to just those regarding one or more lines and/or codespaces. 
 
-StopPoints (fromStopPoints and toStopPoints is treated as one group), lineRefs and vehicleRefs
+StopPoints (fromStopPoints and toStopPoints is treated as one group), lineRefs and codespaces
 is combined to an AND criteria. But we only require one 'hit' from each of them, so inside them
 the values are treated as an OR criteria. The json example above will result in a pushmessage only 
 if it involves a stop from ("NSR:Quay:551" OR "NSR:Quay:553" OR "NSR:Quay:550") AND to ("NSR:Quay:695" OR
-"NSR:Quay:696") AND lineRefs is ("NSB:Line:L14" OR "NSB:Line:R11"]) AND vehicleRefs is ("504" OR "806").
+"NSR:Quay:696") AND lineRefs is ("NSB:Line:L14" OR "NSB:Line:R11"]) AND codespace is ("NSB" OR "RUT").
 
+Codespaces are mapped to ParticipantRef for PtSituationElements. It is not implemented for EstimatedVehicleJourneys
+yet, but will (most likely) be mapped to DataSource in the future.
 
 ### The push endpoint  
 Ukur will **post** SIRI data as `application/xml` to the per subscription configured pushAddress after 
@@ -58,7 +64,7 @@ determine if the message regards a subscription (correct direction, line, etc) o
 regards stops and is sent to affected subscriptions (unless the exact same message has already been sent). 
 For subscriptions that contains stops, the PtSituationElement will have all other stops removed from Affects 
 to make the payload smaller, before it is sent to the various subscription endpoints. We will also remove
-affected journeys not matching the subscriptions constraint on lines and vehicles.
+affected journeys not matching the subscriptions constraint on lines and codespaces.
 
 For **ET messages**, the logic is more complex to decide if a message should be pushed. Both a from and a to 
 stop must be present in the correct order in an EstimatedVehicleJourney with one of these deviations:
