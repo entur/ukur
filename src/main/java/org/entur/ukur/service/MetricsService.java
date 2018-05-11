@@ -54,6 +54,8 @@ public class MetricsService {
     public static final String GAUGE_LIVE_JOURNEYS = "gauge.liveJourneys";
     public static final String GAUGE_STOPPLACES    = "gauge.stopPlaces";
     public static final String GAUGE_PUSH_QUEUE    = "gauge.pushQueue";
+    public static final String METER_ET_DLQ        = "message.dlq.et";
+    public static final String METER_SX_DLQ        = "message.dlq.sx";
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final MetricRegistry metrics = new MetricRegistry();
     private final boolean graphiteEnabled;

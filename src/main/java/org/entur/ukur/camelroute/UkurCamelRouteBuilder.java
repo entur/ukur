@@ -173,12 +173,16 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
         from("activemq:queue:" + UkurConfiguration.ET_DLQ)
                 .routeId("ET DLQ ActiveMQ Listener")
                 .log(LoggingLevel.ERROR, "Received and removed a message from the ET DLQ")
+                .to("metrics:meter:"+MetricsService.METER_ET_DLQ)
                 .end();
         from("activemq:queue:" + UkurConfiguration.SX_DLQ)
                 .routeId("SX DLQ ActiveMQ Listener")
                 .log(LoggingLevel.ERROR, "Received and removed a message from the SX DLQ")
+                .to("metrics:meter:"+MetricsService.METER_SX_DLQ)
                 .end();
-
+        //this registers the dlq meters so we can see they have value=0 before anything ends up on the DLQ (which it really shouldn't...)
+        metricsService.getMeter(MetricsService.METER_ET_DLQ);
+        metricsService.getMeter(MetricsService.METER_SX_DLQ);
     }
 
     private void createRestRoutes(int jettyPort, boolean etEnabled, boolean sxEnabled, boolean createSubscriptionReceievers) {
