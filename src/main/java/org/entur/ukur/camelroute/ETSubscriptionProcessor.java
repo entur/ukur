@@ -22,7 +22,10 @@ import org.entur.ukur.routedata.LiveRouteManager;
 import org.entur.ukur.service.FileStorageService;
 import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.service.QuayAndStopPlaceMappingService;
-import org.entur.ukur.subscription.*;
+import org.entur.ukur.subscription.DeviatingStop;
+import org.entur.ukur.subscription.DeviatingStopAndSubscriptions;
+import org.entur.ukur.subscription.Subscription;
+import org.entur.ukur.subscription.SubscriptionManager;
 import org.entur.ukur.xml.SiriMarshaller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -119,18 +122,21 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
                 logger.debug("Processes EstimatedVehicleJourney (LineRef={}, DatedVehicleJourneyRef={}) - with {} estimated delays", getStringValue(estimatedVehicleJourney.getLineRef()), getStringValue(estimatedVehicleJourney.getDatedVehicleJourneyRef()), deviations.size());
                 List<DeviatingStopAndSubscriptions> affectedSubscriptions = findAffectedSubscriptions(deviations, estimatedVehicleJourney);
                 String lineRef = getStringValue(estimatedVehicleJourney.getLineRef());
+                String codespace = estimatedVehicleJourney.getDataSource();
                 HashSet<Subscription> subscriptionsToNoNotify = new HashSet<>();
                 for (DeviatingStopAndSubscriptions deviatingStopAndSubscriptions : affectedSubscriptions) {
                     HashSet<Subscription> subscriptions = deviatingStopAndSubscriptions.getSubscriptions();
                     subscriptions.removeIf(s -> notIncluded(lineRef, s.getLineRefs()));
+                    subscriptions.removeIf(s -> notIncluded(codespace, s.getCodespaces()));
                     DeviatingStop stop = deviatingStopAndSubscriptions.getDeviatingStop();
                     logger.debug(" - For delayed/cancelled departure from stopPlace {} there are {} affected subscriptions ", stop.getStopPointRef(), subscriptions.size());
                     subscriptionsToNoNotify.addAll(subscriptions); //accumulates subscriptions as these are normally found twice (from and to)
                 }
                 subscriptionManager.notifySubscriptionsOnStops(subscriptionsToNoNotify, estimatedVehicleJourney);
-                HashSet<Subscription> subscriptionsOnLineOrVehicleRef = findSubscriptionsOnLineOrVehicleRef(lineRef);
-                if (!subscriptionsOnLineOrVehicleRef.isEmpty()) {
-                    subscriptionManager.notifySubscriptionsWithFullMessage(subscriptionsOnLineOrVehicleRef, estimatedVehicleJourney);
+                HashSet<Subscription> subscriptionsOnLineRefOrCodespace = findSubscriptionsOnLineRefOrCodespace(lineRef, codespace);
+                if (!subscriptionsOnLineRefOrCodespace.isEmpty()) {
+                    logger.debug(" - There are {} affected subscriptions on lineref={} or codespace={}", subscriptionsOnLineRefOrCodespace.size(), lineRef, codespace);
+                    subscriptionManager.notifySubscriptionsWithFullMessage(subscriptionsOnLineRefOrCodespace, estimatedVehicleJourney);
                 }
             }
         } finally {
@@ -154,11 +160,17 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
         return !values.isEmpty() && StringUtils.isNotBlank(value) && !values.contains(value);
     }
 
-    private HashSet<Subscription> findSubscriptionsOnLineOrVehicleRef(String lineRef) {
+    private HashSet<Subscription> findSubscriptionsOnLineRefOrCodespace(String lineRef, String codespace) {
         HashSet<Subscription> subscriptions = new HashSet<>();
         if (StringUtils.isNotBlank(lineRef)) {
             Set<Subscription> lineRefSubscriptions = subscriptionManager.getSubscriptionsForLineRef(lineRef, ET);
+            lineRefSubscriptions.removeIf(s -> notIncluded(codespace, s.getCodespaces()));
             subscriptions.addAll(lineRefSubscriptions);
+        }
+        if (StringUtils.isNotBlank(codespace)) {
+            Set<Subscription> codespaceSubscriptions = subscriptionManager.getSubscriptionsForCodespace(codespace, ET);
+            codespaceSubscriptions.removeIf(s -> notIncluded(lineRef, s.getLineRefs()));
+            subscriptions.addAll(codespaceSubscriptions);
         }
         return subscriptions;
     }

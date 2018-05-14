@@ -99,9 +99,7 @@ public class ETSubscriptionProcessorTest {
         EstimatedVehicleJourney journey = new EstimatedVehicleJourney();
         journey.setRecordedCalls(recordedCalls);
         journey.setEstimatedCalls(estimatedCalls);
-        VehicleRef vehicleRef = new VehicleRef();
-        vehicleRef.setValue("1234");
-        journey.setVehicleRef(vehicleRef);
+        journey.setDataSource("BNR");
         LineRef lineRef = new LineRef();
         lineRef.setValue("NSB:Line:1");
         journey.setLineRef(lineRef);
@@ -112,20 +110,26 @@ public class ETSubscriptionProcessorTest {
 
         Set<Subscription> subscriptionsForStopPoint = new HashSet<>();
         //Expects these to be found:
-        Subscription s_R1_E1 = createSubscription(subscriptionsForStopPoint, "R1", "E1", null, false);
-        Subscription s_R1_E1_l = createSubscription(subscriptionsForStopPoint, "R1", "E1", "NSB:Line:1", false);
-        Subscription s_l = createSubscription(subscriptionsForStopPoint, null, null, "NSB:Line:1", false);
+        Subscription s_R1_E1 = createSubscription("s_R1_E1", subscriptionsForStopPoint, "R1", "E1", null, null, false);
+        Subscription s_R1_E1_c = createSubscription("s_R1_E1_c", subscriptionsForStopPoint, "R1", "E1", "BNR", null, false);
+        Subscription s_R1_E1_c_l = createSubscription("s_R1_E1_c_l", subscriptionsForStopPoint, "R1", "E1", "BNR", "NSB:Line:1", false);
+        Subscription s_R1_E1_l = createSubscription("s_R1_E1_l", subscriptionsForStopPoint, "R1", "E1", null, "NSB:Line:1", false);
+        Subscription s_l_c = createSubscription("s_l_c", subscriptionsForStopPoint, null, null, "BNR", "NSB:Line:1", false);
+        Subscription s_l = createSubscription("s_l", subscriptionsForStopPoint, null, null, null, "NSB:Line:1", false);
+        Subscription s_c = createSubscription("s_c", subscriptionsForStopPoint, null, null, "BNR", null, false);
         //These should not be found:
-        createSubscription(subscriptionsForStopPoint, "E1", "R1", null , false);
-        createSubscription(subscriptionsForStopPoint, "R1", "E1", "NSB:Line:2", false);
-        Subscription s_l_vx = createSubscription(subscriptionsForStopPoint, null, null, "NSB:Line:1", false);
-        createSubscription(subscriptionsForStopPoint, "x1", "E1", "NSB:Line:1", false);
-        createSubscription(subscriptionsForStopPoint, "R1", "x1","NSB:Line:1", false);
+        createSubscription("notfound1", subscriptionsForStopPoint, "E1", "R1", null, null, false);
+        createSubscription("notfound2", subscriptionsForStopPoint, "R1", "E1", "XXX", "NSB:Line:2", false);
+        Subscription s_l_cx = createSubscription("s_l_cx", subscriptionsForStopPoint, null, null, "XXX", "NSB:Line:1", false);
+        Subscription s_lx_c = createSubscription("s_lx_c", subscriptionsForStopPoint, null, null, "BNR", "NSB:Line:2", false);
+        createSubscription("notfound3", subscriptionsForStopPoint, "x1", "E1", "BNR", "NSB:Line:1", false);
+        createSubscription("notfound4", subscriptionsForStopPoint, "R1", "x1", "BNR", "NSB:Line:1", false);
 
         SubscriptionManager subscriptionManagerMock = mock(SubscriptionManager.class); //must be somewhat carefull so we don't spend to much time testing the mock...
         when((subscriptionManagerMock.getSubscriptionsForStopPoint("NSR:StopPlace:E1", ET))).thenReturn(subscriptionsForStopPoint);
         when((subscriptionManagerMock.getSubscriptionsForStopPoint("NSR:StopPlace:R1", ET))).thenReturn(subscriptionsForStopPoint);
-        when((subscriptionManagerMock.getSubscriptionsForLineRef("NSB:Line:1", ET))).thenReturn(new HashSet<>(Arrays.asList(s_l, s_l_vx)));
+        when((subscriptionManagerMock.getSubscriptionsForLineRef("NSB:Line:1", ET))).thenReturn(new HashSet<>(Arrays.asList(s_l, s_l_c, s_l_cx)));
+        when((subscriptionManagerMock.getSubscriptionsForCodespace("BNR", ET))).thenReturn(new HashSet<>(Arrays.asList(s_l_c, s_c, s_lx_c)));
 
         ETSubscriptionProcessor processor = new ETSubscriptionProcessor(subscriptionManagerMock,
                 new SiriMarshaller(), mock(LiveRouteManager.class), mock(FileStorageService.class),
@@ -137,12 +141,16 @@ public class ETSubscriptionProcessorTest {
         verify(subscriptionManagerMock).notifySubscriptionsOnStops(subscriptionsOnStopsCaptor.capture(), eq(journey));
         verify(subscriptionManagerMock).notifySubscriptionsWithFullMessage(subscriptionsOnLineOrVehicleJourneyCaptor.capture(), eq(journey));
         HashSet<Subscription> notifiedSubscriptionsOnStops = subscriptionsOnStopsCaptor.getValue();
-        assertEquals(2, notifiedSubscriptionsOnStops.size());
+        assertEquals(4, notifiedSubscriptionsOnStops.size());
         assertTrue(notifiedSubscriptionsOnStops.contains(s_R1_E1));
+        assertTrue(notifiedSubscriptionsOnStops.contains(s_R1_E1_c));
+        assertTrue(notifiedSubscriptionsOnStops.contains(s_R1_E1_c_l));
         assertTrue(notifiedSubscriptionsOnStops.contains(s_R1_E1_l));
         HashSet<Subscription> notifiedSubscriptionsWithFullMessage = subscriptionsOnLineOrVehicleJourneyCaptor.getValue();
-        assertEquals(2, notifiedSubscriptionsWithFullMessage.size());
+        assertEquals(3, notifiedSubscriptionsWithFullMessage.size());
+        assertTrue(notifiedSubscriptionsWithFullMessage.contains(s_l_c));
         assertTrue(notifiedSubscriptionsWithFullMessage.contains(s_l));
+        assertTrue(notifiedSubscriptionsWithFullMessage.contains(s_c));
     }
 
     @Test
@@ -201,7 +209,7 @@ public class ETSubscriptionProcessorTest {
 
     private int subscriptionCounter = 0;
 
-    private Subscription createSubscription(String name, Set<Subscription> subscriptions, String from, String to, String line, boolean createQuay) {
+    private Subscription createSubscription(String name, Set<Subscription> subscriptions, String from, String to, String codespace, String line, boolean createQuay) {
         Subscription subscription = new Subscription();
         subscription.setName(name);
         subscription.setId(Integer.toString(subscriptionCounter++));
@@ -220,22 +228,21 @@ public class ETSubscriptionProcessorTest {
         if (line!= null) {
             subscription.addLineRef(line);
         }
+        if (codespace!= null) {
+            subscription.addCodespace(codespace);
+        }
         if (subscriptions != null) {
             subscriptions.add(subscription);
         }
         return subscription;
     }
 
-    private Subscription createSubscription(Set<Subscription> subscriptions, String from, String to, String line, boolean createQuay) {
-        return createSubscription(null, subscriptions, from, to, line, createQuay);
-    }
-
     private Subscription createSubscription(String name, String from, String to, boolean createQuay) {
-        return createSubscription(name, null, from, to, null, createQuay);
+        return createSubscription(name, null, from, to, null, null, createQuay);
     }
 
     private Subscription createSubscription(String from, String to, boolean createQuay) {
-        return createSubscription(null, null, from, to, null, createQuay);
+        return createSubscription(null, null, from, to, null, null, createQuay);
     }
 
     private void addDelayedEstimatedCall(EstimatedVehicleJourney.EstimatedCalls estimatedCalls, String stopPointRef, ZonedDateTime time, boolean createQuay) {
