@@ -23,7 +23,7 @@ public class UkurConfiguration {
 
 
     private static final String QUEUE_PREFIX = "ukur";
-    public static final String ET_QUEUE = QUEUE_PREFIX + ".et?timeToLive=900000&disableReplyTo=true"; //15 minutes time to live
+    public static final String ET_QUEUE = QUEUE_PREFIX + ".et?timeToLive=900000&disableReplyTo=true&concurrentConsumers=5"; //15 minutes time to live
     public static final String SX_QUEUE = QUEUE_PREFIX + ".sx?timeToLive=1800000&disableReplyTo=true"; //30 minutes time to live
     public static final String ET_DLQ = "DLQ."+QUEUE_PREFIX+".et";
     public static final String SX_DLQ = "DLQ."+QUEUE_PREFIX+".sx";
