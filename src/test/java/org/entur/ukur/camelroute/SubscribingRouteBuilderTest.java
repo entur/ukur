@@ -239,7 +239,7 @@ public class SubscribingRouteBuilderTest extends AbstractJUnit4SpringContextTest
         subscription.setPushAddress("http://localhost:" + config.getWiremockPort() + pushAddress);
         ObjectMapper mapper = new ObjectMapper();
         byte[] bytes = mapper.writeValueAsString(subscription).getBytes();
-        String postUrl = "http://localhost:"+config.getRestPort()+"/subscription";
+        String postUrl = "http://localhost:"+config.getRestPort()+"/external/subscription";
         HttpURLConnection connection = (HttpURLConnection) new URL(postUrl).openConnection();
         connection.setRequestMethod("POST");
         connection.setRequestProperty("Content-Type", "application/json");
@@ -268,7 +268,7 @@ public class SubscribingRouteBuilderTest extends AbstractJUnit4SpringContextTest
         String requestorId = sharedProperties.get("AnsharRequestorId");
         assertNotNull(requestorId);
         byte[] bytes = IOUtils.toByteArray(this.getClass().getResourceAsStream(classpathResource));
-        String postUrl = "http://localhost:"+config.getRestPort()+"/siriMessages/"+requestorId+"/"+type+"/";
+        String postUrl = "http://localhost:"+config.getRestPort()+"/internal/siriMessages/"+requestorId+"/"+type+"/";
         HttpURLConnection connection = (HttpURLConnection) new URL(postUrl).openConnection();
         connection.setRequestMethod("POST");
         connection.setRequestProperty("Content-Type", "application/xml");
@@ -285,7 +285,7 @@ public class SubscribingRouteBuilderTest extends AbstractJUnit4SpringContextTest
     private void waitUntilReceiverIsReady() throws Exception {
         long start = System.currentTimeMillis();
         while (System.currentTimeMillis() - start < 5_000) {
-            String postUrl = "http://localhost:" + config.getRestPort() + "/siriMessages/illegal-requestorId/illegal-type/";
+            String postUrl = "http://localhost:" + config.getRestPort() + "/internal/siriMessages/illegal-requestorId/illegal-type/";
             String body = "Will not be read";
             logger.debug("Check if server responds on uri: {}", postUrl);
             HttpURLConnection connection = (HttpURLConnection) new URL(postUrl).openConnection();

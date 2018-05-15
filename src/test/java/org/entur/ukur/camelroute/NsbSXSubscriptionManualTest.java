@@ -136,14 +136,14 @@ public class NsbSXSubscriptionManualTest extends DatastoreTest {
         askerTilOslo.addToStopPoint("NSR:Quay:565");
         askerTilOslo.addToStopPoint("NSR:Quay:570");
         askerTilOslo.addToStopPoint("NSR:Quay:571");
-        subscriptionManager.add(askerTilOslo);
+        subscriptionManager.addOrUpdate(askerTilOslo);
 
         Subscription askerOslo1 = new Subscription();
         askerOslo1.setName("Asker-OsloS #1 (kun stopplace)");
         askerOslo1.setPushAddress(pushAddressBase + "/subscription2");
         askerOslo1.addFromStopPoint("NSR:StopPlace:418");
         askerOslo1.addToStopPoint("NSR:StopPlace:337");
-        subscriptionManager.add(askerOslo1);
+        subscriptionManager.addOrUpdate(askerOslo1);
 
         assertEquals(2, subscriptionManager.listAll().size());
 

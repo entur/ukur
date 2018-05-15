@@ -39,4 +39,14 @@ public class JsonTesting {
         ObjectMapper mapper = new ObjectMapper();
         logger.info("JSON: \n{}", mapper.writerWithDefaultPrettyPrinter().writeValueAsString(subscription));
     }
+
+    @Test
+    public void qarutSubscriptionAsJson() throws JsonProcessingException {
+        Subscription subscription = new Subscription();
+        subscription.setType(SubscriptionTypeEnum.SX);
+        subscription.addCodespace("QA-RUT");
+        subscription.setPushAddress("http://public-ruter-server/push");
+        ObjectMapper mapper = new ObjectMapper();
+        logger.info("JSON: \n{}", mapper.writerWithDefaultPrettyPrinter().writeValueAsString(subscription));
+    }
 }

@@ -86,19 +86,8 @@ public class SubscriptionManager {
     @SuppressWarnings("unused") //Used from camel route
     public Collection<Subscription> listAll() {
         Collection<Subscription> existingSubscriptions = dataStorageService.getSubscriptions();
-        Collection<Subscription> result = new ArrayList<>(existingSubscriptions.size());
-        HashSet<String> uniqueStops = new HashSet<>();
-        for (Subscription subscription : existingSubscriptions) {
-            Subscription clone = clone(subscription);
-            //TODO: add authorization so we can list these things...
-            clone.setId("---hidden---");
-            clone.setPushAddress("---hidden---");
-            result.add(clone);
-            uniqueStops.addAll(clone.getFromStopPoints());
-            uniqueStops.addAll(clone.getToStopPoints());
-        }
-        logger.debug("There are {} subscriptions regarding {} unique stoppoints", result.size(), uniqueStops.size());
-        return result;
+        logger.debug("There are {} subscriptions", existingSubscriptions.size());
+        return Collections.unmodifiableCollection(existingSubscriptions);
     }
 
     public Set<Subscription> getSubscriptionsForStopPoint(String stopPointRef, SubscriptionTypeEnum type) {
@@ -301,7 +290,7 @@ public class SubscriptionManager {
     }
 
     @SuppressWarnings({"unused", "UnusedReturnValue"}) //Used from Camel REST api
-    public Subscription add(Subscription s) {
+    public Subscription addOrUpdate(Subscription s) {
         if (s == null) {
             throw new IllegalArgumentException("No subscription given");
         }
@@ -319,11 +308,19 @@ public class SubscriptionManager {
         if ( (noFromStops && !noToStops) || (noToStops && !noFromStops)) {
             throw new IllegalArgumentException("Must have both TO and FROM stops");
         }
-
-        Subscription added = dataStorageService.addSubscription(s);
-        logger.info("Adds new subscription - assigns id: {}", added.getId());
-        logger.debug("There are now {} subscriptions", dataStorageService.getNumberOfSubscriptions());
-        return added;
+        if (StringUtils.isNotBlank(s.getId())) {
+            logger.info("Attempts to updates subscription with id {}", s.getId());
+            if ( dataStorageService.updateSubscription(s)) {
+                logger.info("Updated subscription with id {} successfully", s.getId());
+            } else {
+                throw new IllegalArgumentException("Could not update subscription");
+            }
+            return s;
+        } else {
+            Subscription added = dataStorageService.addSubscription(s);
+            logger.info("Added new subscription - assigns id: {}", added.getId());
+            return added;
+        }
     }
 
     @SuppressWarnings({"unused", "UnusedReturnValue", "WeakerAccess"}) //Used from Camel REST api

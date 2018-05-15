@@ -266,7 +266,7 @@ public class SXSubscriptionProcessorTest extends DatastoreTest {
         if (fromStop != null) s.addFromStopPoint(fromStop);
         if (toStop != null) s.addToStopPoint(toStop);
         if (line != null) s.addLineRef(line);
-        return subscriptionManager.add(s);
+        return subscriptionManager.addOrUpdate(s);
     }
 
     private Subscription createSubscription(String name, String fromStop, String toStop) {

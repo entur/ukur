@@ -517,7 +517,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         subscription.setName("Push over http test");
         pushAddress = pushAddress.substring(0, pushAddress.length()-3); //last '/et' (or '/sx') is added by the subscription manager
         subscription.setPushAddress("http://localhost:" + wireMockRule.port() + pushAddress);
-        return subscriptionManager.add(subscription);
+        return subscriptionManager.addOrUpdate(subscription);
     }
 
     private void waitAndVerifyFailedPushCounter(int expected, Subscription subscription) {

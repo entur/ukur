@@ -260,7 +260,7 @@ public class SXSubscriptionProcessor implements Processor {
                         }
                         LiveJourney liveJourney = journeys.get(vehicleJourneyRef.trim());
                         if (liveJourney == null) {
-                            logger.debug("Has no route data for journey with vehicleJourneyRef: {}", vehicleJourneyRef);
+                            logger.trace("Has no route data for journey with vehicleJourneyRef: {}", vehicleJourneyRef);
                         } else {
                             if (!hasCompleteRoute) {
                                 orderedListOfStops = liveJourney.getCalls().stream()

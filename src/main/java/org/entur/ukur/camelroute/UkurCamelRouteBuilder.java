@@ -192,18 +192,21 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .dataFormatProperty("prettyPrint", "true")
                 .port(jettyPort);
 
-        rest("/health")
+        rest("/internal/health")
+                .bindingMode(RestBindingMode.json)
                 .get("/subscriptions").to("bean:subscriptionManager?method=listAll")
                 .get("/routes").to("direct:routeStatus")
                 .get("/live").to("direct:OK")
                 .get("/ready").to("direct:OK");
 
-        rest("/journeys")
+        rest("/internal/journeys")
+                .bindingMode(RestBindingMode.json)
                 .get("/").to("bean:liveRouteManager?method=getJourneys()")
                 .get("/{lineref}/").to("bean:liveRouteManager?method=getJourneys(${header.lineref})");
 
-        rest("/subscription")
-                .post().type(Subscription.class).outType(Subscription.class).to("bean:subscriptionManager?method=add(${body})")
+        rest("/external/subscription")
+                .bindingMode(RestBindingMode.json)
+                .post().type(Subscription.class).outType(Subscription.class).to("bean:subscriptionManager?method=addOrUpdate(${body})")
                 .delete("{id}").to("bean:subscriptionManager?method=remove(${header.id})");
 
         from("direct:OK")
@@ -304,7 +307,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
 
     private void configureAnsharSubscriptionRoutes(boolean etEnabled, boolean sxEnabled, boolean createSubscription, String requestorId) {
 
-        rest("siriMessages")
+        rest("/internal/siriMessages")
                 .consumes("application/xml")
                 .bindingMode(RestBindingMode.off)
                 .post("/{requestorId}/{type}")
@@ -612,4 +615,5 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
     public JacksonDataFormat jacksonDataFormat(ObjectMapper objectMapper) {
         return new JacksonDataFormat(objectMapper, HashMap.class);
     }
+
 }

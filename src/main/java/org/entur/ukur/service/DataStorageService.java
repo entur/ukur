@@ -101,7 +101,7 @@ public class DataStorageService {
         datastore.delete(subscriptionkeyFactory.newKey(Long.parseLong(subscriptionId)));
     }
 
-    public void updateSubscription(Subscription subscription) {
+    public boolean updateSubscription(Subscription subscription) {
         Key key = subscriptionkeyFactory.newKey(Long.parseLong(subscription.getId()));
         Entity task = convertEntity(subscription, key);
         Transaction transaction = datastore.newTransaction();
@@ -111,7 +111,9 @@ public class DataStorageService {
         } catch (Exception e) {
             logger.error("Could not update subscription", e);
             transaction.rollback();
+            return false;
         }
+        return true;
     }
 
     public long getNumberOfSubscriptions() {
