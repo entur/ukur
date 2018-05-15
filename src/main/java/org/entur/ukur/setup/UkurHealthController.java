@@ -31,6 +31,11 @@ import javax.annotation.PostConstruct;
 
 import static org.springframework.web.bind.annotation.RequestMethod.GET;
 
+/**
+ * We need a Kubernetes health reporter outside Camel to report live- and readyness
+ * even though Camel is busy. This controller is picked up by the spring-boot-starter-web
+ * dependency on the port specified by the 'server.port' property.
+ */
 @RestController
 @ApplicationScope
 public class UkurHealthController implements StartupListener {
@@ -58,20 +63,22 @@ public class UkurHealthController implements StartupListener {
 
     @RequestMapping(value = "/live", method = GET)
     public String live() {
-        logger.info("live called");
+        logger.trace("live called");
         if (camelContextStarted) {
             return "OK";
         } else {
+            logger.warn("not live (camel context not started) - throws INTERNAL_SERVER_ERROR");
             throw new HttpServerErrorException(HttpStatus.INTERNAL_SERVER_ERROR, "The Camel context has not started yet");
         }
     }
 
     @RequestMapping(value = "/ready", method = GET)
     public String ready() {
-        logger.info("ready called");
+        logger.trace("ready called");
         if (quayAndStopPlaceMappingService.getNumberOfStopPlaces() > 0) {
             return "OK";
         } else {
+            logger.warn("not ready (no quay and stopplace mappings) - throws INTERNAL_SERVER_ERROR");
             throw new HttpServerErrorException(HttpStatus.INTERNAL_SERVER_ERROR, "No quay and stopplace mapping ready yet");
         }
     }
