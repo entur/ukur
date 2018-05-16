@@ -3,7 +3,7 @@ Ukur detects and enable subscriptions for deviations in traffic based on real ti
 
 
 ## Subscriptions
-To subscribe, **post** subscription data to https://{BASE_URL}/subscription as `application/json`. 
+To subscribe, **post** subscription data to https://{BASE_URL}/subscription as `application/json`.  
 
 The subscription must contain a logical name, a public reachable push address and what is subscribed upon: from and 
 to stops and/or lines and/or codespaces. 
@@ -20,7 +20,8 @@ to stops and/or lines and/or codespaces.
  ```   
 After successfull creation of the new subscription, Ukur responds with the same object with
 the id-attribute set. This id can be used to remove the subscription by issuing a http **delete** 
-to https://{BASE_URL}/subscription/{subscriptionId}. Update is not supported: delete and add instead.
+to https://{BASE_URL}/subscription/{subscriptionId}. Update is supported: just post a subscription with
+the proper id and desired new state to https://{BASE_URL}/subscription/. 
 
 Type is used to specify if ALL messages should be pushed, or just ET or SX. (Legal values are 
 ALL, SX and ET - ALL is used if none is specified.)

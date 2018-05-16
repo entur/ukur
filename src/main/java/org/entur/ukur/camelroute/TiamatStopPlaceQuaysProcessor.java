@@ -34,6 +34,7 @@ public class TiamatStopPlaceQuaysProcessor implements Processor {
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
     private QuayAndStopPlaceMappingService dataStorageService;
+    private boolean hasRun = false;
 
     public TiamatStopPlaceQuaysProcessor(QuayAndStopPlaceMappingService quayAndStopPlaceMappingService) {
         this.dataStorageService = quayAndStopPlaceMappingService;
@@ -55,7 +56,10 @@ public class TiamatStopPlaceQuaysProcessor implements Processor {
             }
         }
         dataStorageService.updateStopsAndQuaysMap(result);
-
+        hasRun = true;
     }
 
+    public boolean hasRun() {
+        return hasRun;
+    }
 }

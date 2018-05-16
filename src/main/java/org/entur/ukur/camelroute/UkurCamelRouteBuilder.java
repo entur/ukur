@@ -201,7 +201,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .get("/subscriptions").to("bean:subscriptionManager?method=listAll")
                 .get("/routes").to("direct:routeStatus")
                 .get("/live").to("direct:OK")
-                .get("/ready").to("direct:OK");
+                .get("/ready").to("direct:ready");
 
         rest("/internal/journeys")
                 .bindingMode(RestBindingMode.json)
@@ -212,6 +212,15 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .bindingMode(RestBindingMode.json)
                 .post().type(Subscription.class).outType(Subscription.class).to("bean:subscriptionManager?method=addOrUpdate(${body})")
                 .delete("{id}").to("bean:subscriptionManager?method=remove(${header.id})");
+
+        from("direct:ready")
+                .routeId("Ready checker")
+                .choice()
+                .when(exchange -> tiamatStopPlaceQuaysProcessor.hasRun()).to("direct:OK")
+                .otherwise()
+                .log(LoggingLevel.WARN, "not ready (has not retrieved stopplace data yet)")
+                .setBody(simple("NOT OK    \n\n"))
+                .setHeader(Exchange.HTTP_RESPONSE_CODE, constant("500"));
 
         from("direct:OK")
                 .routeId("OK response")
