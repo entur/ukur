@@ -145,12 +145,16 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
 
         from("activemq:queue:" + UkurConfiguration.ET_QUEUE)
                 .routeId("ET ActiveMQ Listener")
+                .log(LoggingLevel.DEBUG, "About to handle ET message from queue")
                 .process(ETSubscriptionProcessor)
+                .log(LoggingLevel.DEBUG, "Done handling ET message from queue")
                 .end();
 
         from("activemq:queue:" + UkurConfiguration.SX_QUEUE)
                 .routeId("SX ActiveMQ Listener")
+                .log(LoggingLevel.DEBUG, "About to handle SX message from queue")
                 .process(SXSubscriptionProcessor)
+                .log(LoggingLevel.DEBUG, "Done handling SX message from queue")
                 .end();
 
         from(ROUTE_FLUSHJOURNEYS)

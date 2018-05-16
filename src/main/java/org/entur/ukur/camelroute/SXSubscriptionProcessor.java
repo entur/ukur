@@ -74,7 +74,7 @@ public class SXSubscriptionProcessor implements Processor {
     public void process(Exchange exchange) {
         try {
             InputStream xml = exchange.getIn().getBody(InputStream.class);
-            logger.debug("Reveived XML with size {} bytes", String.format("%,d", xml.available()));
+            logger.debug("Reveived XML with size {} bytes", xml.available());
             Timer timer = metricsService.getTimer(MetricsService.TIMER_SX_UNMARSHALL);
             Timer.Context time = timer.time();
             PtSituationElement ptSituationElement;
@@ -161,7 +161,8 @@ public class SXSubscriptionProcessor implements Processor {
                 subscriptionManager.notifySubscriptions(subscriptionsToNotify, ptSituationElement);
             }
         } finally {
-            time.stop();
+            long nanos = time.stop();
+            logger.debug("Done processing PtSituationElement after {} ms", nanos/1000000);
         }
         return true;
     }
