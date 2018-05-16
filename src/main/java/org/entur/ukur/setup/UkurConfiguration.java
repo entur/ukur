@@ -92,11 +92,15 @@ public class UkurConfiguration {
         return namespace;
     }
 
-    private String getAnsharURL() {
+    private String getAnsharURL(boolean convertToHttp4) {
         if (ansharURL != null) {
             String url = ansharURL.trim();
             if (url.endsWith("/")) {
-                return url.substring(0, url.length() - 1);
+                url = url.substring(0, url.length() - 1);
+            }
+            if (convertToHttp4) {
+                url = url.replace("http:", "http4:");
+                url = url.replace("https:", "https4:");
             }
             return url;
         }
@@ -111,15 +115,15 @@ public class UkurConfiguration {
     }
 
     public String getAnsharETCamelUrl(String requestorId) {
-        return getAnsharURL() + "/rest/et?requestorId=" + requestorId + "&maxSize=500";
+        return getAnsharURL(true) + "/rest/et?requestorId=" + requestorId + "&maxSize=500";
     }
 
     public String getAnsharSXCamelUrl(String requestorId) {
-        return getAnsharURL() + "/rest/sx?requestorId=" + requestorId + "&maxSize=500";
+        return getAnsharURL(true) + "/rest/sx?requestorId=" + requestorId + "&maxSize=500";
     }
 
     public String getAnsharSubscriptionUrl() {
-        return getAnsharURL() + getAnsharSubscriptionPostfix();
+        return getAnsharURL(false) + getAnsharSubscriptionPostfix();
     }
 
     public String getOwnSubscriptionURL() {
@@ -170,7 +174,4 @@ public class UkurConfiguration {
         return subscriptionCheckingEnabled;
     }
 
-    public void setSubscriptionCheckingEnabled(boolean subscriptionCheckingEnabled) {
-        this.subscriptionCheckingEnabled = subscriptionCheckingEnabled;
-    }
 }
