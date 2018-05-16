@@ -16,7 +16,6 @@
 package org.entur.ukur.camelroute;
 
 import com.google.common.collect.Sets;
-import org.entur.ukur.routedata.LiveRouteManager;
 import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.FileStorageService;
 import org.entur.ukur.service.MetricsService;
@@ -60,7 +59,7 @@ public class ETSubscriptionProcessorTest {
         journey.setEstimatedCalls(estimatedCalls);
 
         ETSubscriptionProcessor processor = new ETSubscriptionProcessor(mock(SubscriptionManager.class),
-                new SiriMarshaller(), mock(LiveRouteManager.class), mock(FileStorageService.class),
+                new SiriMarshaller(), mock(FileStorageService.class),
                 mock(MetricsService.class), mock(QuayAndStopPlaceMappingService.class));
 
         HashMap<String, ETSubscriptionProcessor.StopData> stopData = processor.getStopData(journey);
@@ -132,7 +131,7 @@ public class ETSubscriptionProcessorTest {
         when((subscriptionManagerMock.getSubscriptionsForCodespace("BNR", ET))).thenReturn(new HashSet<>(Arrays.asList(s_l_c, s_c, s_lx_c)));
 
         ETSubscriptionProcessor processor = new ETSubscriptionProcessor(subscriptionManagerMock,
-                new SiriMarshaller(), mock(LiveRouteManager.class), mock(FileStorageService.class),
+                new SiriMarshaller(), mock(FileStorageService.class),
                 new MetricsService(), mock(QuayAndStopPlaceMappingService.class));
 
         ArgumentCaptor<HashSet> subscriptionsOnStopsCaptor= ArgumentCaptor.forClass(HashSet.class);
@@ -171,7 +170,7 @@ public class ETSubscriptionProcessorTest {
             }
         };
 
-        ETSubscriptionProcessor processor = new ETSubscriptionProcessor(subscriptionManager, siriMarshaller, mock(LiveRouteManager.class),
+        ETSubscriptionProcessor processor = new ETSubscriptionProcessor(subscriptionManager, siriMarshaller,
                 mock(FileStorageService.class), metricsService, mappingMock);
 
         HashSet<Subscription> subscriptions = Sets.newHashSet(s1, s2);

@@ -18,7 +18,6 @@ package org.entur.ukur.camelroute;
 import com.codahale.metrics.Timer;
 import org.apache.camel.Exchange;
 import org.apache.commons.lang3.StringUtils;
-import org.entur.ukur.routedata.LiveRouteManager;
 import org.entur.ukur.service.FileStorageService;
 import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.service.QuayAndStopPlaceMappingService;
@@ -53,7 +52,6 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
     private QuayAndStopPlaceMappingService quayAndStopPlaceMappingService;
 
     private SiriMarshaller siriMarshaller;
-    private LiveRouteManager liveRouteManager;
     private FileStorageService fileStorageService;
     @Value("${ukur.camel.et.store.files:false}")
     private boolean storeMessagesToFile = false;
@@ -61,12 +59,10 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
     @Autowired
     public ETSubscriptionProcessor(SubscriptionManager subscriptionManager,
                                    SiriMarshaller siriMarshaller,
-                                   LiveRouteManager liveRouteManager,
                                    FileStorageService fileStorageService,
                                    MetricsService metricsService,
                                    QuayAndStopPlaceMappingService quayAndStopPlaceMappingService) {
         this.siriMarshaller = siriMarshaller;
-        this.liveRouteManager = liveRouteManager;
         this.fileStorageService = fileStorageService;
         this.subscriptionManager = subscriptionManager;
         this.metricsService = metricsService;
@@ -114,7 +110,6 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
         Timer timer = metricsService.getTimer(MetricsService.TIMER_ET_PROCESS);
         Timer.Context time = timer.time();
         try {
-            liveRouteManager.updateJourney(estimatedVehicleJourney);
             List<DeviatingStop> deviations = getEstimatedDelaysAndCancellations(estimatedVehicleJourney);
             if (deviations.isEmpty()) {
                 logger.trace("Processes EstimatedVehicleJourney (LineRef={}, DatedVehicleJourneyRef={}) - no estimated delays or cancellations", getStringValue(estimatedVehicleJourney.getLineRef()), getStringValue(estimatedVehicleJourney.getDatedVehicleJourneyRef()));

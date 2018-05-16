@@ -42,6 +42,7 @@ public class LiveRouteManager {
         this.quayAndStopPlaceMappingService = quayAndStopPlaceMappingService;
     }
 
+    @Deprecated //No longer used
     public void updateJourney(EstimatedVehicleJourney journey) {
         //TODO: Using VehicleRef like this will probably only work with NSB/BaneNOR
         if (journey != null && journey.getVehicleRef() != null) {
@@ -87,17 +88,18 @@ public class LiveRouteManager {
         return routes;
     }
 
+    @Deprecated //We no longer updates live journeys
+    //TODO: In the future we should read rutedata (GTFS) on each node to support this functionality (line to stops)
     public Collection<String> getStopsForLine(String lineRef) {
         HashSet<String> stops = new HashSet<>();
-        if (lineRef != null) {
-            //TODO: This is not very efficient...
-            Collection<LiveJourney> journeys = getJourneys(lineRef);
-            for (LiveJourney journey : journeys) {
-                List<Call> calls = journey.getCalls();
-                stops.addAll(calls.stream().map(Call::getStopPointRef).collect(Collectors.toList()));
-            }
-        }
-
+//        if (lineRef != null) {
+//            //TODO: This is not very efficient...
+//            Collection<LiveJourney> journeys = getJourneys(lineRef);
+//            for (LiveJourney journey : journeys) {
+//                List<Call> calls = journey.getCalls();
+//                stops.addAll(calls.stream().map(Call::getStopPointRef).collect(Collectors.toList()));
+//            }
+//        }
         return stops;
     }
 }

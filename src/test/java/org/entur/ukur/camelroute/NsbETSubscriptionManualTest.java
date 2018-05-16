@@ -25,7 +25,6 @@ import com.hazelcast.test.TestHazelcastInstanceFactory;
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
 import org.entur.ukur.routedata.LiveJourney;
-import org.entur.ukur.routedata.LiveRouteManager;
 import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.FileStorageService;
 import org.entur.ukur.service.MetricsService;
@@ -80,8 +79,7 @@ public class NsbETSubscriptionManualTest extends DatastoreTest {
         DataStorageService dataStorageService = new DataStorageService(datastore,liveJourneyIMap);
         quayAndStopPlaceMappingService = new QuayAndStopPlaceMappingService(metricsService);
         subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsService, new HashMap<>(), quayAndStopPlaceMappingService);
-        LiveRouteManager liveRouteManager = new LiveRouteManager(dataStorageService, quayAndStopPlaceMappingService);
-        ETSubscriptionProcessor = new ETSubscriptionProcessor(subscriptionManager, siriMarshaller, liveRouteManager, mock(FileStorageService.class), metricsService, quayAndStopPlaceMappingService);
+        ETSubscriptionProcessor = new ETSubscriptionProcessor(subscriptionManager, siriMarshaller, mock(FileStorageService.class), metricsService, quayAndStopPlaceMappingService);
     }
 
     @Test
