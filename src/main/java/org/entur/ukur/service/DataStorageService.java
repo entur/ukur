@@ -26,6 +26,7 @@ import org.entur.ukur.subscription.SubscriptionTypeEnum;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.annotation.PostConstruct;
 import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.function.Predicate;
@@ -39,6 +40,12 @@ public class DataStorageService {
     private final KeyFactory subscriptionkeyFactory;
     private final IMap<String, LiveJourney> currentJourneys;
 
+    //TODO: Attempts a primitive local "cache" of subscriptions since datastore seems to be a bottleneck the way we have used it
+    private HashMap<String, Subscription> idToSubscription = new HashMap<>();
+    private HashMap<String, Set<Subscription>> stopToSubscription = new HashMap<>();
+    private HashMap<String, Set<Subscription>> lineNoStopsToSubscription = new HashMap<>();
+    private HashMap<String, Set<Subscription>> codespaceNoStopsToSubscription = new HashMap<>();
+
     public DataStorageService(Datastore datastore,
                               IMap<String, LiveJourney> currentJourneys) {
         this.datastore = datastore;
@@ -46,31 +53,47 @@ public class DataStorageService {
         this.currentJourneys = currentJourneys;
     }
 
-
-    public Collection<Subscription> getSubscriptions() {
+    @PostConstruct
+    public void populateLocalstorageFromDatastore() {
         Query<Entity> query = Query.newEntityQueryBuilder()
                 .setKind(KIND_SUBSCRIPTIONS)
                 .setOrderBy(StructuredQuery.OrderBy.asc("created"))
                 .build();
-        return convertSubscription(datastore.run(query));
+        Set<Subscription> subscriptions = convertSubscription(datastore.run(query));
+        for (Subscription subscription : subscriptions) {
+            addToLocalStorage(subscription);
+        }
+    }
+
+
+    public Collection<Subscription> getSubscriptions() {
+//        Query<Entity> query = Query.newEntityQueryBuilder()
+//                .setKind(KIND_SUBSCRIPTIONS)
+//                .setOrderBy(StructuredQuery.OrderBy.asc("created"))
+//                .build();
+//        return convertSubscription(datastore.run(query));
+        return idToSubscription.values();
     }
 
     public Set<Subscription> getSubscriptionsForStopPoint(String stopPointRef, SubscriptionTypeEnum type) {
         // De to spørringene under kan muligens erstattes med en composite index
-        Collection<Subscription> toStopPlaces = convertSubscription(findContaining("toStopPlaces", stopPointRef));
-        Collection<Subscription> fromStopPlaces = convertSubscription(findContaining("fromStopPlaces", stopPointRef));
+//        Collection<Subscription> toStopPlaces = convertSubscription(findContaining("toStopPlaces", stopPointRef));
+//        Collection<Subscription> fromStopPlaces = convertSubscription(findContaining("fromStopPlaces", stopPointRef));
         HashSet<Subscription> subscriptions = new HashSet<>();
-        subscriptions.addAll(toStopPlaces);
-        subscriptions.addAll(fromStopPlaces);
+//        subscriptions.addAll(toStopPlaces);
+//        subscriptions.addAll(fromStopPlaces);
+        subscriptions.addAll(stopToSubscription.getOrDefault(stopPointRef, Collections.emptySet()));
         //TODO: This should be done in the query (done like this now since we don't want to update existing subscriptions yet)
         subscriptions.removeIf(notMatchingType(type));
-        logger.trace("Found {} unique subscriptions containing '{}' ({} in toStopPlaces and {} in fromStopPlaces)",
-                stopPointRef,subscriptions.size(), toStopPlaces.size(), fromStopPlaces.size());
+//        logger.trace("Found {} unique subscriptions containing '{}' ({} in toStopPlaces and {} in fromStopPlaces)",
+//                stopPointRef,subscriptions.size(), toStopPlaces.size(), fromStopPlaces.size());
+        logger.trace("Found {} unique subscriptions containing '{}' in to/from stops",stopPointRef, subscriptions.size());
         return subscriptions;
     }
 
     public Set<Subscription> getSubscriptionsForLineRefAndNoStops(String lineRef, SubscriptionTypeEnum type) {
-        Set<Subscription> subscriptions = convertSubscription(findContainingWithoutStops("lineRefs", lineRef));
+        Set<Subscription> subscriptions = new HashSet<>(); //convertSubscription(findContainingWithoutStops("lineRefs", lineRef));
+        subscriptions.addAll(lineNoStopsToSubscription.getOrDefault(lineRef, Collections.emptySet()));
         //TODO: This should be done in the query (done like this now since we don't want to update existing subscriptions yet)
         subscriptions.removeIf(notMatchingType(type));
         logger.trace("Found {} unique subscriptions containing '{}' in lineRefs", subscriptions.size(), lineRef);
@@ -78,7 +101,8 @@ public class DataStorageService {
     }
 
     public Set<Subscription> getSubscriptionsForCodespaceAndNoStops(String codespace, SubscriptionTypeEnum type) {
-        Set<Subscription> subscriptions = convertSubscription(findContainingWithoutStops("codespaces", codespace));
+        Set<Subscription> subscriptions = new HashSet<>(); //convertSubscription(findContainingWithoutStops("codespaces", codespace));
+        subscriptions.addAll(codespaceNoStopsToSubscription.getOrDefault(codespace, Collections.emptySet()));
         //TODO: This should be done in the query (done like this now since we don't want to update existing subscriptions yet)
         subscriptions.removeIf(notMatchingType(type));
         logger.trace("Found {} unique subscriptions containing '{}' in codespaces", subscriptions.size(), codespace);
@@ -94,11 +118,14 @@ public class DataStorageService {
         Entity task = convertEntity(subscription, key);
         //No need for a transaction when adding
         datastore.put(task);
-        return convertSubscription(task);
+        subscription = convertSubscription(task);
+        addToLocalStorage(subscription);
+        return subscription;
     }
 
     public void removeSubscription(String subscriptionId) {
         datastore.delete(subscriptionkeyFactory.newKey(Long.parseLong(subscriptionId)));
+        removeFromLocalStorage(subscriptionId);
     }
 
     public boolean updateSubscription(Subscription subscription) {
@@ -117,11 +144,12 @@ public class DataStorageService {
     }
 
     public long getNumberOfSubscriptions() {
-        //TODO: This query takes forever (at least locally) when there are many subscriptions
-        KeyQuery query = Query.newKeyQueryBuilder().setKind(KIND_SUBSCRIPTIONS).build();
-        QueryResults<Key> result = datastore.run(query);
-        Key[] keys = Iterators.toArray(result, Key.class);
-        return keys.length;
+//        //TODO: This query takes forever (at least locally) when there are many subscriptions:
+//        KeyQuery query = Query.newKeyQueryBuilder().setKind(KIND_SUBSCRIPTIONS).build();
+//        QueryResults<Key> result = datastore.run(query);
+//        Key[] keys = Iterators.toArray(result, Key.class);
+//        return keys.length;
+        return idToSubscription.size();
     }
 
     public void putCurrentJourney(LiveJourney liveJourney) {
@@ -251,4 +279,54 @@ public class DataStorageService {
         }
         return Collections.emptySet();
     }
+
+    private void addToLocalStorage(Subscription subscription) {
+        idToSubscription.put(subscription.getId(), subscription);
+        if (subscription.getFromStopPoints().isEmpty() && subscription.getToStopPoints().isEmpty()) {
+            for (String lineref : subscription.getLineRefs()) {
+                add(subscription, lineref, lineNoStopsToSubscription);
+            }
+            for (String codespace : subscription.getCodespaces()) {
+                add(subscription, codespace, codespaceNoStopsToSubscription);
+            }
+        } else {
+            HashSet<String> stops = new HashSet<>();
+            stops.addAll(subscription.getFromStopPoints());
+            stops.addAll(subscription.getToStopPoints());
+            for (String stop : stops) {
+                add(subscription, stop, stopToSubscription);
+            }
+        }
+    }
+
+    private void removeFromLocalStorage(String subscriptionId) {
+        Subscription subscription = idToSubscription.remove(subscriptionId);
+        if (subscription == null) {
+            logger.warn("Attempt to remove nonexisting subscription with id {} from local storage", subscriptionId);
+            return;
+        }
+        for (String lineref : subscription.getLineRefs()) {
+            remove(subscription, lineref, lineNoStopsToSubscription);
+        }
+        for (String codespace : subscription.getCodespaces()) {
+            remove(subscription, codespace, codespaceNoStopsToSubscription);
+        }
+        HashSet<String> stops = new HashSet<>();
+        stops.addAll(subscription.getFromStopPoints());
+        stops.addAll(subscription.getToStopPoints());
+        for (String stop : stops) {
+            remove(subscription, stop, stopToSubscription);
+        }
+    }
+
+    private void add(Subscription subscription, String key, HashMap<String, Set<Subscription>> map) {
+        Set<Subscription> subscriptions = map.getOrDefault(key, new HashSet<>());
+        subscriptions.add(subscription);
+        map.put(key, subscriptions);
+    }
+
+    private void remove (Subscription subscription, String key, HashMap<String, Set<Subscription>> map) {
+        map.getOrDefault(key, new HashSet<>()).remove(subscription);
+    }
+
 }

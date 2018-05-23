@@ -35,10 +35,7 @@ import uk.org.siri.siri20.*;
 import javax.xml.bind.JAXBException;
 import javax.xml.stream.XMLStreamException;
 import java.math.BigInteger;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
+import java.util.*;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
@@ -88,7 +85,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
     }
 
     @Test
-    public void testETPushForget() {
+    public void testETPushForget() throws InterruptedException {
 
         String url = "/push/forget/et";
         stubFor(post(urlEqualTo(url))
@@ -103,6 +100,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         assertThat(dataStorageService.getSubscriptions(), hasItem(subscription));
         subscriptionManager.notifySubscriptionsOnStops(subscriptions, new EstimatedVehicleJourney());
         waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
+        Thread.sleep(10);
         assertThat(dataStorageService.getSubscriptions(), CoreMatchers.not(hasItem(subscription)));
         assertFalse(new HashSet<>(subscriptionManager.listAll()).contains(subscription));
         assertEquals(0, subscription.getFailedPushCounter());
