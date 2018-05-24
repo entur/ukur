@@ -124,8 +124,8 @@ public class DataStorageService {
     }
 
     public void removeSubscription(String subscriptionId) {
-        datastore.delete(subscriptionkeyFactory.newKey(Long.parseLong(subscriptionId)));
         removeFromLocalStorage(subscriptionId);
+        datastore.delete(subscriptionkeyFactory.newKey(Long.parseLong(subscriptionId)));
     }
 
     public boolean updateSubscription(Subscription subscription) {
