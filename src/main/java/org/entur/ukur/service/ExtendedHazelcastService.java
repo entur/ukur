@@ -16,10 +16,7 @@
 package org.entur.ukur.service;
 
 import com.hazelcast.config.MapConfig;
-import com.hazelcast.core.Cluster;
-import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.core.IMap;
-import com.hazelcast.core.Member;
+import com.hazelcast.core.*;
 import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.setup.UkurConfiguration;
 import org.rutebanken.hazelcasthelper.service.HazelCastService;
@@ -63,6 +60,11 @@ public class ExtendedHazelcastService extends HazelCastService {
     @Bean
     public IMap<String, LiveJourney> currentJourneys() {
         return hazelcast.getMap("ukur.currentJourneys");
+    }
+
+    @Bean
+    public ITopic<String> subscriptionCacheRenewerTopic() {
+        return hazelcast.getTopic("ukur.subscriptionCacheRenewer");
     }
 
     @Override

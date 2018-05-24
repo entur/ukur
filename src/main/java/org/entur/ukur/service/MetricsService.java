@@ -42,20 +42,23 @@ import static com.codahale.metrics.MetricAttribute.*;
 @Service
 @Configuration
 public class MetricsService {
-    public static final String TIMER_PUSH          = "timer.push.http";
-    public static final String TIMER_ET_PULL       = "timer.pull.anshar-et";
-    public static final String TIMER_SX_PULL       = "timer.pull.anshar-sx";
-    public static final String TIMER_TIAMAT        = "timer.tiamat.StopPlacesAndQuays";
-    public static final String TIMER_ET_PROCESS    = "timer.process.EstimatedVehicleJourney";
-    public static final String TIMER_SX_PROCESS    = "timer.process.PtSituationElement";
-    public static final String TIMER_ET_UNMARSHALL = "timer.unmarshall.EstimatedVehicleJourney";
-    public static final String TIMER_SX_UNMARSHALL = "timer.unmarshall.PtSituationElement";
-    public static final String GAUGE_SUBSCRIPTIONS = "gauge.subscriptions";
-    public static final String GAUGE_LIVE_JOURNEYS = "gauge.liveJourneys";
-    public static final String GAUGE_STOPPLACES    = "gauge.stopPlaces";
-    public static final String GAUGE_PUSH_QUEUE    = "gauge.pushQueue";
-    public static final String METER_ET_DLQ        = "message.dlq.et";
-    public static final String METER_SX_DLQ        = "message.dlq.sx";
+    public static final String TIMER_PUSH                  = "timer.push.http";
+    public static final String TIMER_ET_PULL               = "timer.pull.anshar-et";
+    public static final String TIMER_SX_PULL               = "timer.pull.anshar-sx";
+    public static final String TIMER_TIAMAT                = "timer.tiamat.StopPlacesAndQuays";
+    public static final String TIMER_ET_PROCESS            = "timer.process.EstimatedVehicleJourney";
+    public static final String TIMER_SX_PROCESS            = "timer.process.PtSituationElement";
+    public static final String TIMER_ET_UNMARSHALL         = "timer.unmarshall.EstimatedVehicleJourney";
+    public static final String TIMER_SX_UNMARSHALL         = "timer.unmarshall.PtSituationElement";
+    public static final String GAUGE_SUBSCRIPTIONS         = "gauge.subscriptions";
+    public static final String GAUGE_LIVE_JOURNEYS         = "gauge.liveJourneys";
+    public static final String GAUGE_STOPPLACES            = "gauge.stopPlaces";
+    public static final String GAUGE_PUSH_QUEUE            = "gauge.pushQueue";
+    public static final String METER_ET_DLQ                = "message.dlq.et";
+    public static final String METER_SX_DLQ                = "message.dlq.sx";
+    public static final String METER_ET_IGNORED            = "message.et-ignored";
+    public static final String METER_ET_WITHOUT_DEVIATIONS = "message.et-without-deviations";
+    public static final String METER_ET_WITH_DEVIATIONS    = "message.et-with-deviations";
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final MetricRegistry metrics = new MetricRegistry();
     private final boolean graphiteEnabled;

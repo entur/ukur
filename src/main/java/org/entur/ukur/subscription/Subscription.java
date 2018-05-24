@@ -189,7 +189,7 @@ public class Subscription implements Serializable {
         this.failedPushCounter = failedPushCounter;
     }
 
-    boolean hasNoStops() {
+    public boolean hasNoStops() {
         return fromStopPoints.isEmpty() && toStopPoints.isEmpty();
     }
 }

@@ -15,7 +15,9 @@
 
 package org.entur.ukur.camelroute;
 
+import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IMap;
+import com.hazelcast.core.ITopic;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
 import org.apache.commons.lang3.StringUtils;
 import org.entur.ukur.routedata.LiveJourney;
@@ -55,10 +57,12 @@ public class SXSubscriptionProcessorTest extends DatastoreTest {
     @Before
     public void setUp() throws Exception {
         super.setUp();
-        IMap<String, LiveJourney> liveJourneyIMap = new TestHazelcastInstanceFactory().newHazelcastInstance().getMap("journeys");
+        HazelcastInstance hazelcastInstance = new TestHazelcastInstanceFactory().newHazelcastInstance();
+        IMap<String, LiveJourney> liveJourneyIMap = hazelcastInstance.getMap("journeys");
+        ITopic<String> subscriptionTopic = hazelcastInstance.getTopic("subscriptions");
         MetricsService metricsServiceMock = mock(MetricsService.class);
         siriMarshaller = new SiriMarshaller();
-        DataStorageService dataStorageService = new DataStorageService(datastore, liveJourneyIMap);
+        DataStorageService dataStorageService = new DataStorageService(datastore, liveJourneyIMap, subscriptionTopic);
         subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsServiceMock, new HashMap<>(), new QuayAndStopPlaceMappingService(metricsServiceMock));
         liveRouteManagerMock = mock(LiveRouteManager.class);
         processor = new SXSubscriptionProcessor(subscriptionManager, siriMarshaller, liveRouteManagerMock, mock(FileStorageService.class), mock(MetricsService.class));

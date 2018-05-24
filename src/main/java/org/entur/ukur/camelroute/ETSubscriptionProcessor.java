@@ -55,6 +55,8 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
     private FileStorageService fileStorageService;
     @Value("${ukur.camel.et.store.files:false}")
     private boolean storeMessagesToFile = false;
+    @Value("${ukur.camel.et.skipCallTimeChecks:false}")
+    boolean skipCallTimeChecks = false;
 
     @Autowired
     public ETSubscriptionProcessor(SubscriptionManager subscriptionManager,
@@ -105,6 +107,7 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
     boolean processEstimatedVehicleJourney(EstimatedVehicleJourney estimatedVehicleJourney) {
         if (shouldIgnoreJourney(estimatedVehicleJourney)) {
             logger.debug("Ignores EstimatedVehicleJourney with LineRef {}", getStringValue(estimatedVehicleJourney.getLineRef()));
+            metricsService.getMeter(MetricsService.METER_ET_IGNORED).mark();
             return false;
         }
         Timer timer = metricsService.getTimer(MetricsService.TIMER_ET_PROCESS);
@@ -113,8 +116,10 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
             List<DeviatingStop> deviations = getEstimatedDelaysAndCancellations(estimatedVehicleJourney);
             if (deviations.isEmpty()) {
                 logger.trace("Processes EstimatedVehicleJourney (LineRef={}, DatedVehicleJourneyRef={}) - no estimated delays or cancellations", getStringValue(estimatedVehicleJourney.getLineRef()), getStringValue(estimatedVehicleJourney.getDatedVehicleJourneyRef()));
+                metricsService.getMeter(MetricsService.METER_ET_WITHOUT_DEVIATIONS).mark();
             } else {
                 logger.debug("Processes EstimatedVehicleJourney (LineRef={}, DatedVehicleJourneyRef={}) - with {} estimated delays", getStringValue(estimatedVehicleJourney.getLineRef()), getStringValue(estimatedVehicleJourney.getDatedVehicleJourneyRef()), deviations.size());
+                metricsService.getMeter(MetricsService.METER_ET_WITH_DEVIATIONS).mark();
                 List<DeviatingStopAndSubscriptions> affectedSubscriptions = findAffectedSubscriptions(deviations, estimatedVehicleJourney);
                 String lineRef = getStringValue(estimatedVehicleJourney.getLineRef());
                 String codespace = estimatedVehicleJourney.getDataSource();
@@ -275,8 +280,10 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
     }
 
     private boolean futureEstimatedCall(EstimatedCall call) {
+        if (skipCallTimeChecks) {
+            return true;
+        }
         ZonedDateTime now = ZonedDateTime.now();
-
         ZonedDateTime expected = call.getExpectedDepartureTime();
         ZonedDateTime aimed = call.getAimedDepartureTime();
         if (expected == null && aimed == null) {

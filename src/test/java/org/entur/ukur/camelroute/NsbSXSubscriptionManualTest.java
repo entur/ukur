@@ -20,7 +20,9 @@ import ch.qos.logback.classic.LoggerContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import com.github.tomakehurst.wiremock.verification.LoggedRequest;
+import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IMap;
+import com.hazelcast.core.ITopic;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
@@ -76,10 +78,12 @@ public class NsbSXSubscriptionManualTest extends DatastoreTest {
     @Before
     public void setUp() throws Exception {
         super.setUp();
-        IMap<String, LiveJourney> liveJourneyIMap = new TestHazelcastInstanceFactory().newHazelcastInstance().getMap("journeys");
+        HazelcastInstance hazelcastInstance = new TestHazelcastInstanceFactory().newHazelcastInstance();
+        IMap<String, LiveJourney> liveJourneyIMap = hazelcastInstance.getMap("journeys");
+        ITopic<String> subscriptionTopic = hazelcastInstance.getTopic("subscriptions");
         MetricsService metricsService = new MetricsService();
         siriMarshaller = new SiriMarshaller();
-        DataStorageService dataStorageService = new DataStorageService(datastore,liveJourneyIMap);
+        DataStorageService dataStorageService = new DataStorageService(datastore, liveJourneyIMap, subscriptionTopic);
         quayAndStopPlaceMappingService = new QuayAndStopPlaceMappingService(metricsService);
         subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsService, new HashMap<>(), quayAndStopPlaceMappingService);
         liveRouteManager = new LiveRouteManager(dataStorageService, quayAndStopPlaceMappingService);

@@ -15,7 +15,9 @@
 
 package org.entur.ukur.service;
 
+import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IMap;
+import com.hazelcast.core.ITopic;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
 import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.subscription.Subscription;
@@ -37,7 +39,9 @@ public class DataStorageServiceTest extends DatastoreTest {
 
     @Test
     public void testSubscriptionHandling() {
-        DataStorageService service = new DataStorageService(datastore, null);
+        HazelcastInstance hazelcastInstance = new TestHazelcastInstanceFactory().newHazelcastInstance();
+        ITopic<String> subscriptionTopic = hazelcastInstance.getTopic("subscriptions");
+        DataStorageService service = new DataStorageService(datastore, null, subscriptionTopic);
         Subscription subscription = new Subscription();
         subscription.setPushAddress("http://somehost/test");
         subscription.setName("Test#1");
@@ -163,8 +167,10 @@ public class DataStorageServiceTest extends DatastoreTest {
 
     @Test
     public void testLineOnlySubscription() {
-        IMap<String, LiveJourney> liveJourneyIMap = new TestHazelcastInstanceFactory().newHazelcastInstance().getMap("journeys");
-        DataStorageService service = new DataStorageService(datastore, liveJourneyIMap);
+        HazelcastInstance hazelcastInstance = new TestHazelcastInstanceFactory().newHazelcastInstance();
+        IMap<String, LiveJourney> liveJourneyIMap = hazelcastInstance.getMap("journeys");
+        ITopic<String> subscriptionTopic = hazelcastInstance.getTopic("subscriptions");
+        DataStorageService service = new DataStorageService(datastore, liveJourneyIMap, subscriptionTopic);
         Subscription subscription = new Subscription();
         subscription.setPushAddress("http://somehost/test");
         subscription.setName("Test#1");

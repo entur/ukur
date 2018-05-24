@@ -17,8 +17,10 @@ package org.entur.ukur.service;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.*;
-import com.google.common.collect.Iterators;
 import com.hazelcast.core.IMap;
+import com.hazelcast.core.ITopic;
+import com.hazelcast.core.Message;
+import com.hazelcast.core.MessageListener;
 import org.apache.commons.lang3.StringUtils;
 import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.subscription.Subscription;
@@ -32,78 +34,98 @@ import java.util.*;
 import java.util.function.Predicate;
 import java.util.stream.Collectors;
 
-public class DataStorageService {
+public class DataStorageService implements MessageListener<String> {
 
     private static final String KIND_SUBSCRIPTIONS = "Ukur-subscriptions";
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private final Datastore datastore;
     private final KeyFactory subscriptionkeyFactory;
     private final IMap<String, LiveJourney> currentJourneys;
+    private ITopic<String> subscriptionCacheRenewerTopic;
 
-    //TODO: Attempts a primitive local "cache" of subscriptions since datastore seems to be a bottleneck the way we have used it
     private HashMap<String, Subscription> idToSubscription = new HashMap<>();
     private HashMap<String, Set<Subscription>> stopToSubscription = new HashMap<>();
     private HashMap<String, Set<Subscription>> lineNoStopsToSubscription = new HashMap<>();
     private HashMap<String, Set<Subscription>> codespaceNoStopsToSubscription = new HashMap<>();
+    private long lastReloadedTime = 0;
 
     public DataStorageService(Datastore datastore,
-                              IMap<String, LiveJourney> currentJourneys) {
+                              IMap<String, LiveJourney> currentJourneys,
+                              ITopic<String> subscriptionCacheRenewerTopic) {
         this.datastore = datastore;
         subscriptionkeyFactory = datastore.newKeyFactory().setKind(KIND_SUBSCRIPTIONS);
         this.currentJourneys = currentJourneys;
+        this.subscriptionCacheRenewerTopic = subscriptionCacheRenewerTopic;
+        this.subscriptionCacheRenewerTopic.addMessageListener(this);
     }
 
     @PostConstruct
-    public void populateLocalstorageFromDatastore() {
+    public void populateSubscriptionCacheFromDatastore() {
+        populateSubscriptionCacheFromDatastore(System.currentTimeMillis());
+    }
+
+    private void populateSubscriptionCacheFromDatastore(long time) {
+        lastReloadedTime = time;
+        //it turned out datastore wasn't suited to our subscription needs - now we simply use it as persistence (maybe not the best usage of datatore...)
+        //TODO: This aproach will not scale with massive amounts of subscriptions.... But it doesn't seem like we will have many anyway as we don't deal with clients directly
         Query<Entity> query = Query.newEntityQueryBuilder()
                 .setKind(KIND_SUBSCRIPTIONS)
-                .setOrderBy(StructuredQuery.OrderBy.asc("created"))
                 .build();
         Set<Subscription> subscriptions = convertSubscription(datastore.run(query));
+        HashMap<String, Subscription> idToSubscription = new HashMap<>();
+        HashMap<String, Set<Subscription>> stopToSubscription = new HashMap<>();
+        HashMap<String, Set<Subscription>> lineNoStopsToSubscription = new HashMap<>();
+        HashMap<String, Set<Subscription>> codespaceNoStopsToSubscription = new HashMap<>();
         for (Subscription subscription : subscriptions) {
-            addToLocalStorage(subscription);
+            idToSubscription.put(subscription.getId(), subscription);
+            if (subscription.hasNoStops()) {
+                for (String lineref : subscription.getLineRefs()) {
+                    add(subscription, lineref, lineNoStopsToSubscription);
+                }
+                for (String codespace : subscription.getCodespaces()) {
+                    add(subscription, codespace, codespaceNoStopsToSubscription);
+                }
+            } else {
+                HashSet<String> stops = new HashSet<>();
+                stops.addAll(subscription.getFromStopPoints());
+                stops.addAll(subscription.getToStopPoints());
+                for (String stop : stops) {
+                    add(subscription, stop, stopToSubscription);
+                }
+            }
         }
+        updateSubscriptionCache(idToSubscription, stopToSubscription, lineNoStopsToSubscription, codespaceNoStopsToSubscription);
+    }
+
+    private synchronized void updateSubscriptionCache(HashMap<String, Subscription> idToSubscription, HashMap<String, Set<Subscription>> stopToSubscription,
+                                                      HashMap<String, Set<Subscription>> lineNoStopsToSubscription, HashMap<String, Set<Subscription>> codespaceNoStopsToSubscription) {
+        this.idToSubscription  = idToSubscription;
+        this.stopToSubscription  = stopToSubscription;
+        this.lineNoStopsToSubscription  = lineNoStopsToSubscription;
+        this.codespaceNoStopsToSubscription  = codespaceNoStopsToSubscription;
     }
 
 
     public Collection<Subscription> getSubscriptions() {
-//        Query<Entity> query = Query.newEntityQueryBuilder()
-//                .setKind(KIND_SUBSCRIPTIONS)
-//                .setOrderBy(StructuredQuery.OrderBy.asc("created"))
-//                .build();
-//        return convertSubscription(datastore.run(query));
         return idToSubscription.values();
     }
 
     public Set<Subscription> getSubscriptionsForStopPoint(String stopPointRef, SubscriptionTypeEnum type) {
-        // De to spørringene under kan muligens erstattes med en composite index
-//        Collection<Subscription> toStopPlaces = convertSubscription(findContaining("toStopPlaces", stopPointRef));
-//        Collection<Subscription> fromStopPlaces = convertSubscription(findContaining("fromStopPlaces", stopPointRef));
-        HashSet<Subscription> subscriptions = new HashSet<>();
-//        subscriptions.addAll(toStopPlaces);
-//        subscriptions.addAll(fromStopPlaces);
-        subscriptions.addAll(stopToSubscription.getOrDefault(stopPointRef, Collections.emptySet()));
-        //TODO: This should be done in the query (done like this now since we don't want to update existing subscriptions yet)
+        HashSet<Subscription> subscriptions = new HashSet<>(stopToSubscription.getOrDefault(stopPointRef, Collections.emptySet()));
         subscriptions.removeIf(notMatchingType(type));
-//        logger.trace("Found {} unique subscriptions containing '{}' ({} in toStopPlaces and {} in fromStopPlaces)",
-//                stopPointRef,subscriptions.size(), toStopPlaces.size(), fromStopPlaces.size());
         logger.trace("Found {} unique subscriptions containing '{}' in to/from stops",stopPointRef, subscriptions.size());
         return subscriptions;
     }
 
     public Set<Subscription> getSubscriptionsForLineRefAndNoStops(String lineRef, SubscriptionTypeEnum type) {
-        Set<Subscription> subscriptions = new HashSet<>(); //convertSubscription(findContainingWithoutStops("lineRefs", lineRef));
-        subscriptions.addAll(lineNoStopsToSubscription.getOrDefault(lineRef, Collections.emptySet()));
-        //TODO: This should be done in the query (done like this now since we don't want to update existing subscriptions yet)
+        Set<Subscription> subscriptions = new HashSet<>(lineNoStopsToSubscription.getOrDefault(lineRef, Collections.emptySet()));
         subscriptions.removeIf(notMatchingType(type));
         logger.trace("Found {} unique subscriptions containing '{}' in lineRefs", subscriptions.size(), lineRef);
         return subscriptions;
     }
 
     public Set<Subscription> getSubscriptionsForCodespaceAndNoStops(String codespace, SubscriptionTypeEnum type) {
-        Set<Subscription> subscriptions = new HashSet<>(); //convertSubscription(findContainingWithoutStops("codespaces", codespace));
-        subscriptions.addAll(codespaceNoStopsToSubscription.getOrDefault(codespace, Collections.emptySet()));
-        //TODO: This should be done in the query (done like this now since we don't want to update existing subscriptions yet)
+        Set<Subscription> subscriptions = new HashSet<>(codespaceNoStopsToSubscription.getOrDefault(codespace, Collections.emptySet()));
         subscriptions.removeIf(notMatchingType(type));
         logger.trace("Found {} unique subscriptions containing '{}' in codespaces", subscriptions.size(), codespace);
         return subscriptions;
@@ -119,13 +141,14 @@ public class DataStorageService {
         //No need for a transaction when adding
         datastore.put(task);
         subscription = convertSubscription(task);
-        addToLocalStorage(subscription);
+        logger.info("Added subscription with id {}", subscription.getId());
+        publish("ADDED "+subscription.getId());
         return subscription;
     }
 
     public void removeSubscription(String subscriptionId) {
-        removeFromLocalStorage(subscriptionId);
         datastore.delete(subscriptionkeyFactory.newKey(Long.parseLong(subscriptionId)));
+        publish("REMOVED "+subscriptionId);
     }
 
     public boolean updateSubscription(Subscription subscription) {
@@ -140,15 +163,11 @@ public class DataStorageService {
             transaction.rollback();
             return false;
         }
+        publish("UPDATED "+subscription.getId());
         return true;
     }
 
     public long getNumberOfSubscriptions() {
-//        //TODO: This query takes forever (at least locally) when there are many subscriptions:
-//        KeyQuery query = Query.newKeyQueryBuilder().setKind(KIND_SUBSCRIPTIONS).build();
-//        QueryResults<Key> result = datastore.run(query);
-//        Key[] keys = Iterators.toArray(result, Key.class);
-//        return keys.length;
         return idToSubscription.size();
     }
 
@@ -182,25 +201,6 @@ public class DataStorageService {
         for (String flush : toFlush) {
             currentJourneys.delete(flush);
         }
-    }
-
-    private QueryResults<Entity> findContaining(String property, String value) {
-        Query<Entity> query = Query.newEntityQueryBuilder()
-                .setKind(KIND_SUBSCRIPTIONS)
-                .setFilter(StructuredQuery.PropertyFilter.eq(property, value))
-                .build();
-        return datastore.run(query);
-    }
-
-    private QueryResults<Entity> findContainingWithoutStops(String property, String value) {
-        Query<Entity> query = Query.newEntityQueryBuilder()
-                .setKind(KIND_SUBSCRIPTIONS)
-                .setFilter(StructuredQuery.CompositeFilter.and(
-                        StructuredQuery.PropertyFilter.eq(property, value),
-                        StructuredQuery.PropertyFilter.isNull("fromStopPlaces"),
-                        StructuredQuery.PropertyFilter.isNull("toStopPlaces")))
-                .build();
-        return datastore.run(query);
     }
 
     private Entity convertEntity(Subscription s, Key key) {
@@ -280,53 +280,25 @@ public class DataStorageService {
         return Collections.emptySet();
     }
 
-    private void addToLocalStorage(Subscription subscription) {
-        idToSubscription.put(subscription.getId(), subscription);
-        if (subscription.getFromStopPoints().isEmpty() && subscription.getToStopPoints().isEmpty()) {
-            for (String lineref : subscription.getLineRefs()) {
-                add(subscription, lineref, lineNoStopsToSubscription);
-            }
-            for (String codespace : subscription.getCodespaces()) {
-                add(subscription, codespace, codespaceNoStopsToSubscription);
-            }
-        } else {
-            HashSet<String> stops = new HashSet<>();
-            stops.addAll(subscription.getFromStopPoints());
-            stops.addAll(subscription.getToStopPoints());
-            for (String stop : stops) {
-                add(subscription, stop, stopToSubscription);
-            }
-        }
-    }
-
-    private void removeFromLocalStorage(String subscriptionId) {
-        Subscription subscription = idToSubscription.remove(subscriptionId);
-        if (subscription == null) {
-            logger.warn("Attempt to remove nonexisting subscription with id {} from local storage", subscriptionId);
-            return;
-        }
-        for (String lineref : subscription.getLineRefs()) {
-            remove(subscription, lineref, lineNoStopsToSubscription);
-        }
-        for (String codespace : subscription.getCodespaces()) {
-            remove(subscription, codespace, codespaceNoStopsToSubscription);
-        }
-        HashSet<String> stops = new HashSet<>();
-        stops.addAll(subscription.getFromStopPoints());
-        stops.addAll(subscription.getToStopPoints());
-        for (String stop : stops) {
-            remove(subscription, stop, stopToSubscription);
-        }
-    }
-
     private void add(Subscription subscription, String key, HashMap<String, Set<Subscription>> map) {
         Set<Subscription> subscriptions = map.getOrDefault(key, new HashSet<>());
         subscriptions.add(subscription);
         map.put(key, subscriptions);
     }
 
-    private void remove (Subscription subscription, String key, HashMap<String, Set<Subscription>> map) {
-        map.getOrDefault(key, new HashSet<>()).remove(subscription);
+    private void publish(String message) {
+        logger.debug("Publish '{}' on subscriptionCacheRenewerTopic", message);
+        subscriptionCacheRenewerTopic.publish(message);
+        populateSubscriptionCacheFromDatastore();
     }
 
+    @Override
+    public void onMessage(Message<String> message) {
+        logger.debug("Received message: {}", message.getMessageObject());
+        if (lastReloadedTime < message.getPublishTime()) {
+            populateSubscriptionCacheFromDatastore(message.getPublishTime());
+        } else {
+            logger.debug("Ignores reload as received message PublishTime ({}) is older than or equal to the last reload ({})", message.getPublishTime(), lastReloadedTime);
+        }
+    }
 }

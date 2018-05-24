@@ -18,7 +18,9 @@ package org.entur.ukur.subscription;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import com.github.tomakehurst.wiremock.matching.RequestPatternBuilder;
 import com.github.tomakehurst.wiremock.verification.LoggedRequest;
+import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IMap;
+import com.hazelcast.core.ITopic;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
 import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.service.DataStorageService;
@@ -59,10 +61,12 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         super.setUp();
         alreadySentCache =  new HashMap<>();
         siriMarshaller = new SiriMarshaller();
-        IMap<String, LiveJourney> liveJourneyIMap = new TestHazelcastInstanceFactory().newHazelcastInstance().getMap("journeys");
+        HazelcastInstance hazelcastInstance = new TestHazelcastInstanceFactory().newHazelcastInstance();
+        IMap<String, LiveJourney> liveJourneyIMap = hazelcastInstance.getMap("journeys");
+        ITopic<String> subscriptionTopic = hazelcastInstance.getTopic("subscriptions");
         liveJourneyIMap.clear();
         MetricsService metricsService = new MetricsService();
-        dataStorageService = new DataStorageService(datastore, liveJourneyIMap);
+        dataStorageService = new DataStorageService(datastore, liveJourneyIMap, subscriptionTopic);
         subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsService, alreadySentCache, mock(QuayAndStopPlaceMappingService.class));
     }
 
@@ -85,7 +89,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
     }
 
     @Test
-    public void testETPushForget() throws InterruptedException {
+    public void testETPushForget()  {
 
         String url = "/push/forget/et";
         stubFor(post(urlEqualTo(url))
@@ -100,13 +104,13 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         assertThat(dataStorageService.getSubscriptions(), hasItem(subscription));
         subscriptionManager.notifySubscriptionsOnStops(subscriptions, new EstimatedVehicleJourney());
         waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
-        assertThat(dataStorageService.getSubscriptions(), CoreMatchers.not(hasItem(subscription)));
+        waitUntilSubscriptionIsRemoved(subscription);
         assertFalse(new HashSet<>(subscriptionManager.listAll()).contains(subscription));
         assertEquals(0, subscription.getFailedPushCounter());
     }
 
     @Test
-    public void testETPushError() throws InterruptedException {
+    public void testETPushError() {
 
         String url = "/push/error/et";
         stubFor(post(urlEqualTo(url))
@@ -146,8 +150,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney);
         waitAndVerifyAtLeast(4, postRequestedFor(urlEqualTo(url)));
         waitAndVerifyFailedPushCounter(4, subscription);
-        Thread.sleep(10);
-        assertThat(dataStorageService.getSubscriptions(), CoreMatchers.not(hasItem(subscription)));
+        waitUntilSubscriptionIsRemoved(subscription);
     }
 
     @Test
@@ -551,4 +554,14 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         fail("Expected " + expected + " but found only " + actual+" before we timed out...");
     }
 
+    private void waitUntilSubscriptionIsRemoved(Subscription subscription) {
+        long start = System.currentTimeMillis();
+        while (System.currentTimeMillis() - start < 10000) {
+            Collection<Subscription> subscriptions = dataStorageService.getSubscriptions();
+            if (!subscriptions.contains(subscription)) {
+                return;
+            }
+        }
+        assertThat(dataStorageService.getSubscriptions(), CoreMatchers.not(hasItem(subscription)));
+    }
 }

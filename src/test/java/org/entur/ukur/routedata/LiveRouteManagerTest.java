@@ -15,7 +15,9 @@
 
 package org.entur.ukur.routedata;
 
+import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IMap;
+import com.hazelcast.core.ITopic;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
 import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.QuayAndStopPlaceMappingService;
@@ -32,8 +34,10 @@ public class LiveRouteManagerTest extends DatastoreTest {
 
     @Test
     public void updateJourney() {
-        IMap<String, LiveJourney> liveJourneyIMap = new TestHazelcastInstanceFactory().newHazelcastInstance().getMap("journeys");
-        DataStorageService dataStorageService = new DataStorageService(datastore, liveJourneyIMap);
+        HazelcastInstance hazelcastInstance = new TestHazelcastInstanceFactory().newHazelcastInstance();
+        IMap<String, LiveJourney> liveJourneyIMap = hazelcastInstance.getMap("journeys");
+        ITopic<String> subscriptionTopic = hazelcastInstance.getTopic("subscriptions");
+        DataStorageService dataStorageService = new DataStorageService(datastore, liveJourneyIMap, subscriptionTopic);
         LiveRouteManager service = new LiveRouteManager(dataStorageService, mock(QuayAndStopPlaceMappingService.class));
         service.updateJourney(createEstimatedVehicleJourney("1", "NSB:Line:Test1", false, ZonedDateTime.now().plusHours(1)));
         service.updateJourney(createEstimatedVehicleJourney("2", "NSB:Line:Test1", true, ZonedDateTime.now().plusHours(2)));

@@ -20,7 +20,9 @@ import ch.qos.logback.classic.LoggerContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import com.github.tomakehurst.wiremock.verification.LoggedRequest;
+import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.IMap;
+import com.hazelcast.core.ITopic;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
@@ -51,6 +53,7 @@ import java.net.URLConnection;
 import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
+import java.text.NumberFormat;
 import java.util.*;
 import java.util.stream.Collectors;
 
@@ -69,17 +72,21 @@ public class NsbETSubscriptionManualTest extends DatastoreTest {
     private ETSubscriptionProcessor ETSubscriptionProcessor;
     private QuayAndStopPlaceMappingService quayAndStopPlaceMappingService;
     private SiriMarshaller siriMarshaller;
+    private MetricsService metricsService = new MetricsService();
+    private static final NumberFormat FORMATTER = NumberFormat.getInstance(Locale.forLanguageTag("no"));
 
     @Before
     public void setUp() throws Exception {
         super.setUp();
-        IMap<String, LiveJourney> liveJourneyIMap = new TestHazelcastInstanceFactory().newHazelcastInstance().getMap("journeys");
-        MetricsService metricsService = new MetricsService();
+        HazelcastInstance hazelcastInstance = new TestHazelcastInstanceFactory().newHazelcastInstance();
+        IMap<String, LiveJourney> liveJourneyIMap = hazelcastInstance.getMap("journeys");
+        ITopic<String> subscriptionTopic = hazelcastInstance.getTopic("subscriptions");
         siriMarshaller = new SiriMarshaller();
-        DataStorageService dataStorageService = new DataStorageService(datastore,liveJourneyIMap);
+        DataStorageService dataStorageService = new DataStorageService(datastore, liveJourneyIMap, subscriptionTopic);
         quayAndStopPlaceMappingService = new QuayAndStopPlaceMappingService(metricsService);
         subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsService, new HashMap<>(), quayAndStopPlaceMappingService);
         ETSubscriptionProcessor = new ETSubscriptionProcessor(subscriptionManager, siriMarshaller, mock(FileStorageService.class), metricsService, quayAndStopPlaceMappingService);
+        ETSubscriptionProcessor.skipCallTimeChecks = true; //since we post old recorded ET messages
     }
 
     @Test
@@ -91,7 +98,7 @@ public class NsbETSubscriptionManualTest extends DatastoreTest {
 
         populateQuayAndStopPlaceMappingService("https://api-test.entur.org/stop_places/1.0/list/stop_place_quays/");
 
-        logCtx.getLogger("org.entur").setLevel(Level.TRACE);
+//        logCtx.getLogger("org.entur").setLevel(Level.DEBUG);
 
         stubFor(post(urlMatching("/subscription.*/et"))
                 .withHeader("Content-Type", equalTo("application/xml"))
@@ -145,23 +152,25 @@ public class NsbETSubscriptionManualTest extends DatastoreTest {
         subscriptionManager.addOrUpdate(lineL13);
 
         Subscription codespaceABC = new Subscription();
-        codespaceABC.setName("Vehicle 1625");
+        codespaceABC.setName("Non-existing codespace");
         codespaceABC.setPushAddress(pushAddressBase + "/subscription4");
         codespaceABC.addCodespace("ABC");
         subscriptionManager.addOrUpdate(codespaceABC);
 
         assertEquals(4, subscriptionManager.listAll().size());
 
-
-        List<Path> etMessages = Files.walk(Paths.get("/home/jon/Documents/Entur/nsb_sanntidsmeldinger/et/"))
+        List<Path> etMessages = Files.walk(Paths.get("/home/jon/Documents/Entur/sanntidsmelding_alle/raw"))
                 .filter(Files::isRegularFile)
+                .filter(p -> p.toString().contains("ET"))
                 .collect(Collectors.toList());
+        long start = System.currentTimeMillis();
         for (int i = 0; i < etMessages.size(); i++) {
-            logger.info("About to process message {}/{} ...", (i+1), etMessages.size());
-            long start = System.currentTimeMillis();
+            long deltaStart = System.currentTimeMillis();
             ETSubscriptionProcessor.process(createExchangeMock(new FileInputStream(etMessages.get(i).toFile())));
-            logger.info("... processing took {} ms", String.format("%,d", (System.currentTimeMillis()-start)));
+            logger.info("Processed message {}/{} in {} ms", (i+1), etMessages.size(), formatTimeSince(deltaStart));
         }
+        logger.info("DONE!");
+        logger.info("Processed all {} messages in {} ms", etMessages.size(), formatTimeSince(start));
 
         long sleepStart = System.currentTimeMillis();
         int activePushThreads = subscriptionManager.getActivePushThreads();
@@ -175,16 +184,19 @@ public class NsbETSubscriptionManualTest extends DatastoreTest {
             Thread.sleep(1000);
             activePushThreads = subscriptionManager.getActivePushThreads();
         }
-        logger.info("Finished processing {} ET messages", etMessages.size());
+
+        logger.info("Finished processing {} ET messages and sent all pushmessages in {} ms", etMessages.size(), formatTimeSince(start));
+        logger.info("There was {} messages with deviations, and {} without - {} was skipped",
+                metricsService.getMeter(MetricsService.METER_ET_WITH_DEVIATIONS).getCount(),
+                metricsService.getMeter(MetricsService.METER_ET_WITHOUT_DEVIATIONS).getCount(),
+                metricsService.getMeter(MetricsService.METER_ET_IGNORED).getCount());
+
         List<EstimatedVehicleJourney> s1ReceivedMessages = getEstimatedVehicleJourney("/subscription1/et");
         List<EstimatedVehicleJourney> s2ReceivedMessages = getEstimatedVehicleJourney("/subscription2/et");
         List<EstimatedVehicleJourney> s3ReceivedMessages = getEstimatedVehicleJourney("/subscription3/et");
-        List<EstimatedVehicleJourney> s4ReceivedMessages = getEstimatedVehicleJourney("/subscription4/et");
-
         logger.info("s1ReceivedMessages (Asker-OsloS stopplaces and quays) : {}", s1ReceivedMessages.size());
         logger.info("s2ReceivedMessages (Asker-OsloS only stopplaces)      : {}", s2ReceivedMessages.size());
         logger.info("s3ReceivedMessages (Line L13)                         : {}", s3ReceivedMessages.size());
-        logger.info("s4ReceivedMessages (Vehicle 1625)                     : {}", s4ReceivedMessages.size());
 
         assertEquals("Excpected the same messages received", s1ReceivedMessages.size(), s2ReceivedMessages.size());
         HashSet<String> s1_uniqueDatedVehicleJourneyRefs = getUniqueDatedVehicleJourneyRefs(s1ReceivedMessages);
@@ -193,7 +205,6 @@ public class NsbETSubscriptionManualTest extends DatastoreTest {
         assertTrue("Excpected the same messages received", s2_uniqueDatedVehicleJourneyRefs.containsAll(s1_uniqueDatedVehicleJourneyRefs));
 
         assertFalse("Expected messages regarding line L13", s3ReceivedMessages.isEmpty());
-        assertFalse("Expected messages regarding vehicle 1625", s4ReceivedMessages.isEmpty());
 
         List<LoggedRequest> allUnmatchedRequests = wireMockRule.findAllUnmatchedRequests();
         if (!allUnmatchedRequests.isEmpty()) {
@@ -202,6 +213,15 @@ public class NsbETSubscriptionManualTest extends DatastoreTest {
             }
             fail("Did not expect any unmatched requests - got "+allUnmatchedRequests.size());
         }
+    }
+
+    private String formatTimeSince(long start) {
+        long time = System.currentTimeMillis() - start;
+        return formatNumber(time);
+    }
+
+    private String formatNumber(long number) {
+        return FORMATTER.format(number);
     }
 
     private List<EstimatedVehicleJourney> getEstimatedVehicleJourney(String pushAddress) throws JAXBException, XMLStreamException {
@@ -241,7 +261,7 @@ public class NsbETSubscriptionManualTest extends DatastoreTest {
             HashMap<String, Collection<String>> stopsFromTiamat = mapper.readValue(json, HashMap.class);
             logger.info("Got {} stop places from Tiamat", stopsFromTiamat.size());
             quayAndStopPlaceMappingService.updateStopsAndQuaysMap(stopsFromTiamat);
-            logger.info("It took {} ms to download and handle {} stop places ", String.format("%,d", (System.currentTimeMillis()-start)), stopsFromTiamat.size());
+            logger.info("It took {} ms to download and handle {} stop places ", formatTimeSince(start), stopsFromTiamat.size());
         } catch (IOException e) {
             logger.error("Could not get list of stopplaces and quays", e);
         }
