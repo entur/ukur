@@ -31,7 +31,8 @@ import org.slf4j.LoggerFactory;
 import javax.annotation.PostConstruct;
 import java.time.ZonedDateTime;
 import java.util.*;
-import java.util.function.Predicate;
+import java.util.concurrent.Executors;
+import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 
 public class DataStorageService implements MessageListener<String> {
@@ -44,19 +45,24 @@ public class DataStorageService implements MessageListener<String> {
     private ITopic<String> subscriptionCacheRenewerTopic;
 
     private HashMap<String, Subscription> idToSubscription = new HashMap<>();
-    private HashMap<String, Set<Subscription>> stopToSubscription = new HashMap<>();
-    private HashMap<String, Set<Subscription>> lineNoStopsToSubscription = new HashMap<>();
-    private HashMap<String, Set<Subscription>> codespaceNoStopsToSubscription = new HashMap<>();
+    private HashMap<String, Set<String>> stopToSubscription = new HashMap<>();
+    private HashMap<String, Set<String>> lineNoStopsToSubscription = new HashMap<>();
+    private HashMap<String, Set<String>> codespaceNoStopsToSubscription = new HashMap<>();
     private long lastReloadedTime = 0;
 
     public DataStorageService(Datastore datastore,
                               IMap<String, LiveJourney> currentJourneys,
                               ITopic<String> subscriptionCacheRenewerTopic) {
         this.datastore = datastore;
-        subscriptionkeyFactory = datastore.newKeyFactory().setKind(KIND_SUBSCRIPTIONS);
+        this.subscriptionkeyFactory = datastore.newKeyFactory().setKind(KIND_SUBSCRIPTIONS);
         this.currentJourneys = currentJourneys;
         this.subscriptionCacheRenewerTopic = subscriptionCacheRenewerTopic;
         this.subscriptionCacheRenewerTopic.addMessageListener(this);
+        //To support that subscriptions are changed from the console (or we get out of sync...)
+        Executors.newScheduledThreadPool(1).scheduleWithFixedDelay(() -> {
+            populateSubscriptionCacheFromDatastore();
+            logger.debug("Reloads subscriptions from datastore");
+        }, 1, 1, TimeUnit.HOURS);
     }
 
     @PostConstruct
@@ -73,32 +79,46 @@ public class DataStorageService implements MessageListener<String> {
                 .build();
         Set<Subscription> subscriptions = convertSubscription(datastore.run(query));
         HashMap<String, Subscription> idToSubscription = new HashMap<>();
-        HashMap<String, Set<Subscription>> stopToSubscription = new HashMap<>();
-        HashMap<String, Set<Subscription>> lineNoStopsToSubscription = new HashMap<>();
-        HashMap<String, Set<Subscription>> codespaceNoStopsToSubscription = new HashMap<>();
+        HashMap<String, Set<String>> stopToSubscription = new HashMap<>();
+        HashMap<String, Set<String>> lineNoStopsToSubscription = new HashMap<>();
+        HashMap<String, Set<String>> codespaceNoStopsToSubscription = new HashMap<>();
         for (Subscription subscription : subscriptions) {
-            idToSubscription.put(subscription.getId(), subscription);
-            if (subscription.hasNoStops()) {
-                for (String lineref : subscription.getLineRefs()) {
-                    add(subscription, lineref, lineNoStopsToSubscription);
-                }
-                for (String codespace : subscription.getCodespaces()) {
-                    add(subscription, codespace, codespaceNoStopsToSubscription);
-                }
-            } else {
-                HashSet<String> stops = new HashSet<>();
-                stops.addAll(subscription.getFromStopPoints());
-                stops.addAll(subscription.getToStopPoints());
-                for (String stop : stops) {
-                    add(subscription, stop, stopToSubscription);
-                }
-            }
+            addOrUpdateSubscriptionInLocalStorage(idToSubscription, stopToSubscription, lineNoStopsToSubscription, codespaceNoStopsToSubscription, subscription);
         }
         updateSubscriptionCache(idToSubscription, stopToSubscription, lineNoStopsToSubscription, codespaceNoStopsToSubscription);
     }
 
-    private synchronized void updateSubscriptionCache(HashMap<String, Subscription> idToSubscription, HashMap<String, Set<Subscription>> stopToSubscription,
-                                                      HashMap<String, Set<Subscription>> lineNoStopsToSubscription, HashMap<String, Set<Subscription>> codespaceNoStopsToSubscription) {
+    private void addOrUpdateSubscriptionInLocalStorage(HashMap<String, Subscription> idToSubscription, HashMap<String, Set<String>> stopToSubscription, HashMap<String, Set<String>> lineNoStopsToSubscription, HashMap<String, Set<String>> codespaceNoStopsToSubscription, Subscription subscription) {
+        idToSubscription.put(subscription.getId(), subscription);
+        if (subscription.hasNoStops()) {
+            for (String lineref : subscription.getLineRefs()) {
+                add(subscription, lineref, lineNoStopsToSubscription);
+            }
+            for (String codespace : subscription.getCodespaces()) {
+                add(subscription, codespace, codespaceNoStopsToSubscription);
+            }
+        } else {
+            HashSet<String> stops = new HashSet<>();
+            stops.addAll(subscription.getFromStopPoints());
+            stops.addAll(subscription.getToStopPoints());
+            for (String stop : stops) {
+                add(subscription, stop, stopToSubscription);
+            }
+        }
+    }
+
+    private void addOrUpdateSubscriptionInLocalStorage(Subscription subscription) {
+        lastReloadedTime = System.currentTimeMillis();
+        addOrUpdateSubscriptionInLocalStorage(idToSubscription, stopToSubscription, lineNoStopsToSubscription, codespaceNoStopsToSubscription, subscription);
+    }
+
+    private void removeSubscriptionFromLocalStorage(String subscriptionId) {
+        lastReloadedTime = System.currentTimeMillis();
+        idToSubscription.remove(subscriptionId);
+    }
+
+    private synchronized void updateSubscriptionCache(HashMap<String, Subscription> idToSubscription, HashMap<String, Set<String>> stopToSubscription,
+                                                      HashMap<String, Set<String>> lineNoStopsToSubscription, HashMap<String, Set<String>> codespaceNoStopsToSubscription) {
         this.idToSubscription  = idToSubscription;
         this.stopToSubscription  = stopToSubscription;
         this.lineNoStopsToSubscription  = lineNoStopsToSubscription;
@@ -111,28 +131,39 @@ public class DataStorageService implements MessageListener<String> {
     }
 
     public Set<Subscription> getSubscriptionsForStopPoint(String stopPointRef, SubscriptionTypeEnum type) {
-        HashSet<Subscription> subscriptions = new HashSet<>(stopToSubscription.getOrDefault(stopPointRef, Collections.emptySet()));
-        subscriptions.removeIf(notMatchingType(type));
+        Set<String> subscriptionIds = new HashSet<>(stopToSubscription.getOrDefault(stopPointRef, Collections.emptySet()));
+        Set<Subscription> subscriptions = getSubscriptions(subscriptionIds, type);
         logger.trace("Found {} unique subscriptions containing '{}' in to/from stops",stopPointRef, subscriptions.size());
         return subscriptions;
     }
 
     public Set<Subscription> getSubscriptionsForLineRefAndNoStops(String lineRef, SubscriptionTypeEnum type) {
-        Set<Subscription> subscriptions = new HashSet<>(lineNoStopsToSubscription.getOrDefault(lineRef, Collections.emptySet()));
-        subscriptions.removeIf(notMatchingType(type));
+        Set<String> subscriptionIds = new HashSet<>(lineNoStopsToSubscription.getOrDefault(lineRef, Collections.emptySet()));
+        Set<Subscription> subscriptions = getSubscriptions(subscriptionIds, type);
         logger.trace("Found {} unique subscriptions containing '{}' in lineRefs", subscriptions.size(), lineRef);
         return subscriptions;
     }
 
     public Set<Subscription> getSubscriptionsForCodespaceAndNoStops(String codespace, SubscriptionTypeEnum type) {
-        Set<Subscription> subscriptions = new HashSet<>(codespaceNoStopsToSubscription.getOrDefault(codespace, Collections.emptySet()));
-        subscriptions.removeIf(notMatchingType(type));
+        Set<String> subscriptionIds = new HashSet<>(codespaceNoStopsToSubscription.getOrDefault(codespace, Collections.emptySet()));
+        Set<Subscription> subscriptions = getSubscriptions(subscriptionIds, type);
         logger.trace("Found {} unique subscriptions containing '{}' in codespaces", subscriptions.size(), codespace);
         return subscriptions;
     }
 
-    private Predicate<Subscription> notMatchingType(SubscriptionTypeEnum type) {
-        return s -> s.getType() != SubscriptionTypeEnum.ALL && s.getType() != type;
+    private Set<Subscription> getSubscriptions(Set<String> subscriptionIds, SubscriptionTypeEnum type) {
+        HashSet<Subscription> subscriptions = new HashSet<>(subscriptionIds.size());
+        for (Iterator<String> idIterator = subscriptionIds.iterator(); idIterator.hasNext(); ) {
+            String id = idIterator.next();
+            Subscription subscription = idToSubscription.get(id);
+            if (subscription == null) {
+                logger.warn("Removes not found subscription with id = {}", id);
+                idIterator.remove();
+            } else if (subscription.getType() == SubscriptionTypeEnum.ALL || subscription.getType() == type){
+                subscriptions.add(subscription);
+            }
+        }
+        return subscriptions;
     }
 
     public Subscription addSubscription(Subscription subscription) {
@@ -141,6 +172,7 @@ public class DataStorageService implements MessageListener<String> {
         //No need for a transaction when adding
         datastore.put(task);
         subscription = convertSubscription(task);
+        addOrUpdateSubscriptionInLocalStorage(subscription);
         logger.info("Added subscription with id {}", subscription.getId());
         publish("ADDED "+subscription.getId());
         return subscription;
@@ -148,6 +180,7 @@ public class DataStorageService implements MessageListener<String> {
 
     public void removeSubscription(String subscriptionId) {
         datastore.delete(subscriptionkeyFactory.newKey(Long.parseLong(subscriptionId)));
+        removeSubscriptionFromLocalStorage(subscriptionId);
         publish("REMOVED "+subscriptionId);
     }
 
@@ -163,6 +196,7 @@ public class DataStorageService implements MessageListener<String> {
             transaction.rollback();
             return false;
         }
+        addOrUpdateSubscriptionInLocalStorage(idToSubscription, stopToSubscription, lineNoStopsToSubscription, codespaceNoStopsToSubscription, subscription);
         publish("UPDATED "+subscription.getId());
         return true;
     }
@@ -188,7 +222,7 @@ public class DataStorageService implements MessageListener<String> {
         }
     }
 
-    @SuppressWarnings("Duplicates") //TODO: This will be replaced with datastore....
+    @SuppressWarnings("Duplicates")
     public void removeJourneysOlderThan(ZonedDateTime time) {
         Collection<LiveJourney> values = getCurrentJourneys();
         HashSet<String> toFlush = new HashSet<>();
@@ -280,23 +314,51 @@ public class DataStorageService implements MessageListener<String> {
         return Collections.emptySet();
     }
 
-    private void add(Subscription subscription, String key, HashMap<String, Set<Subscription>> map) {
-        Set<Subscription> subscriptions = map.getOrDefault(key, new HashSet<>());
-        subscriptions.add(subscription);
+    private void add(Subscription subscription, String key, HashMap<String, Set<String>> map) {
+        Set<String> subscriptions = map.getOrDefault(key, new HashSet<>());
+        subscriptions.add(subscription.getId());
         map.put(key, subscriptions);
     }
 
     private void publish(String message) {
         logger.debug("Publish '{}' on subscriptionCacheRenewerTopic", message);
         subscriptionCacheRenewerTopic.publish(message);
-        populateSubscriptionCacheFromDatastore();
     }
 
     @Override
     public void onMessage(Message<String> message) {
-        logger.debug("Received message: {}", message.getMessageObject());
+        String messageString = message.getMessageObject();
+        logger.debug("Received message: {}", messageString);
         if (lastReloadedTime < message.getPublishTime()) {
-            populateSubscriptionCacheFromDatastore(message.getPublishTime());
+            String[] msgParts = messageString.split(" ");
+            if (msgParts.length != 2) {
+                logger.warn("Received message on unexpected format (<ACTION> <SUBSCRIPTION-ID>): {}", messageString);
+            } else {
+                String action = msgParts[0];
+                String subscriptionId = msgParts[1];
+                switch (action) {
+                    case "ADDED":
+                    case "UPDATED":
+                        try {
+                            Key key = subscriptionkeyFactory.newKey(Long.parseLong(subscriptionId));
+                            Entity entity = datastore.get(key);
+                            if (entity != null) {
+                                Subscription subscription = convertSubscription(entity);
+                                addOrUpdateSubscriptionInLocalStorage(subscription);
+                            } else {
+                                logger.warn("Did not find a subscription in Datastore to add/update based on this message: {}", messageString);
+                            }
+                        } catch (Exception e) {
+                            logger.warn("Could not add or update subscription", e);
+                        }
+                        break;
+                    case "DELETED":
+                        removeSubscriptionFromLocalStorage(subscriptionId);
+                        break;
+                    default:
+                        logger.warn("Received message with unknown action '{}', message: {}", action, messageString);
+                }
+            }
         } else {
             logger.debug("Ignores reload as received message PublishTime ({}) is older than or equal to the last reload ({})", message.getPublishTime(), lastReloadedTime);
         }
