@@ -90,6 +90,12 @@ public class SubscriptionManager {
         return Collections.unmodifiableCollection(existingSubscriptions);
     }
 
+    @SuppressWarnings("unused") //Used from camel route
+    public void reloadSubscriptionCache() {
+        logger.info("Reloads subscription cache");
+        dataStorageService.populateSubscriptionCacheFromDatastore();
+    }
+
     public Set<Subscription> getSubscriptionsForStopPoint(String stopPointRef, SubscriptionTypeEnum type) {
         HashSet<Subscription> subscriptions = new HashSet<>();
         if (stopPointRef.startsWith("NSR:Quay:")) {

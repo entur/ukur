@@ -199,6 +199,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
         rest("/internal/health")
                 .bindingMode(RestBindingMode.json)
                 .get("/subscriptions").to("bean:subscriptionManager?method=listAll")
+                .get("/subscriptions/reload").to("bean:subscriptionManager?method=reloadSubscriptionCache")
                 .get("/routes").to("direct:routeStatus")
                 .get("/live").to("direct:OK")
                 .get("/ready").to("direct:ready");

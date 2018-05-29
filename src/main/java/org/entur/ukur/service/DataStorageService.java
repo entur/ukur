@@ -38,6 +38,9 @@ import java.util.stream.Collectors;
 public class DataStorageService implements MessageListener<String> {
 
     private static final String KIND_SUBSCRIPTIONS = "Ukur-subscriptions";
+    private static final String SUBSCRIPTION_ACTION_ADDED = "ADDED";
+    private static final String SUBSCRIPTION_ACTION_UPDATED = "UPDATED";
+    private static final String SUBSCRIPTION_ACTION_REMOVED = "REMOVED";
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private final Datastore datastore;
     private final KeyFactory subscriptionkeyFactory;
@@ -174,14 +177,14 @@ public class DataStorageService implements MessageListener<String> {
         subscription = convertSubscription(task);
         addOrUpdateSubscriptionInLocalStorage(subscription);
         logger.info("Added subscription with id {}", subscription.getId());
-        publish("ADDED "+subscription.getId());
+        publish(SUBSCRIPTION_ACTION_ADDED, subscription.getId());
         return subscription;
     }
 
     public void removeSubscription(String subscriptionId) {
         datastore.delete(subscriptionkeyFactory.newKey(Long.parseLong(subscriptionId)));
         removeSubscriptionFromLocalStorage(subscriptionId);
-        publish("REMOVED "+subscriptionId);
+        publish(SUBSCRIPTION_ACTION_REMOVED, subscriptionId);
     }
 
     public boolean updateSubscription(Subscription subscription) {
@@ -197,7 +200,7 @@ public class DataStorageService implements MessageListener<String> {
             return false;
         }
         addOrUpdateSubscriptionInLocalStorage(idToSubscription, stopToSubscription, lineNoStopsToSubscription, codespaceNoStopsToSubscription, subscription);
-        publish("UPDATED "+subscription.getId());
+        publish(SUBSCRIPTION_ACTION_UPDATED, subscription.getId());
         return true;
     }
 
@@ -320,7 +323,8 @@ public class DataStorageService implements MessageListener<String> {
         map.put(key, subscriptions);
     }
 
-    private void publish(String message) {
+    private void publish(String action, String subscriptionId) {
+        String message = action + " " + subscriptionId;
         logger.debug("Publish '{}' on subscriptionCacheRenewerTopic", message);
         subscriptionCacheRenewerTopic.publish(message);
     }
@@ -337,8 +341,8 @@ public class DataStorageService implements MessageListener<String> {
                 String action = msgParts[0];
                 String subscriptionId = msgParts[1];
                 switch (action) {
-                    case "ADDED":
-                    case "UPDATED":
+                    case SUBSCRIPTION_ACTION_ADDED:
+                    case SUBSCRIPTION_ACTION_UPDATED:
                         try {
                             Key key = subscriptionkeyFactory.newKey(Long.parseLong(subscriptionId));
                             Entity entity = datastore.get(key);
@@ -352,7 +356,7 @@ public class DataStorageService implements MessageListener<String> {
                             logger.warn("Could not add or update subscription", e);
                         }
                         break;
-                    case "DELETED":
+                    case SUBSCRIPTION_ACTION_REMOVED:
                         removeSubscriptionFromLocalStorage(subscriptionId);
                         break;
                     default:
