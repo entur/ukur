@@ -372,14 +372,8 @@ public class SubscriptionManager {
         }
 
         alreadySentCache.put(alreadySentKey, System.currentTimeMillis());
-
-        logger.debug("PUSH ({}) {} to subscription name: {}, pushAddress: {}",
-                hostname, siriElement.getClass(), subscription.getName(), subscription.getPushAddress());
-        if (StringUtils.startsWithIgnoreCase(subscription.getPushAddress(), "http://") ) {
-            pushToHttp(subscription, siriElement);
-        } else {
-            logger.warn("No push address for subscription with id='{}'");
-        }
+        logger.debug("PUSH ({}) {} to subscription name: {}, pushAddress: {}", hostname, siriElement.getClass(), subscription.getName(), subscription.getPushAddress());
+        pushToHttp(subscription, siriElement);
     }
 
     private String calculateUniqueKey(Subscription subscription, Object siriElement) {
