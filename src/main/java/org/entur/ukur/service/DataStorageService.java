@@ -245,12 +245,15 @@ public class DataStorageService implements MessageListener<String> {
                 .set("created", Timestamp.now())
                 .set("name", StringValue.newBuilder(s.getName()).setExcludeFromIndexes(true).build())
                 .set("pushAddress", StringValue.newBuilder(s.getPushAddress()).setExcludeFromIndexes(true).build())
-                .set("failedPushCounter", LongValue.newBuilder(s.getFailedPushCounter()).setExcludeFromIndexes(true).build());
+                .set("failedPushCounter", LongValue.newBuilder(s.getFailedPushCounter()).setExcludeFromIndexes(true).build())
+                .set("siriSubscriptionModel", BooleanValue.of(s.isUseSiriSubscriptionModel()));
+
         appendStringValueList(builder, "fromStopPlaces", s.getFromStopPoints());
         appendStringValueList(builder, "toStopPlaces", s.getToStopPoints());
         appendStringValueList(builder, "lineRefs", s.getLineRefs());
         appendStringValueList(builder, "codespaces", s.getCodespaces());
         appendStringValueList(builder, "types", toNameList(s.getType()));
+
         return builder.build();
     }
 
@@ -273,6 +276,9 @@ public class DataStorageService implements MessageListener<String> {
         subscription.setLineRefs(convertValueListToStrings(entity, "lineRefs"));
         subscription.setCodespaces(convertValueListToStrings(entity, "codespaces"));
         subscription.setType(toTypeEnum(convertValueListToStrings(entity, "types")));
+        if (entity.contains("siriSubscriptionModel")) {
+            subscription.setUseSiriSubscriptionModel(entity.getBoolean("siriSubscriptionModel"));
+        }
         return subscription;
     }
 

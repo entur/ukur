@@ -89,6 +89,54 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
     }
 
     @Test
+    public void testETPushOkWithSiriRoot() throws JAXBException, XMLStreamException {
+
+        String url = "/push/ok-siri/";
+        stubFor(post(urlEqualTo(url))
+                .withHeader("Content-Type", equalTo("application/xml"))
+                .willReturn(aResponse()));
+
+        Subscription subscription = new Subscription();
+        subscription.addFromStopPoint("NSR:Quay:232");
+        subscription.addToStopPoint("NSR:Quay:125");
+        subscription.setName("Push over http test");
+        subscription.setPushAddress("http://localhost:" + wireMockRule.port() + url);
+        subscription.setUseSiriSubscriptionModel(true);
+        subscription = subscriptionManager.addOrUpdate(subscription);
+
+        verify(0, postRequestedFor(urlEqualTo(url)));
+        HashSet<Subscription> subscriptions = new HashSet<>();
+        subscriptions.add(subscription);
+        EstimatedVehicleJourney et = new EstimatedVehicleJourney();
+        et.setDataSource("TEST");
+        subscriptionManager.notifySubscriptionsOnStops(subscriptions, et);
+        waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
+        List<LoggedRequest> loggedRequests = findAll(postRequestedFor(urlEqualTo(url)));
+        assertEquals(1, loggedRequests.size());
+        LoggedRequest loggedRequest = loggedRequests.get(0);
+        String xml = new String(loggedRequest.getBody());
+        Siri siri = siriMarshaller.unmarshall(xml, Siri.class);
+        assertNotNull(siri);
+        assertNotNull(siri.getServiceDelivery());
+        assertNotNull(siri.getServiceDelivery().getResponseTimestamp());
+        assertNotNull(siri.getServiceDelivery().getProducerRef());
+        assertEquals("TEST", siri.getServiceDelivery().getProducerRef().getValue());
+        assertNotNull(siri.getServiceDelivery().getEstimatedTimetableDeliveries());
+        assertEquals(1, siri.getServiceDelivery().getEstimatedTimetableDeliveries().size());
+        EstimatedTimetableDeliveryStructure estimatedTimetableDeliveryStructure = siri.getServiceDelivery().getEstimatedTimetableDeliveries().get(0);
+        assertNotNull(estimatedTimetableDeliveryStructure);
+        List<EstimatedVersionFrameStructure> estimatedJourneyVersionFrames = estimatedTimetableDeliveryStructure.getEstimatedJourneyVersionFrames();
+        assertNotNull(estimatedJourneyVersionFrames);
+        assertEquals(1, estimatedJourneyVersionFrames.size());
+        assertNotNull(estimatedJourneyVersionFrames.get(0));
+        assertNotNull(estimatedJourneyVersionFrames.get(0).getEstimatedVehicleJourneies());
+        assertEquals(1, estimatedJourneyVersionFrames.get(0).getEstimatedVehicleJourneies().size());
+        assertNotNull(estimatedJourneyVersionFrames.get(0).getEstimatedVehicleJourneies().get(0));
+        assertEquals("TEST", estimatedJourneyVersionFrames.get(0).getEstimatedVehicleJourneies().get(0).getDataSource());
+    }
+
+
+    @Test
     public void testETPushForget()  {
 
         String url = "/push/forget/et";

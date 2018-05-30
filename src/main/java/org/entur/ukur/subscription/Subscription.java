@@ -31,6 +31,7 @@ public class Subscription implements Serializable {
     private HashSet<String> lineRefs = new HashSet<>();
     private HashSet<String> codespaces = new HashSet<>();
     private SubscriptionTypeEnum type = SubscriptionTypeEnum.ALL;
+    private Boolean useSiriSubscriptionModel;
     @JsonIgnore
     private long failedPushCounter = 0;
 
@@ -191,5 +192,13 @@ public class Subscription implements Serializable {
 
     public boolean hasNoStops() {
         return fromStopPoints.isEmpty() && toStopPoints.isEmpty();
+    }
+
+    public boolean isUseSiriSubscriptionModel() {
+        return Boolean.TRUE.equals(useSiriSubscriptionModel);
+    }
+
+    public void setUseSiriSubscriptionModel(Boolean useSiriSubscriptionModel) {
+        this.useSiriSubscriptionModel = useSiriSubscriptionModel;
     }
 }

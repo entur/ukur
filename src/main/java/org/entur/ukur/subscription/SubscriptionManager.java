@@ -37,6 +37,7 @@ import java.math.BigInteger;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
@@ -72,7 +73,7 @@ public class SubscriptionManager {
             hostname = InetAddress.getLocalHost().getHostName();
             logger.info("This nodes hostname is '{}'", hostname);
         } catch (UnknownHostException e) {
-            hostname = "random_"+new Random().nextInt(10000); //want to separate message producing nodes from each other, this will work as fallback
+            hostname = "random_"+new Random().nextInt(10000); //want to separate message producing nodes from each other easy in the logs, this will work as fallback
             logger.error("Cant resolve hostname - use random name '{}' instead to differentiate nodes", hostname, e);
         }
         metricsService.registerGauge(GAUGE_PUSH_QUEUE, () -> pushExecutor.getQueue().size());
@@ -406,15 +407,40 @@ public class SubscriptionManager {
                 headers.setAccept(Collections.singletonList(MediaType.TEXT_PLAIN));
                 RestTemplate restTemplate = new RestTemplate();
                 String pushAddress = subscription.getPushAddress();
-                if (siriElement instanceof EstimatedVehicleJourney) {
-                    pushAddress += "/et";
-                } else if (siriElement instanceof PtSituationElement) {
-                    pushAddress += "/sx";
+                final Object pushMessage;
+                if (subscription.isUseSiriSubscriptionModel()) {
+                    Siri siri = new Siri();
+                    siri.setServiceDelivery(new ServiceDelivery());
+                    siri.getServiceDelivery().setResponseTimestamp(ZonedDateTime.now()); //TODO: Should get this from the original message - now (if it is used) is probably wrong...
+                    RequestorRef producer = new RequestorRef();
+                    if (siriElement instanceof EstimatedVehicleJourney) {
+                        producer.setValue(((EstimatedVehicleJourney)siriElement).getDataSource());
+                        EstimatedTimetableDeliveryStructure estimatedTimetableDeliveryStructure = new EstimatedTimetableDeliveryStructure();
+                        EstimatedVersionFrameStructure estimatedVersionFrameStructure = new EstimatedVersionFrameStructure();
+                        estimatedVersionFrameStructure.getEstimatedVehicleJourneies().add((EstimatedVehicleJourney) siriElement);
+                        estimatedTimetableDeliveryStructure.getEstimatedJourneyVersionFrames().add(estimatedVersionFrameStructure);
+                        siri.getServiceDelivery().getEstimatedTimetableDeliveries().add(estimatedTimetableDeliveryStructure);
+                    } else if (siriElement instanceof PtSituationElement) {
+                        producer.setValue(((PtSituationElement)siriElement).getParticipantRef().getValue());
+                        SituationExchangeDeliveryStructure situationExchangeDeliveryStructure = new SituationExchangeDeliveryStructure();
+                        situationExchangeDeliveryStructure.getSituations().getPtSituationElements().add((PtSituationElement) siriElement);
+                        siri.getServiceDelivery().getSituationExchangeDeliveries().add(situationExchangeDeliveryStructure);
+                    }
+                    siri.getServiceDelivery().setProducerRef(producer);
+                    pushMessage = siri;
+                } else {
+                    //TODO: Remove this else-block once transition to the siri subscription model is completed! And subscription.useSiriSubscriptionModel() as well
+                    pushMessage = siriElement;
+                    if (siriElement instanceof EstimatedVehicleJourney) {
+                        pushAddress += "/et";
+                    } else if (siriElement instanceof PtSituationElement) {
+                        pushAddress += "/sx";
+                    }
                 }
                 URI uri = URI.create(pushAddress);
                 ResponseEntity<String> response = null;
                 try {
-                    HttpEntity entity = new HttpEntity<>(siriElement, headers);
+                    HttpEntity entity = new HttpEntity<>(pushMessage, headers);
                     response = restTemplate.postForEntity(uri, entity, String.class);
                     logger.trace("Receive {} on push to {} for subscription with id {}", response, uri, subscription.getId());
                 } catch (Exception e) {
