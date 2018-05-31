@@ -63,8 +63,12 @@ public class DataStorageService implements MessageListener<String> {
         this.subscriptionCacheRenewerTopic.addMessageListener(this);
         //To support that subscriptions are changed from the console (or we get out of sync...)
         Executors.newScheduledThreadPool(1).scheduleWithFixedDelay(() -> {
-            populateSubscriptionCacheFromDatastore();
-            logger.debug("Reloads subscriptions from datastore");
+            try {
+                populateSubscriptionCacheFromDatastore();
+                logger.debug("Reloads subscriptions from datastore");
+            } catch (Exception e) {
+                logger.error("Got excetption while reloading subscriptions from datastore", e);
+            }
         }, 1, 1, TimeUnit.HOURS);
     }
 

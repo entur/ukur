@@ -414,14 +414,14 @@ public class SubscriptionManager {
                     siri.getServiceDelivery().setResponseTimestamp(ZonedDateTime.now()); //TODO: Should get this from the original message - now (if it is used) is probably wrong...
                     RequestorRef producer = new RequestorRef();
                     if (siriElement instanceof EstimatedVehicleJourney) {
-                        producer.setValue(((EstimatedVehicleJourney)siriElement).getDataSource());
+                        producer.setValue(((EstimatedVehicleJourney) siriElement).getDataSource());
                         EstimatedTimetableDeliveryStructure estimatedTimetableDeliveryStructure = new EstimatedTimetableDeliveryStructure();
                         EstimatedVersionFrameStructure estimatedVersionFrameStructure = new EstimatedVersionFrameStructure();
                         estimatedVersionFrameStructure.getEstimatedVehicleJourneies().add((EstimatedVehicleJourney) siriElement);
                         estimatedTimetableDeliveryStructure.getEstimatedJourneyVersionFrames().add(estimatedVersionFrameStructure);
                         siri.getServiceDelivery().getEstimatedTimetableDeliveries().add(estimatedTimetableDeliveryStructure);
                     } else if (siriElement instanceof PtSituationElement) {
-                        producer.setValue(((PtSituationElement)siriElement).getParticipantRef().getValue());
+                        producer.setValue(((PtSituationElement) siriElement).getParticipantRef().getValue());
                         SituationExchangeDeliveryStructure situationExchangeDeliveryStructure = new SituationExchangeDeliveryStructure();
                         SituationExchangeDeliveryStructure.Situations situations = new SituationExchangeDeliveryStructure.Situations();
                         situationExchangeDeliveryStructure.setSituations(situations);
@@ -467,6 +467,8 @@ public class SubscriptionManager {
                         dataStorageService.updateSubscription(subscription);
                     }
                 }
+            } catch (Exception e) {
+                logger.error("Got exception while pushing message", e);
             } finally {
                 context.stop();
             }
