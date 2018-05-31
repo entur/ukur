@@ -147,7 +147,7 @@ public class SubscriptionManager {
                     }
                 }
             }
-            clone.setIsCompleteStopSequence(null); //since we have tampered with the calls!
+            clone.setIsCompleteStopSequence(false); //since we have tampered with the calls!
             pushMessage(subscription, clone);
         }
     }
@@ -172,7 +172,6 @@ public class SubscriptionManager {
                 affects.setRoads(null);
                 affects.setVehicles(null);
                 //removes part not subscribed upon (to reduce size on push-message):
-                //TODO: make sure codespace subscriptions receive all...
                 if (subscription.getCodespaces().isEmpty() || !subscription.hasNoStops() || !subscription.getLineRefs().isEmpty()) {
                     removeUnsubscribedNetworks(subscription, affects.getNetworks());
                     if (subscription.hasNoStops()) {
