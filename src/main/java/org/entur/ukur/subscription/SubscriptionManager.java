@@ -423,7 +423,9 @@ public class SubscriptionManager {
                     } else if (siriElement instanceof PtSituationElement) {
                         producer.setValue(((PtSituationElement)siriElement).getParticipantRef().getValue());
                         SituationExchangeDeliveryStructure situationExchangeDeliveryStructure = new SituationExchangeDeliveryStructure();
-                        situationExchangeDeliveryStructure.getSituations().getPtSituationElements().add((PtSituationElement) siriElement);
+                        SituationExchangeDeliveryStructure.Situations situations = new SituationExchangeDeliveryStructure.Situations();
+                        situationExchangeDeliveryStructure.setSituations(situations);
+                        situations.getPtSituationElements().add((PtSituationElement) siriElement);
                         siri.getServiceDelivery().getSituationExchangeDeliveries().add(situationExchangeDeliveryStructure);
                     }
                     siri.getServiceDelivery().setProducerRef(producer);
