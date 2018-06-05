@@ -15,14 +15,18 @@
 
 package org.entur.ukur.subscription;
 
+import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.commons.lang3.StringUtils;
 
+import javax.xml.datatype.Duration;
 import java.io.Serializable;
+import java.time.ZonedDateTime;
 import java.util.*;
 
 public class Subscription implements Serializable {
 
+    private static final String SIRI_NAME_PREFIX = "SIRI-XML";
     private String id;
     private String name;
     private String pushAddress;
@@ -34,8 +38,17 @@ public class Subscription implements Serializable {
     private Boolean useSiriSubscriptionModel;
     @JsonIgnore
     private long failedPushCounter = 0;
+    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
+    private ZonedDateTime initialTerminationTime;
+    private Duration heartbeatInterval;
 
-    //TODO: varslingsdetaljer, gyldighet (fra-til, ukedag), "holdbarhet på subscriptionen"
+    static String getName(String requestorRef, String subscriptionIdentifier) {
+        return SIRI_NAME_PREFIX+"-REF("+requestorRef+")-ID("+subscriptionIdentifier+")";
+    }
+
+    boolean isSiriXMLBasedSubscription() {
+        return StringUtils.startsWith(name, SIRI_NAME_PREFIX);
+    }
 
     public Set<String> getFromStopPoints() {
         return Collections.unmodifiableSet(fromStopPoints);
@@ -50,8 +63,8 @@ public class Subscription implements Serializable {
         fromStopPoints.add(stopPointRef);
     }
 
-    public boolean removeFromStopPoint(String stopPointRef) {
-        return fromStopPoints.remove(stopPointRef);
+    public void removeFromStopPoint(String stopPointRef) {
+        fromStopPoints.remove(stopPointRef);
     }
 
     public Set<String> getToStopPoints() {
@@ -67,8 +80,8 @@ public class Subscription implements Serializable {
         toStopPoints.add(stopPointRef);
     }
 
-    public boolean removeToStopPoint(String stopPointRef) {
-        return toStopPoints.remove(stopPointRef);
+    public void removeToStopPoint(String stopPointRef) {
+        toStopPoints.remove(stopPointRef);
     }
 
     public Set<String> getLineRefs() {
@@ -200,5 +213,21 @@ public class Subscription implements Serializable {
 
     public void setUseSiriSubscriptionModel(Boolean useSiriSubscriptionModel) {
         this.useSiriSubscriptionModel = useSiriSubscriptionModel;
+    }
+
+    public void setInitialTerminationTime(ZonedDateTime initialTerminationTime) {
+        this.initialTerminationTime = initialTerminationTime;
+    }
+
+    public ZonedDateTime getInitialTerminationTime() {
+        return initialTerminationTime;
+    }
+
+    public void setHeartbeatInterval(Duration heartbeatInterval) {
+        this.heartbeatInterval = heartbeatInterval;
+    }
+
+    public Duration getHeartbeatInterval() {
+        return heartbeatInterval;
     }
 }

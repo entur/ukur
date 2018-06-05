@@ -3,10 +3,22 @@ Ukur detects and enable subscriptions for deviations in traffic based on real ti
 
 
 ## Subscriptions
+
+There are two ways to create and maintain subscriptions in Ukur: a original json way and the standardized Siri format with XML. 
+The latter does not support subscriptions on to- and from-stops, but otherwise they are quite similar.
+
+### Properitary JSON format 
+
 To subscribe, **post** subscription data to https://{BASE_URL}/subscription as `application/json`.  
 
 The subscription must contain a logical name, a public reachable push address and what is subscribed upon: from and 
-to stops and/or lines and/or codespaces. 
+to stops and/or lines and/or codespaces. It is optional to specify:
+- type: ALL is default
+- useSiriSubscriptionModel: if notifications should be wrapped in a Siri root, default is false
+- initialTerminationTime: when the subscriptions should be deleted, default is null (meaning never)
+- heartbeatInterval: period for heartbeats according to the Duration format from the W3C XML Schema 1.0 at 
+  which heartbeats (empty Siri/HeartbeatNotification xml messages) should be sent to the push address, default 
+  is null (no heartbeats). The intervall is handled approximately, with ± several seconds deviations...
 ```json
 {
    "name" : "Test subscription",
@@ -15,7 +27,10 @@ to stops and/or lines and/or codespaces.
    "fromStopPoints" : [ "NSR:Quay:551", "NSR:Quay:553", "NSR:Quay:550" ],
    "toStopPoints" : [ "NSR:Quay:695", "NSR:Quay:696" ],
    "lineRefs" : ["NSB:Line:L14", "NSB:Line:R11"],
-   "codespaces" : ["NSB", "RUT"]
+   "codespaces" : ["NSB", "RUT"],
+   "useSiriSubscriptionModel" : false,
+   "initialTerminationTime" : "9999-01-01T00:00:00+01:00",
+   "heartbeatInterval" : "PT15M"
  }
  ```   
 After successfull creation of the new subscription, Ukur responds with the same object with
@@ -34,6 +49,133 @@ between quays and stop places in Ukur - yet...). Stops not following the nationa
 are ignored (as they never will be referenced). Also both from and to StopPoints must be 
 present to receive push messages.
 
+
+### XML (Siri) format
+We support 'Publish/Subscribe - Direct delivery' from the Siri specification. The sequence diagram below shows
+the lifecycle of such a data transfer. We currently support SIRI-SX and SIRI-ET subscriptions, and they must 
+provide filters for either codespace or lineref(s) (subscriptions on from- and to-stops are not supported). 
+
+![Sequence diagram](ukur-siri-subscription-sequence.png)
+
+To create (or replace if same RequestorRef + SubscriptionIdentifier) a subscription one must post one of the 
+following subscription requests to https://{BASE_URL}/siri-subscription/. If a codespace subscription is wanted, 
+add the codespace to the url: https://{BASE_URL}/siri-subscription/{CODESPACE}/.
+
+#### SX Subscription Request
+```xml
+<Siri version="2.0" xmlns="http://www.siri.org.uk/siri">
+    <SubscriptionRequest>
+        <RequestTimestamp>2018-06-01T11:21:17.524+02:00</RequestTimestamp>
+        <!-- Make sure the address is reachable from Ukur -->
+        <Address>https://server:port/pushaddress</Address>
+        <!-- Besides beeing required by the schema, RequestorRef is used in combination -->
+        <!-- with SubscriptionIdentifier to uniqely identify the subscription           -->
+        <RequestorRef>Requestor</RequestorRef>
+        <SubscriptionContext>
+            <!-- Optional: if no HeartbeatInterval is provided, no heartbeat notifications are sent -->
+            <HeartbeatInterval>PT1M</HeartbeatInterval>
+        </SubscriptionContext>
+        <SituationExchangeSubscriptionRequest>
+            <!-- The subscriber must provide a unique SubscriptionIdentifier -->
+            <SubscriptionIdentifier>clientGeneratedSubscriptionId-1</SubscriptionIdentifier>
+            <InitialTerminationTime>9999-01-01T00:00:00+01:00</InitialTerminationTime>
+            <SituationExchangeRequest>
+                <RequestTimestamp>2018-06-01T11:21:17.524+02:00</RequestTimestamp>
+                <!-- LineRef(s) are optional: Used to filter deviations                       -->
+                <!-- But either lineref or codespace (controlled by the post URL) is required -->
+                <LineRef>NSB:Line:L1</LineRef>
+                <LineRef>RUT:Line:5</LineRef>
+            </SituationExchangeRequest>
+        </SituationExchangeSubscriptionRequest>
+    </SubscriptionRequest>
+</Siri>
+```
+ 
+#### ET Subscription Request
+```xml
+<Siri version="2.0" xmlns="http://www.siri.org.uk/siri">
+    <SubscriptionRequest>
+        <RequestTimestamp>2018-06-01T11:21:17.524+02:00</RequestTimestamp>
+        <!-- Make sure the address is reachable from Ukur -->
+        <Address>https://server:port/pushaddress</Address>
+        <!-- Besides beeing required by the schema, RequestorRef is used in combination -->
+        <!-- with SubscriptionIdentifier to uniqely identify the subscription           -->
+        <RequestorRef>Requestor</RequestorRef>
+        <SubscriptionContext>
+            <!-- Optional: if no HeartbeatInterval is provided, no heartbeat notifications are sent -->
+            <HeartbeatInterval>PT1M</HeartbeatInterval>
+        </SubscriptionContext>
+        <EstimatedTimetableSubscriptionRequest>
+            <!-- The subscriber must provide a unique SubscriptionIdentifier -->
+            <SubscriptionIdentifier>clientGeneratedSubscriptionId-2</SubscriptionIdentifier>
+            <InitialTerminationTime>9999-01-01T00:00:00+01:00</InitialTerminationTime>
+            <EstimatedTimetableRequest>
+                <RequestTimestamp>2018-06-01T11:21:17.524+02:00</RequestTimestamp>
+                <!-- Lines are optional: LineRef(s) are used to filter deviations (Direction is ignored) -->
+                <!-- But either lines or codespace (controlled by the post URL) is required              -->
+                <Lines>
+                    <LineDirection>
+                        <LineRef>NSB:Line:L1</LineRef>
+                    </LineDirection>
+                    <LineDirection>
+                        <LineRef>RUT:Line:5</LineRef>
+                    </LineDirection>
+                </Lines>
+            </EstimatedTimetableRequest>
+        </EstimatedTimetableSubscriptionRequest>
+    </SubscriptionRequest>
+</Siri>
+```
+
+#### Subscription Response
+If the subscription is successfully created/replaced:
+```xml
+<Siri version="2.0" xmlns="http://www.siri.org.uk/siri">
+    <SubscriptionResponse>
+        <ResponseTimestamp>2018-06-01T11:21:17.524+02:00</ResponseTimestamp>
+        <ResponseStatus>
+            <ResponseTimestamp>2018-06-01T11:21:17.524+02:00</ResponseTimestamp>
+            <Status>true</Status>
+        </ResponseStatus>
+    </SubscriptionResponse>
+</Siri>
+```
+Or in case of an error:
+```xml
+<Siri version="2.0" xmlns="http://www.siri.org.uk/siri">
+    <SubscriptionResponse>
+        <ResponseTimestamp>2018-06-01T14:12:46.636+02:00</ResponseTimestamp>
+        <ResponseStatus>
+            <ResponseTimestamp>2018-06-01T14:12:46.636+02:00</ResponseTimestamp>
+            <Status>false</Status>
+            <!-- When status is false we always specify an ErrorCondition with a descriptive text, it's always OtherError --> 
+            <ErrorCondition>
+                <OtherError>
+                    <ErrorText>Could not create subscription with some textual description of what went wrong</ErrorText>
+                </OtherError>
+            </ErrorCondition>
+        </ResponseStatus>
+    </SubscriptionResponse>
+</Siri>
+```
+
+#### Terminate a subscription 
+Subscriptions are terminated automatically when the InitialTerminationTime is reached, the subscriber 
+responds 205 (RESET-CONTENT) on a notification, we fail to deliver notifications for a period or the
+subscriber issues a TerminateSubscriptionRequest:
+```xml
+<Siri version="2.0" xmlns="http://www.siri.org.uk/siri">
+    <TerminateSubscriptionRequest>
+        <RequestTimestamp>2018-06-01T11:21:17.524+02:00</RequestTimestamp>
+        <RequestorRef>Requestor</RequestorRef>
+        <SubscriptionRef>clientGeneratedSubscriptionId</SubscriptionRef>
+    </TerminateSubscriptionRequest>
+</Siri>
+```
+
+
+## The subscription matching logic
+
 LineRefs and codespaces are used to subscribe on entire lines or all messages from a provider, or limit from-to 
 messages to just those regarding one or more lines and/or codespaces. 
 
@@ -43,26 +185,38 @@ the values are treated as an OR criteria. The json example above will result in 
 if it involves a stop from ("NSR:Quay:551" OR "NSR:Quay:553" OR "NSR:Quay:550") AND to ("NSR:Quay:695" OR
 "NSR:Quay:696") AND lineRefs is ("NSB:Line:L14" OR "NSB:Line:R11"]) AND codespace is ("NSB" OR "RUT").
 
-Codespaces are mapped to ParticipantRef for PtSituationElements. It is not implemented for EstimatedVehicleJourneys
-yet, but will (most likely) be mapped to DataSource in the future.
+Codespaces are mapped to ParticipantRef for PtSituationElements, and to DataSource for EstimatedVehicleJourneys.
+For codespace-only susbcriptions all SX messages are pushed, but only ET messages with devitions are pushed. 
 
-### The push endpoint  
+## The push endpoint
+
+### Simple notifications (subscription is created with json without useSiriSubscriptionModel=true) 
 Ukur will **post** SIRI data as `application/xml` to the per subscription configured pushAddress after 
 adjusting the url somewhat:
 - `/et` is added to the push address for Estimated Timetable messages and an EstimatedVehicleJourney is posted.
 - `/sx` is added to the push address for Situation Exchange messages and a PtSituationElement is posted.
 
+### Siri based notifications
+Ukur will **post** SIRI data as `application/xml` to the per subscription configured pushAddress. There is 
+always a Siri root element with a ServiceDelivery and either a **PtSituationElement** inside a 
+SituationExchangeDelivery/Situations element (**SX messages**) or a **EstimatedVehicleJourney** inside a 
+EstimatedTimetableDelivery/EstimatedJourneyVersionFrame element (**ET messages**).     
+
+We will also send periodic heartbeat notification (if specified in the subscription request) and when we
+terminates a subscription because of its InitialTerminationTime we attempts to send a 
+SubscriptionTerminatedNotification to the pushaddress.                                                    
+
+### Common 
+
 When data is posted, Ukur expects a 200 response. If Ukur posts 4 times in a row for a subscription and
 receives any other response, the subscription is removed. The push endpoint can also respond 205 
 (RESET-CONTENT) and Ukur will remove the subscription instantly.
 
-### When and what data is sent
+## When and what data is sent
 Ukur polls Anshar for ET and SX data each minute. Currently only ET messaged regarding NSB as operator or SX
 messages from NSB is processed - all operators and producers will be processed in the future.
 
-For **SX messages** that reference a VehicleJourney, we attempt to use a route table based on ET messages to 
-determine if the message regards a subscription (correct direction, line, etc) or not. Other SX messages only 
-regards stops and is sent to affected subscriptions (unless the exact same message has already been sent). 
+All **SX messages** are sent to matching subscriptions once per subscription with same SituationNumber+Version. 
 For subscriptions that contains stops, the PtSituationElement will have all other stops removed from Affects 
 to make the payload smaller, before it is sent to the various subscription endpoints. We will also remove
 affected journeys not matching the subscriptions constraint on lines and codespaces.
@@ -74,7 +228,7 @@ stop must be present in the correct order in an EstimatedVehicleJourney with one
  - A subscribed EstimatedCall is marked as cancelled 
 When a subscription has stops, the EstimatedVehicleJourney will have stops not subscribed upon removed 
 from RecordedCalls and EstimatedCalls to make the payload smaller, before it is sent to the subscriptions 
-push address. If only lineRefs and/or vehicleRefs are present in a subscription, the entire EstimatedVehicleJourney
+push address. If only lineRefs and/or codespace are present in a subscription, the entire EstimatedVehicleJourney
 will be pushed.
 
 ## More info

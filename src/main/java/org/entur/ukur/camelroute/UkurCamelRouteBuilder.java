@@ -65,6 +65,7 @@ import java.time.format.DateTimeFormatter;
 import java.util.*;
 
 import static org.entur.ukur.camelroute.policy.SingletonRoutePolicyFactory.SINGLETON_ROUTE_DEFINITION_GROUP_NAME;
+import static org.entur.ukur.subscription.SiriXMLSubscriptionHandler.SIRI_VERSION;
 
 @Component
 public class UkurCamelRouteBuilder extends SpringRouteBuilder {
@@ -72,7 +73,6 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
             static final String ROUTE_ET_RETRIEVER = "seda:retrieveAnsharET";
             static final String ROUTE_SX_RETRIEVER = "seda:retrieveAnsharSX";
-    private static final String SIRI_VERSION = "2.0";
     private static final String ROUTE_FLUSHJOURNEYS = "seda:flushOldJourneys";
     private static final String ROUTE_TIAMAT_MAP = "seda:getStopPlacesAndQuays";
     private static final String ROUTE_ANSHAR_SUBSRENEWER = "seda:ansharSubscriptionRenewer";
@@ -213,6 +213,11 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .bindingMode(RestBindingMode.json)
                 .post().type(Subscription.class).outType(Subscription.class).to("bean:subscriptionManager?method=addOrUpdate(${body})")
                 .delete("{id}").to("bean:subscriptionManager?method=remove(${header.id})");
+
+        rest("/external/siri-subscription")
+                .bindingMode(RestBindingMode.xml)
+                .post().type(Siri.class).outType(Siri.class).to("bean:siriXMLSubscriptionHandler?method=handle(${body}, null)")
+                .post("{codespace}").type(Siri.class).outType(Siri.class).to("bean:siriXMLSubscriptionHandler?method=handle(${body}, ${header.codespace})");
 
         from("direct:ready")
                 .routeId("Ready checker")

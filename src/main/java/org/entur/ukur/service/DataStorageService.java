@@ -29,6 +29,9 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
 import javax.annotation.PostConstruct;
+import javax.xml.datatype.DatatypeFactory;
+import javax.xml.datatype.Duration;
+import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.concurrent.Executors;
@@ -212,6 +215,18 @@ public class DataStorageService implements MessageListener<String> {
         return idToSubscription.size();
     }
 
+    public Subscription getSubscriptionByName(String name) {
+        if (StringUtils.isNotBlank(name)) {
+            //TODO: won't scale to well, but sufficient for now
+            for (Subscription subscription : idToSubscription.values()) {
+                if (name.equals(subscription.getName())) {
+                    return subscription;
+                }
+            }
+        }
+        return null;
+    }
+
     public void putCurrentJourney(LiveJourney liveJourney) {
         currentJourneys.set(liveJourney.getVehicleRef(), liveJourney);
     }
@@ -251,7 +266,13 @@ public class DataStorageService implements MessageListener<String> {
                 .set("pushAddress", StringValue.newBuilder(s.getPushAddress()).setExcludeFromIndexes(true).build())
                 .set("failedPushCounter", LongValue.newBuilder(s.getFailedPushCounter()).setExcludeFromIndexes(true).build())
                 .set("siriSubscriptionModel", BooleanValue.of(s.isUseSiriSubscriptionModel()));
-
+        if (s.getHeartbeatInterval() != null) {
+            builder.set("heartbeatInterval", StringValue.of(s.getHeartbeatInterval().toString()));
+        }
+        if (s.getInitialTerminationTime() != null) {
+            Date date = Date.from(s.getInitialTerminationTime().toInstant());
+            builder.set("initialTerminationTime", Timestamp.of(date));
+        }
         appendStringValueList(builder, "fromStopPlaces", s.getFromStopPoints());
         appendStringValueList(builder, "toStopPlaces", s.getToStopPoints());
         appendStringValueList(builder, "lineRefs", s.getLineRefs());
@@ -283,7 +304,25 @@ public class DataStorageService implements MessageListener<String> {
         if (entity.contains("siriSubscriptionModel")) {
             subscription.setUseSiriSubscriptionModel(entity.getBoolean("siriSubscriptionModel"));
         }
+        if (entity.contains("heartbeatInterval")) {
+            String heartbeatInterval = entity.getString("heartbeatInterval");
+            subscription.setHeartbeatInterval(toDuration(heartbeatInterval));
+        }
+        if (entity.contains("initialTerminationTime")) {
+            Timestamp initialTerminationTime = entity.getTimestamp("initialTerminationTime");
+            subscription.setInitialTerminationTime(ZonedDateTime.ofInstant(initialTerminationTime.toSqlTimestamp().toInstant(), ZoneId.systemDefault()));
+        }
         return subscription;
+    }
+
+    private Duration toDuration(String heartbeatInterval) {
+        try {
+            DatatypeFactory datatypeFactory = DatatypeFactory.newInstance();
+            return datatypeFactory.newDuration(heartbeatInterval);
+        } catch (Exception e) {
+            logger.error("Can't convert '{}' to a Duration instance", heartbeatInterval);
+            return null;
+        }
     }
 
     private SubscriptionTypeEnum toTypeEnum(Set<String> types) {

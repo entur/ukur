@@ -151,6 +151,7 @@ public class SubscriptionManager {
             pushMessage(subscription, clone);
         }
     }
+
     public void notifySubscriptionsWithFullMessage(HashSet<Subscription> subscriptions, EstimatedVehicleJourney estimatedVehicleJourney) {
         for (Subscription subscription : subscriptions) {
             pushMessage(subscription, estimatedVehicleJourney);
@@ -191,6 +192,10 @@ public class SubscriptionManager {
                 logger.info("do not push PtSituationElement with situationnumber {} and version {} to subscription with id {} as all affects are removed", situationNumber, version, subscription.getId());
             }
         }
+    }
+
+    Subscription getSubscriptionByName(String name) {
+        return dataStorageService.getSubscriptionByName(name);
     }
 
     private void removeUnsubscribedJourneys(Subscription subscription, Set<String> subscribedStops, AffectsScopeStructure.VehicleJourneys vehicleJourneys) {
@@ -297,6 +302,10 @@ public class SubscriptionManager {
 
     @SuppressWarnings({"unused", "UnusedReturnValue"}) //Used from Camel REST api
     public Subscription addOrUpdate(Subscription s) {
+        return addOrUpdate(s, false);
+    }
+
+    Subscription addOrUpdate(Subscription s, boolean siriXML) {
         if (s == null) {
             throw new IllegalArgumentException("No subscription given");
         }
@@ -313,6 +322,9 @@ public class SubscriptionManager {
         }
         if ( (noFromStops && !noToStops) || (noToStops && !noFromStops)) {
             throw new IllegalArgumentException("Must have both TO and FROM stops");
+        }
+        if (!siriXML && s.isSiriXMLBasedSubscription()) {
+            throw new IllegalArgumentException("Illegal name (can't start with 'SIRI-XML')");
         }
         if (StringUtils.isNotBlank(s.getId())) {
             logger.info("Attempts to updates subscription with id {}", s.getId());
@@ -372,7 +384,7 @@ public class SubscriptionManager {
         }
 
         alreadySentCache.put(alreadySentKey, System.currentTimeMillis());
-        logger.debug("PUSH ({}) {} to subscription name: {}, pushAddress: {}", hostname, siriElement.getClass(), subscription.getName(), subscription.getPushAddress());
+        logger.debug("PUSH ({}) {} to subscription with id={}, name={}, pushAddress={}", hostname, siriElement.getClass().getSimpleName(), subscription.getId(), subscription.getName(), subscription.getPushAddress());
         pushToHttp(subscription, siriElement);
     }
 

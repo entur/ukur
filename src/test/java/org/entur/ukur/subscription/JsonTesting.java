@@ -17,16 +17,25 @@ package org.entur.ukur.subscription;
 
 import com.fasterxml.jackson.core.JsonProcessingException;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+
+import javax.xml.datatype.DatatypeFactory;
+import java.time.ZonedDateTime;
+
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertTrue;
 
 public class JsonTesting {
 
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
     @Test
-    public void subscriptionAsJson() throws JsonProcessingException {
+    public void subscriptionAsJson() throws Exception {
+        DatatypeFactory datatypeFactory = DatatypeFactory.newInstance();
+
         Subscription subscription = new Subscription();
         subscription.setType(SubscriptionTypeEnum.ET);
         subscription.addCodespace("RUT");
@@ -36,8 +45,20 @@ public class JsonTesting {
         subscription.addFromStopPoint("NRS:StopPlace:1");
         subscription.addToStopPoint("NRS:StopPlace:2");
         subscription.setPushAddress("http://localhost:888/blabla");
+        subscription.setHeartbeatInterval(datatypeFactory.newDuration("PT15M"));
+        subscription.setInitialTerminationTime(ZonedDateTime.now().plusWeeks(1));
+
         ObjectMapper mapper = new ObjectMapper();
-        logger.info("JSON: \n{}", mapper.writerWithDefaultPrettyPrinter().writeValueAsString(subscription));
+        mapper.registerModule(new JavaTimeModule()); //Camel fixes this for us in production
+
+        String json = mapper.writerWithDefaultPrettyPrinter().writeValueAsString(subscription);
+        logger.info("JSON: \n{}", json);
+
+        Subscription readSubscription = mapper.readValue(json, Subscription.class);
+        assertEquals(subscription.getPushAddress(), readSubscription.getPushAddress());
+        assertEquals(subscription.getHeartbeatInterval(), readSubscription.getHeartbeatInterval());
+        assertTrue(subscription.getInitialTerminationTime().isEqual(readSubscription.getInitialTerminationTime()));
+        assertEquals(subscription.getType(), readSubscription.getType());
     }
 
     @Test
