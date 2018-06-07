@@ -32,6 +32,7 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.RestTemplate;
 import uk.org.siri.siri20.*;
 
+import javax.xml.datatype.Duration;
 import java.io.Serializable;
 import java.math.BigInteger;
 import java.net.InetAddress;
@@ -43,6 +44,7 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 
 import static org.entur.ukur.service.MetricsService.GAUGE_PUSH_QUEUE;
+import static org.entur.ukur.subscription.SiriXMLSubscriptionHandler.SIRI_VERSION;
 import static org.entur.ukur.xml.SiriObjectHelper.getBigIntegerValue;
 import static org.entur.ukur.xml.SiriObjectHelper.getStringValue;
 
@@ -57,6 +59,8 @@ public class SubscriptionManager {
     private String hostname;
     private Logger logger = LoggerFactory.getLogger(this.getClass());
     private ThreadPoolExecutor pushExecutor = (ThreadPoolExecutor) Executors.newFixedThreadPool(50);
+    private Map<String, Long> subscriptionNextHeartbeat;
+    private ZonedDateTime nextTerminatedCheck = null;
 
     @Autowired
     public SubscriptionManager(DataStorageService dataStorageService,
@@ -69,6 +73,7 @@ public class SubscriptionManager {
         this.metricsService = metricsService;
         this.alreadySentCache = alreadySentCache;
         this.quayAndStopPlaceMappingService = quayAndStopPlaceMappingService;
+        subscriptionNextHeartbeat = new HashMap<>();//TODO: autowire hazelcast map with similar setup as alreadySentCache
         try {
             hostname = InetAddress.getLocalHost().getHostName();
             logger.info("This nodes hostname is '{}'", hostname);
@@ -305,6 +310,47 @@ public class SubscriptionManager {
         return addOrUpdate(s, false);
     }
 
+    @SuppressWarnings({"unused"}) //Used from Camel quartz trigger route
+    public void handleHeartbeatAndTermination() {
+        handleHeartbeatAndTermination(ZonedDateTime.now());
+    }
+
+    void handleHeartbeatAndTermination(ZonedDateTime now) {
+
+        Date dateNow = Date.from(now.toInstant());
+        long epochNow = dateNow.getTime();
+
+        Collection<Subscription> subscriptions = new HashSet<>(dataStorageService.getSubscriptions());
+
+        //check for terminated subscriptions only every 3 hour (node local timestamp as there is no harm if we check more frequent)
+        if (nextTerminatedCheck == null || nextTerminatedCheck.isAfter(now)) {
+            nextTerminatedCheck = now.plusHours(3);
+            for (Iterator<Subscription> iterator = subscriptions.iterator(); iterator.hasNext(); ) {
+                Subscription subscription = iterator.next();
+                if (subscription.getInitialTerminationTime() != null && now.isAfter(subscription.getInitialTerminationTime())) {
+                    logger.info("Removes subscription with InitialTerminationTime in the past - subscription id={}, name={}", subscription.getId(), subscription.getName());
+                    pushNotification(subscription, NotificationTypeEnum.subscriptionTerminated);
+                    dataStorageService.removeSubscription(subscription.getId());
+                    iterator.remove(); //to prevent from also sending heartbeat
+                }
+            }
+        }
+
+        for (Subscription subscription : subscriptions) {
+            Duration heartbeatInterval = subscription.getHeartbeatInterval();
+            if (heartbeatInterval != null) {
+                Long nextHeartbeat = subscriptionNextHeartbeat.get(subscription.getId());
+                if (nextHeartbeat == null || nextHeartbeat < epochNow) {
+                    long epochNextNotification = heartbeatInterval.getTimeInMillis(dateNow) + epochNow;
+                    subscriptionNextHeartbeat.put(subscription.getId(), epochNextNotification);
+                    if (nextHeartbeat != null) {
+                        pushNotification(subscription, NotificationTypeEnum.heartbeat);
+                    } //else we assume subscription is just created - and don't notify until next time
+                }
+            }
+        }
+    }
+
     Subscription addOrUpdate(Subscription s, boolean siriXML) {
         if (s == null) {
             throw new IllegalArgumentException("No subscription given");
@@ -407,20 +453,51 @@ public class SubscriptionManager {
         return subscription.getId()+"_"+content.length()+"_"+content.hashCode();
     }
 
-    private void pushToHttp(Subscription subscription, Object siriElement) {
-
+    private void pushNotification(Subscription subscription, NotificationTypeEnum type) {
         pushExecutor.execute(() -> {
-            Timer pushToHttp = metricsService.getTimer(MetricsService.TIMER_PUSH);
-            Timer.Context context = pushToHttp.time();
             try {
-                HttpHeaders headers = new HttpHeaders();
-                headers.setContentType(MediaType.APPLICATION_XML);
-                headers.setAccept(Collections.singletonList(MediaType.TEXT_PLAIN));
-                RestTemplate restTemplate = new RestTemplate();
+                Siri siri = new Siri();
+                siri.setVersion(SIRI_VERSION);
+                switch (type) {
+                    case heartbeat:
+                        HeartbeatNotificationStructure heartbeatNotification = new HeartbeatNotificationStructure();
+                        siri.setHeartbeatNotification(heartbeatNotification);
+                        heartbeatNotification.setRequestTimestamp(ZonedDateTime.now());
+                        RequestorRef producerRef = new RequestorRef();
+                        producerRef.setValue(subscription.getName());
+                        heartbeatNotification.setProducerRef(producerRef);
+                        break;
+                    case subscriptionTerminated:
+                        SubscriptionTerminatedNotificationStructure subscriptionTerminatedNotification = new SubscriptionTerminatedNotificationStructure();
+                        subscriptionTerminatedNotification.setResponseTimestamp(ZonedDateTime.now());
+                        RequestorRef requestorRef = new RequestorRef();
+                        requestorRef.setValue(subscription.getSiriRequestor());
+                        subscriptionTerminatedNotification.getSubscriberRevesAndSubscriptionRevesAndSubscriptionFilterReves().add(requestorRef);
+                        SubscriptionQualifierStructure subscriptionQualifierStructure = new SubscriptionQualifierStructure();
+                        subscriptionQualifierStructure.setValue(subscription.getSiriClientGeneratedId());
+                        subscriptionTerminatedNotification.getSubscriberRevesAndSubscriptionRevesAndSubscriptionFilterReves().add(subscriptionQualifierStructure);
+                        siri.setSubscriptionTerminatedNotification(subscriptionTerminatedNotification);
+                        break;
+                    default:
+                        logger.error("Called without proper type specified...");
+                        return;
+                }
+                HttpStatus httpStatus = post(subscription, subscription.getPushAddress(), siri);
+                logger.info("Posted a {} notification for subscription with id={}, {} responded {}", type, subscription.getId(), subscription.getPushAddress(), httpStatus);
+            } catch (Exception e) {
+                logger.error("Got exception while pushing message", e);
+            }
+        });
+    }
+
+    private void pushToHttp(Subscription subscription, Object siriElement) {
+        pushExecutor.execute(() -> {
+            try {
                 String pushAddress = subscription.getPushAddress();
                 final Object pushMessage;
                 if (subscription.isUseSiriSubscriptionModel()) {
                     Siri siri = new Siri();
+                    siri.setVersion(SIRI_VERSION);
                     siri.setServiceDelivery(new ServiceDelivery());
                     siri.getServiceDelivery().setResponseTimestamp(ZonedDateTime.now()); //TODO: Should get this from the original message - now (if it is used) is probably wrong...
                     RequestorRef producer = new RequestorRef();
@@ -450,18 +527,9 @@ public class SubscriptionManager {
                         pushAddress += "/sx";
                     }
                 }
-                URI uri = URI.create(pushAddress);
-                ResponseEntity<String> response = null;
-                try {
-                    HttpEntity entity = new HttpEntity<>(pushMessage, headers);
-                    response = restTemplate.postForEntity(uri, entity, String.class);
-                    logger.trace("Receive {} on push to {} for subscription with id {}", response, uri, subscription.getId());
-                } catch (Exception e) {
-                    logger.warn("Could not push to {} for subscription with id {}", uri, subscription.getId(), e);
-                }
-                HttpStatus responseStatus = (response != null) ? response.getStatusCode() : null;
+                HttpStatus responseStatus = post(subscription, pushAddress, pushMessage);
                 if (HttpStatus.RESET_CONTENT.equals(responseStatus)) {
-                    logger.info("Receive {} on push to {} and removes subscription with id {}", HttpStatus.RESET_CONTENT, uri, subscription.getId());
+                    logger.info("Receive {} on push to {} and removes subscription with id {}", HttpStatus.RESET_CONTENT, pushAddress, subscription.getId());
                     remove(subscription.getId());
                 } else if (HttpStatus.OK.equals(responseStatus)) {
                     if (subscription.getFailedPushCounter() > 0) {
@@ -469,7 +537,7 @@ public class SubscriptionManager {
                         dataStorageService.updateSubscription(subscription);
                     }
                 } else {
-                    logger.info("Unexpected response on push '{}' - increase failed push counter for subscription wih id {}", response, subscription.getId());
+                    logger.info("Unexpected response code on push '{}' - increase failed push counter for subscription wih id {}", responseStatus, subscription.getId());
                     long failedPushCounter = subscription.increaseFailedPushCounter();
                     if (failedPushCounter > 3) {
                         logger.info("Removes subscription with id {} after {} failed push attempts", subscription.getId(), failedPushCounter);
@@ -480,10 +548,35 @@ public class SubscriptionManager {
                 }
             } catch (Exception e) {
                 logger.error("Got exception while pushing message", e);
-            } finally {
-                context.stop();
             }
         });
     }
 
+    private HttpStatus post(Subscription subscription, String pushAddress, Object pushMessage) {
+        Timer pushToHttp = metricsService.getTimer(MetricsService.TIMER_PUSH);
+        Timer.Context context = pushToHttp.time();
+        try {
+            URI uri = URI.create(pushAddress);
+            HttpHeaders headers = new HttpHeaders();
+            headers.setContentType(MediaType.APPLICATION_XML);
+            headers.setAccept(Collections.singletonList(MediaType.TEXT_PLAIN));
+            RestTemplate restTemplate = new RestTemplate();
+            ResponseEntity<String> response = null;
+            try {
+                HttpEntity entity = new HttpEntity<>(pushMessage, headers);
+                response = restTemplate.postForEntity(uri, entity, String.class);
+                logger.trace("Receive {} on push to {} for subscription with id {}", response, uri, subscription.getId());
+            } catch (Exception e) {
+                logger.warn("Could not push to {} for subscription with id {}", uri, subscription.getId(), e);
+            }
+            return (response != null) ? response.getStatusCode() : null;
+        } finally {
+            context.stop();
+        }
+    }
+
+    private enum NotificationTypeEnum {
+        heartbeat,
+        subscriptionTerminated
+    }
 }

@@ -73,17 +73,17 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
             static final String ROUTE_ET_RETRIEVER = "seda:retrieveAnsharET";
             static final String ROUTE_SX_RETRIEVER = "seda:retrieveAnsharSX";
-    private static final String ROUTE_FLUSHJOURNEYS = "seda:flushOldJourneys";
+    private static final String ROUTE_HEARTBEAT_CHECKER = "seda:heartbeatChecker";
     private static final String ROUTE_TIAMAT_MAP = "seda:getStopPlacesAndQuays";
     private static final String ROUTE_ANSHAR_SUBSRENEWER = "seda:ansharSubscriptionRenewer";
     private static final String ROUTE_ANSHAR_SUBSCHECKER = "seda:ansharSubscriptionChecker";
     private static final String ROUTEID_SX_RETRIEVER = "SX Retriever";
     private static final String ROUTEID_ET_RETRIEVER = "ET Retriever";
     private static final String ROUTEID_TIAMAT_MAP = "Tiamat StopPlacesAndQuays";
-    private static final String ROUTEID_FLUSHJOURNEYS = "Flush Old Journeys Asynchronously";
+    private static final String ROUTEID_HEARTBEAT_CHECKER  = "Check Subscriptions For Missing Heartbeats";
     private static final String ROUTEID_ANSHAR_SUBSRENEWER = "Anshar Subscription Renewer";
     private static final String ROUTEID_ANSHAR_SUBSCHECKER = "Anshar Subscription Checker";
-    private static final String ROUTEID_FLUSHJOURNEYS_TRIGGER = "Flush Old Journeys";
+    private static final String ROUTEID_HEARTBEAT_TRIGGER  = "Check Subscriptions Trigger";
     private static final String ROUTEID_ET_TRIGGER = "ET trigger";
     private static final String ROUTEID_SX_TRIGGER = "SX trigger";
     private static final String ROUTEID_TIAMAT_MAP_TRIGGER = "Tiamat trigger";
@@ -123,7 +123,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
     public void configure() {
         createWorkerRoutes(config.getTiamatStopPlaceQuaysURL());
         createRestRoutes(config.getRestPort(), config.isEtEnabled(), config.isSxEnabled(), config.useAnsharSubscription());
-        createQuartzRoutes(config.getPollingInterval(), config.isTiamatStopPlaceQuaysEnabled(), config.getTiamatStopPlaceQuaysInterval());
+        createQuartzRoutes(config.getHeartbeatCheckInterval(), config.isTiamatStopPlaceQuaysEnabled(), config.getTiamatStopPlaceQuaysInterval());
         createSiriProcessingRoutes();
 
         String proposedValue = "ukur-" + UUID.randomUUID();
@@ -157,9 +157,9 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .log(LoggingLevel.DEBUG, "Done handling SX message from queue")
                 .end();
 
-        from(ROUTE_FLUSHJOURNEYS)
-                .routeId(ROUTEID_FLUSHJOURNEYS)
-                .to("bean:liveRouteManager?method=flushOldJourneys()");
+        from(ROUTE_HEARTBEAT_CHECKER)
+                .routeId(ROUTEID_HEARTBEAT_CHECKER)
+                .to("bean:subscriptionManager?method=handleHeartbeatAndTermination()");
 
         from(ROUTE_TIAMAT_MAP)
                 .routeId(ROUTEID_TIAMAT_MAP)
@@ -240,7 +240,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                     RouteStatus status = new RouteStatus();
                     status.setNodeStartTime(nodeStarted);
                     status.setHostname(getHostName());
-                    status.setStatusJourneyFlush(routeStatus(ROUTEID_FLUSHJOURNEYS_TRIGGER));
+                    status.setStatusHeartbeat(routeStatus(ROUTEID_HEARTBEAT_TRIGGER));
                     status.setStatusET(routeStatus(ROUTEID_ET_TRIGGER, etEnabled, createSubscriptionReceievers));
                     status.setStatusSX(routeStatus(ROUTEID_SX_TRIGGER, sxEnabled, createSubscriptionReceievers));
                     status.setStatusSubscriptionRenewer(routeStatus(ROUTEID_ANSHAR_SUBSRENEWER_TRIGGER));
@@ -259,9 +259,9 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
 
     }
 
-    private void createQuartzRoutes(int repatInterval, boolean stopPlaceToQuayEnabled, int tiamatRepatInterval) {
+    private void createQuartzRoutes(int subscriptionCheckerRepatInterval, boolean stopPlaceToQuayEnabled, int tiamatRepatInterval) {
 
-        createSingletonQuartz2Route("flushOldJourneys", repatInterval, ROUTEID_FLUSHJOURNEYS_TRIGGER, ROUTEID_FLUSHJOURNEYS, ROUTE_FLUSHJOURNEYS);
+        createSingletonQuartz2Route("subscriptionHeartbeatAndTermination", subscriptionCheckerRepatInterval, ROUTEID_HEARTBEAT_TRIGGER, ROUTEID_HEARTBEAT_CHECKER, ROUTE_HEARTBEAT_CHECKER);
 
         if (stopPlaceToQuayEnabled) {
             from("quartz2://ukur/getStopPlacesFromTiamat?trigger.repeatInterval=" + tiamatRepatInterval + "&fireNow=true")

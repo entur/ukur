@@ -35,8 +35,11 @@ import org.junit.Test;
 import uk.org.siri.siri20.*;
 
 import javax.xml.bind.JAXBException;
+import javax.xml.datatype.DatatypeFactory;
+import javax.xml.datatype.Duration;
 import javax.xml.stream.XMLStreamException;
 import java.math.BigInteger;
+import java.time.ZonedDateTime;
 import java.util.*;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
@@ -399,7 +402,99 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         assertEquals("NSB:Line:Line1", journey2222.getLineRef().getValue());
         assertEquals("2222", journey2222.getVehicleJourneyReves().get(0).getValue());
         assertEquals(3, journey2222.getRoutes().get(0).getStopPoints().getAffectedStopPointsAndLinkProjectionToNextStopPoints().size());
+
     }
+
+
+    @Test
+    public void testHeartbeatAndTermination() throws Exception {
+        DatatypeFactory datatypeFactory = DatatypeFactory.newInstance();
+        ZonedDateTime start = ZonedDateTime.now();
+        createStubAndSiriSubscription("s1", datatypeFactory.newDuration("PT1M"), start.plusHours(1));
+        createStubAndSiriSubscription("s2", datatypeFactory.newDuration("PT2M"), null);
+        createStubAndSiriSubscription("s3", null ,null);
+        RequestPatternBuilder s1RequestPattern = postRequestedFor(urlEqualTo("/heartbeat/s1"));
+        RequestPatternBuilder s2RequestPattern = postRequestedFor(urlEqualTo("/heartbeat/s2"));
+        RequestPatternBuilder s3RequestPattern = postRequestedFor(urlEqualTo("/heartbeat/s3"));
+
+        expectReceived(0, s1RequestPattern);
+        expectReceived(0, s2RequestPattern);
+        expectReceived(0, s3RequestPattern);
+
+        //no notifications first time:
+        subscriptionManager.handleHeartbeatAndTermination(start);
+        waitNoActivePushThreads();
+        expectReceived(0, s1RequestPattern);
+        expectReceived(0, s2RequestPattern);
+        expectReceived(0, s3RequestPattern);
+
+        //no notifications after 30 sec
+        subscriptionManager.handleHeartbeatAndTermination(start.plusSeconds(30));
+        waitNoActivePushThreads();
+        expectReceived(0, s1RequestPattern);
+        expectReceived(0, s2RequestPattern);
+        expectReceived(0, s3RequestPattern);
+
+        //s1 received one notification after 61 sec, but no others (the extra second to make sure we're not too fast...)
+        subscriptionManager.handleHeartbeatAndTermination(start.plusSeconds(61));
+        waitNoActivePushThreads();
+        waitAndVerifyNotificationsInOrder(s1RequestPattern, HeartbeatNotificationStructure.class);
+        expectReceived(0, s2RequestPattern);
+        expectReceived(0, s3RequestPattern);
+
+        //no new notifications after 90 secs
+        subscriptionManager.handleHeartbeatAndTermination(start.plusSeconds(90));
+        waitNoActivePushThreads();
+        expectReceived(1, s1RequestPattern);
+        expectReceived(0, s2RequestPattern);
+        expectReceived(0, s3RequestPattern);
+
+        //both s1 and s2 receive a notification after a little over 2 minutes (the extra seconds to make sure we're not too fast...)
+        subscriptionManager.handleHeartbeatAndTermination(start.plusSeconds(122));
+        waitNoActivePushThreads();
+        waitAndVerifyNotificationsInOrder(s1RequestPattern, HeartbeatNotificationStructure.class, HeartbeatNotificationStructure.class);
+        waitAndVerifyNotificationsInOrder(s2RequestPattern, HeartbeatNotificationStructure.class);
+        expectReceived(0, s3RequestPattern);
+
+        //after 1 hour s1 should be terminated, s2 should receieve a new heartbeat
+        subscriptionManager.handleHeartbeatAndTermination(start.plusMinutes(61));
+        waitNoActivePushThreads();
+        waitAndVerifyNotificationsInOrder(s1RequestPattern, HeartbeatNotificationStructure.class, HeartbeatNotificationStructure.class, SubscriptionTerminatedNotificationStructure.class);
+        waitAndVerifyNotificationsInOrder(s2RequestPattern, HeartbeatNotificationStructure.class, HeartbeatNotificationStructure.class);
+        expectReceived(0, s3RequestPattern);
+
+        //after that s1 recieved no more, but s2 receives a heartbeat every 2 minutes
+        subscriptionManager.handleHeartbeatAndTermination(start.plusMinutes(64));
+        waitNoActivePushThreads();
+        waitAndVerifyNotificationsInOrder(s1RequestPattern, HeartbeatNotificationStructure.class, HeartbeatNotificationStructure.class, SubscriptionTerminatedNotificationStructure.class);
+        waitAndVerifyNotificationsInOrder(s2RequestPattern, HeartbeatNotificationStructure.class, HeartbeatNotificationStructure.class, HeartbeatNotificationStructure.class);
+        expectReceived(0, s3RequestPattern);
+    }
+
+    private void waitNoActivePushThreads() {
+        long start = System.currentTimeMillis();
+        while (subscriptionManager.getActivePushThreads() > 0) {
+            if (System.currentTimeMillis() - start > 10000) {
+                fail("has waited too long for subscriptionManager.getActivePushThreads() to reach 0...");
+            }
+        }
+    }
+
+    private void createStubAndSiriSubscription(String requestor, Duration heartbeatInterval, ZonedDateTime initialTerminationTime) {
+        String url = "/heartbeat/"+requestor;
+        stubFor(post(urlEqualTo(url))
+                .withHeader("Content-Type", equalTo("application/xml"))
+                .willReturn(aResponse()));
+        Subscription subscription = new Subscription();
+        subscription.setUseSiriSubscriptionModel(true);
+        subscription.setName(Subscription.getName(requestor, "1"));
+        subscription.setHeartbeatInterval(heartbeatInterval);
+        subscription.setInitialTerminationTime(initialTerminationTime);
+        subscription.setPushAddress("http://localhost:" + wireMockRule.port() + url);
+        subscription.addCodespace("TEST");
+        subscriptionManager.addOrUpdate(subscription, true);
+    }
+
 
     private PtSituationElement getPushedPtSituationElement(String urlWithStop) throws JAXBException, XMLStreamException {
         List<LoggedRequest> loggedRequests = findAll(postRequestedFor(urlEqualTo(urlWithStop)));
@@ -593,13 +688,58 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
             List<LoggedRequest> all = findAll(requestPatternBuilder);
             actual = all.size();
             if (actual > expected) {
-                fail("Expected " + expected + " found " + actual);
+                expectReceived(expected, requestPatternBuilder);
             }
             if (actual == expected) {
                 return;
             }
         }
         fail("Expected " + expected + " but found only " + actual+" before we timed out...");
+    }
+
+    private void waitAndVerifyNotificationsInOrder(RequestPatternBuilder requestPatternBuilder, Class... notifications) throws Exception {
+        waitAndVerifyAtLeast(notifications.length, requestPatternBuilder);
+        List<LoggedRequest> all = findAll(requestPatternBuilder);
+        for (int i = 0; i < all.size(); i++) {
+            LoggedRequest loggedRequest = all.get(i);
+            Class notification = notifications[i];
+            Siri siri = siriMarshaller.unmarshall(loggedRequest.getBodyAsString(), Siri.class);
+            if (HeartbeatNotificationStructure.class.equals(notification)) {
+                assertNotNull(siri.getHeartbeatNotification());
+                assertNull(siri.getSubscriptionTerminatedNotification());
+            } else if (SubscriptionTerminatedNotificationStructure.class.equals(notification)) {
+                assertNotNull(siri.getSubscriptionTerminatedNotification());
+                assertNull(siri.getHeartbeatNotification());
+            } else {
+                fail("Unhandled (in this test assertion at least) notification class: "+notification.getSimpleName());
+            }
+        }
+
+    }
+
+    private void expectReceived(int expected, RequestPatternBuilder requestPatternBuilder) {
+        List<LoggedRequest> all = findAll(requestPatternBuilder);
+        if (expected != all.size()) {
+            String url = requestPatternBuilder.build().getUrl();
+            StringBuilder sb = new StringBuilder("mock('"+url+"'): Expected "+expected+", but has received "+all.size());
+            if (all.size() > 0) sb.append(":\n");
+            for (LoggedRequest loggedRequest : all) {
+                sb.append("\n");
+                sb.append(prettyPrintSiri(loggedRequest.getBodyAsString()));
+                sb.append("\n");
+            }
+            fail(sb.toString());
+        }
+    }
+
+    private String prettyPrintSiri(String bodyAsString) {
+        try {
+            Siri siri = siriMarshaller.unmarshall(bodyAsString, Siri.class);
+            return siriMarshaller.prettyPrintNoNamespaces(siri);
+        } catch (Exception e) {
+            e.printStackTrace();
+            return bodyAsString;
+        }
     }
 
     private void waitUntilSubscriptionIsRemoved(Subscription subscription) {

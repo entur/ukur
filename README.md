@@ -4,7 +4,7 @@ Ukur detects and enable subscriptions for deviations in traffic based on real ti
 
 ## Subscriptions
 
-There are two ways to create and maintain subscriptions in Ukur: a original json way and the standardized Siri format with XML. 
+There are two ways to create and maintain subscriptions in Ukur: a original json way and the standardized SIRI format with XML. 
 The latter does not support subscriptions on to- and from-stops, but otherwise they are quite similar.
 
 ### Properitary JSON format 
@@ -18,7 +18,8 @@ to stops and/or lines and/or codespaces. It is optional to specify:
 - initialTerminationTime: when the subscriptions should be deleted, default is null (meaning never)
 - heartbeatInterval: period for heartbeats according to the Duration format from the W3C XML Schema 1.0 at 
   which heartbeats (empty Siri/HeartbeatNotification xml messages) should be sent to the push address, default 
-  is null (no heartbeats). The intervall is handled approximately, with ± several seconds deviations...
+  is null (no heartbeats). The intervall is handled approximately, and notifications can come several seconds 
+  later than what is specified (depending of how often we configure Ukur to handle heartbeats)...
 ```json
 {
    "name" : "Test subscription",
@@ -50,8 +51,8 @@ are ignored (as they never will be referenced). Also both from and to StopPoints
 present to receive push messages.
 
 
-### XML (Siri) format
-We support 'Publish/Subscribe - Direct delivery' from the Siri specification. The sequence diagram below shows
+### XML (SIRI) format
+We support 'Publish/Subscribe - Direct delivery' from the SIRI specification. The sequence diagram below shows
 the lifecycle of such a data transfer. We currently support SIRI-SX and SIRI-ET subscriptions, and they must 
 provide filters for either codespace or lineref(s) (subscriptions on from- and to-stops are not supported). 
 
@@ -196,7 +197,7 @@ adjusting the url somewhat:
 - `/et` is added to the push address for Estimated Timetable messages and an EstimatedVehicleJourney is posted.
 - `/sx` is added to the push address for Situation Exchange messages and a PtSituationElement is posted.
 
-### Siri based notifications
+### SIRI based notifications
 Ukur will **post** SIRI data as `application/xml` to the per subscription configured pushAddress. There is 
 always a Siri root element with a ServiceDelivery and either a **PtSituationElement** inside a 
 SituationExchangeDelivery/Situations element (**SX messages**) or a **EstimatedVehicleJourney** inside a 
@@ -213,8 +214,9 @@ receives any other response, the subscription is removed. The push endpoint can 
 (RESET-CONTENT) and Ukur will remove the subscription instantly.
 
 ## When and what data is sent
-Ukur polls Anshar for ET and SX data each minute. Currently only ET messaged regarding NSB as operator or SX
-messages from NSB is processed - all operators and producers will be processed in the future.
+Ukur receives data from Anshar as soon as it arrives (or polls Anshar for ET and SX data each minute if 
+the Anshar subscription is disabled). ET messages and SX from all operators and producers will be processed, 
+but certain ET messages (freightTrain) are ignored.
 
 All **SX messages** are sent to matching subscriptions once per subscription with same SituationNumber+Version. 
 For subscriptions that contains stops, the PtSituationElement will have all other stops removed from Affects 

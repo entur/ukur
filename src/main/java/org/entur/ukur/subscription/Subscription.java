@@ -50,6 +50,15 @@ public class Subscription implements Serializable {
         return StringUtils.startsWith(name, SIRI_NAME_PREFIX);
     }
 
+    String getSiriRequestor() {
+        return StringUtils.trimToNull(StringUtils.substringBetween(name, SIRI_NAME_PREFIX + "-REF(", ")-ID("));
+    }
+
+    String getSiriClientGeneratedId() {
+        String clientId = StringUtils.substringAfter(name, ")-ID(");
+        return StringUtils.trimToNull(StringUtils.substringBeforeLast(clientId, ")"));
+    }
+
     public Set<String> getFromStopPoints() {
         return Collections.unmodifiableSet(fromStopPoints);
     }

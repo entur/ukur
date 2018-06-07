@@ -36,7 +36,7 @@ import static org.mockito.Mockito.verify;
 @RunWith(MockitoJUnitRunner.class)
 public class SiriXMLSubscriptionHandlerTest {
 
-    private final static String HEARTBEAT_INTERVAL_MS = "PT5M";
+    private final static String HEARTBEAT_INTERVAL = "PT5M";
     private final static ZonedDateTime now = ZonedDateTime.now();
 
     @Mock
@@ -281,7 +281,7 @@ public class SiriXMLSubscriptionHandlerTest {
 
     static Siri createSubscriptionRequest(boolean sx, boolean addLines) throws Exception {
         DatatypeFactory datatypeFactory = DatatypeFactory.newInstance();
-        Duration heartbeatInterval = datatypeFactory.newDuration(HEARTBEAT_INTERVAL_MS);
+        Duration heartbeatInterval = datatypeFactory.newDuration(HEARTBEAT_INTERVAL);
         LineRef lineRef1 = new LineRef();
         lineRef1.setValue("NSB:Line:L1");
         LineRef lineRef2 = new LineRef();

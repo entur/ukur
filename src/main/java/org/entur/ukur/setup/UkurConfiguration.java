@@ -76,6 +76,9 @@ public class UkurConfiguration {
     @Value("${ukur.camel.anshar.subscription.checking:true}")
     private boolean subscriptionCheckingEnabled;
 
+    @Value("${ukur.camel.subscription-heartbeat-check.interval:10000}")
+    private int heartbeatCheckInterval;
+
     public String getHazelcastManagementUrl() {
         return hazelcastManagementUrl;
     }
@@ -174,4 +177,7 @@ public class UkurConfiguration {
         return subscriptionCheckingEnabled;
     }
 
+    public int getHeartbeatCheckInterval() {
+        return heartbeatCheckInterval;
+    }
 }

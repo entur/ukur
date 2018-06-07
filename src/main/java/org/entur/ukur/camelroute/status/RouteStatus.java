@@ -30,7 +30,7 @@ public class RouteStatus {
 
     private String hostname;
     private String nodeStartTime;
-    private String statusJourneyFlush;
+    private String statusHeartbeat;
     private String statusET;
     private String statusSX;
     private String statusSubscriptionRenewer;
@@ -92,12 +92,12 @@ public class RouteStatus {
         return timer95thPersentile_ms;
     }
 
-    public String getStatusJourneyFlush() {
-        return statusJourneyFlush;
+    public String getStatusHeartbeat() {
+        return statusHeartbeat;
     }
 
-    public void setStatusJourneyFlush(String statusJourneyFlush) {
-        this.statusJourneyFlush = statusJourneyFlush;
+    public void setStatusHeartbeat(String statusHeartbeat) {
+        this.statusHeartbeat = statusHeartbeat;
     }
 
     public String getStatusET() {

@@ -52,6 +52,7 @@ public class SiriMarshaller {
 
     public String prettyPrintNoNamespaces(Object element) throws JAXBException, XMLStreamException {
         Marshaller jaxbMarshaller = jaxbContext.createMarshaller();
+        jaxbMarshaller.setProperty(Marshaller.JAXB_FRAGMENT, Boolean.TRUE);
         StringWriter stringWriter = new StringWriter();
         XMLStreamWriter writer = XMLOutputFactory.newFactory().createXMLStreamWriter(stringWriter);
         jaxbMarshaller.marshal(element, new NoNamespaceIndentingXMLStreamWriter(writer));
@@ -64,6 +65,5 @@ public class SiriMarshaller {
         jaxbMarshaller.marshal(element, stringWriter);
         return stringWriter.getBuffer().toString();
     }
-
 
 }
