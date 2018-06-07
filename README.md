@@ -43,12 +43,11 @@ Type is used to specify if ALL messages should be pushed, or just ET or SX. (Leg
 ALL, SX and ET - ALL is used if none is specified.)
 
 StopPoints are fully qualified national ids on stop places and quays, use 
-[Stoppestedsregisteret](https://stoppested.entur.org) to look them up. The SIRI
-messages received from Anshar uses both stop places and quays to identify affected
-stops, so both must be provided to receive all messages regarding a stop (no mapping
-between quays and stop places in Ukur - yet...). Stops not following the national id format 
-are ignored (as they never will be referenced). Also both from and to StopPoints must be 
-present to receive push messages.
+[Stoppestedsregisteret](https://stoppested.entur.org) to look them up. The SIRI messages received from 
+Anshar uses both stop places and quays to identify affected stops, Ukur maps stop places to quays so the
+subscription does not have to specify quays unless only certain quays are interesting. Stops not following
+the national id format are ignored (as they never will be referenced). Also both from and to StopPoints
+must be present to receive push messages.
 
 
 ### XML (SIRI) format
