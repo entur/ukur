@@ -53,6 +53,11 @@ public class ExtendedHazelcastService extends HazelCastService {
     }
 
     @Bean
+    public Map<String, Long> heartbeats() {
+        return hazelcast.getMap("ukur.heartbeats");
+    }
+
+    @Bean
     public IMap<String, String> sharedProperties() {
         return hazelcast.getMap("ukur.sharedProperties");
     }
@@ -74,7 +79,7 @@ public class ExtendedHazelcastService extends HazelCastService {
         mapConfigs.add(
                 new MapConfig()
                         .setName("ukur.alreadySentCache")
-                        .setMaxIdleSeconds(3600));
+                        .setMaxIdleSeconds(3600)); //one hour
         return mapConfigs;
 
     }
@@ -85,7 +90,7 @@ public class ExtendedHazelcastService extends HazelCastService {
      * a new one will take its place. A members node-name will never change during its lifetime,
      * so there can be gaps in the node lists.
      */
-    public String getMyNodeName() {
+    String getMyNodeName() {
         Cluster cluster = hazelcast.getCluster();
         if (cluster != null) {
             IMap<String, String> sharedProperties = sharedProperties();

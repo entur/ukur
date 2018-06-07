@@ -163,7 +163,7 @@ public class ETSubscriptionProcessorTest {
         DataStorageService dataStorageMock = mock(DataStorageService.class);
         HashSet<Subscription> subscriptionsNotified = new HashSet<>();
         QuayAndStopPlaceMappingService mappingMock = mock(QuayAndStopPlaceMappingService.class);
-        SubscriptionManager subscriptionManager = new SubscriptionManager(dataStorageMock, siriMarshaller, metricsService, new HashMap<>(), mappingMock) {
+        SubscriptionManager subscriptionManager = new SubscriptionManager(dataStorageMock, siriMarshaller, metricsService, new HashMap<>(), new HashMap<>(), mappingMock) {
             @Override
             public void notifySubscriptionsOnStops(HashSet<Subscription> subscriptions, EstimatedVehicleJourney estimatedVehicleJourney) {
                 subscriptionsNotified.addAll(subscriptions);

@@ -70,7 +70,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         liveJourneyIMap.clear();
         MetricsService metricsService = new MetricsService();
         dataStorageService = new DataStorageService(datastore, liveJourneyIMap, subscriptionTopic);
-        subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsService, alreadySentCache, mock(QuayAndStopPlaceMappingService.class));
+        subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsService, alreadySentCache, new HashMap<>(), mock(QuayAndStopPlaceMappingService.class));
     }
 
     @Test

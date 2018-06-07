@@ -85,7 +85,7 @@ public class NsbSXSubscriptionManualTest extends DatastoreTest {
         siriMarshaller = new SiriMarshaller();
         DataStorageService dataStorageService = new DataStorageService(datastore, liveJourneyIMap, subscriptionTopic);
         quayAndStopPlaceMappingService = new QuayAndStopPlaceMappingService(metricsService);
-        subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsService, new HashMap<>(), quayAndStopPlaceMappingService);
+        subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsService, new HashMap<>(), new HashMap<>(), quayAndStopPlaceMappingService);
         liveRouteManager = new LiveRouteManager(dataStorageService, quayAndStopPlaceMappingService);
         SXSubscriptionProcessor = new SXSubscriptionProcessor(subscriptionManager, siriMarshaller, liveRouteManager, mock(FileStorageService.class), metricsService);
     }

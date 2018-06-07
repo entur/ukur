@@ -63,7 +63,7 @@ public class SXSubscriptionProcessorTest extends DatastoreTest {
         MetricsService metricsServiceMock = mock(MetricsService.class);
         siriMarshaller = new SiriMarshaller();
         DataStorageService dataStorageService = new DataStorageService(datastore, liveJourneyIMap, subscriptionTopic);
-        subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsServiceMock, new HashMap<>(), new QuayAndStopPlaceMappingService(metricsServiceMock));
+        subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsServiceMock, new HashMap<>(), new HashMap<>(), new QuayAndStopPlaceMappingService(metricsServiceMock));
         liveRouteManagerMock = mock(LiveRouteManager.class);
         processor = new SXSubscriptionProcessor(subscriptionManager, siriMarshaller, liveRouteManagerMock, mock(FileStorageService.class), mock(MetricsService.class));
     }

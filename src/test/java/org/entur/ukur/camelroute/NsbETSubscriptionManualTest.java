@@ -84,7 +84,7 @@ public class NsbETSubscriptionManualTest extends DatastoreTest {
         siriMarshaller = new SiriMarshaller();
         DataStorageService dataStorageService = new DataStorageService(datastore, liveJourneyIMap, subscriptionTopic);
         quayAndStopPlaceMappingService = new QuayAndStopPlaceMappingService(metricsService);
-        subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsService, new HashMap<>(), quayAndStopPlaceMappingService);
+        subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsService, new HashMap<>(), new HashMap<>(), quayAndStopPlaceMappingService);
         ETSubscriptionProcessor = new ETSubscriptionProcessor(subscriptionManager, siriMarshaller, mock(FileStorageService.class), metricsService, quayAndStopPlaceMappingService);
         ETSubscriptionProcessor.skipCallTimeChecks = true; //since we post old recorded ET messages
     }

@@ -67,13 +67,14 @@ public class SubscriptionManager {
                                SiriMarshaller siriMarshaller,
                                MetricsService metricsService,
                                @Qualifier("alreadySentCache") Map<Object, Long> alreadySentCache,
+                               @Qualifier("heartbeats") Map<String, Long> subscriptionNextHeartbeat,
                                QuayAndStopPlaceMappingService quayAndStopPlaceMappingService) {
         this.dataStorageService = dataStorageService;
         this.siriMarshaller = siriMarshaller;
         this.metricsService = metricsService;
         this.alreadySentCache = alreadySentCache;
+        this.subscriptionNextHeartbeat = subscriptionNextHeartbeat;
         this.quayAndStopPlaceMappingService = quayAndStopPlaceMappingService;
-        subscriptionNextHeartbeat = new HashMap<>();//TODO: autowire hazelcast map with similar setup as alreadySentCache
         try {
             hostname = InetAddress.getLocalHost().getHostName();
             logger.info("This nodes hostname is '{}'", hostname);
@@ -330,7 +331,7 @@ public class SubscriptionManager {
                 if (subscription.getInitialTerminationTime() != null && now.isAfter(subscription.getInitialTerminationTime())) {
                     logger.info("Removes subscription with InitialTerminationTime in the past - subscription id={}, name={}", subscription.getId(), subscription.getName());
                     pushNotification(subscription, NotificationTypeEnum.subscriptionTerminated);
-                    dataStorageService.removeSubscription(subscription.getId());
+                    remove(subscription.getId());
                     iterator.remove(); //to prevent from also sending heartbeat
                 }
             }
@@ -391,6 +392,7 @@ public class SubscriptionManager {
     public void remove(String subscriptionId) {
         logger.info("Removes subscription with id {}", subscriptionId);
         dataStorageService.removeSubscription(subscriptionId);
+        subscriptionNextHeartbeat.remove(subscriptionId);
     }
 
     private Set<String> getAllStops(Subscription subscription) {
