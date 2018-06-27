@@ -194,7 +194,15 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .component("jetty")
                 .bindingMode(RestBindingMode.json)
                 .dataFormatProperty("prettyPrint", "true")
-                .port(jettyPort);
+                .port(jettyPort)
+                .contextPath("/")
+                .apiContextPath("/external/swagger.json")
+                .apiProperty("api.title", "Ukur API")
+                .apiProperty("api.description", "Ukur offers subscriptions to deviations in traffic. This API doc describes " +
+                        "both external and internal api's, but only the external are reachable from Internet (without external " +
+                        "as part of the url).")
+                .apiProperty("api.version", "v1.0.1")
+                .apiProperty("cors", "true");
 
         rest("/internal/health")
                 .bindingMode(RestBindingMode.json)
@@ -203,11 +211,6 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .get("/routes").to("direct:routeStatus")
                 .get("/live").to("direct:OK")
                 .get("/ready").to("direct:ready");
-
-        rest("/internal/journeys")
-                .bindingMode(RestBindingMode.json)
-                .get("/").to("bean:liveRouteManager?method=getJourneys()")
-                .get("/{lineref}/").to("bean:liveRouteManager?method=getJourneys(${header.lineref})");
 
         rest("/external/subscription")
                 .bindingMode(RestBindingMode.json)

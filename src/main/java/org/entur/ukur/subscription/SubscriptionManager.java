@@ -27,16 +27,17 @@ import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
-import org.springframework.http.*;
+import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import org.springframework.web.client.RestTemplate;
 import uk.org.siri.siri20.*;
 
 import javax.xml.datatype.Duration;
+import java.io.DataOutputStream;
 import java.io.Serializable;
 import java.math.BigInteger;
+import java.net.HttpURLConnection;
 import java.net.InetAddress;
-import java.net.URI;
+import java.net.URL;
 import java.net.UnknownHostException;
 import java.time.ZonedDateTime;
 import java.util.*;
@@ -558,20 +559,24 @@ public class SubscriptionManager {
         Timer pushToHttp = metricsService.getTimer(MetricsService.TIMER_PUSH);
         Timer.Context context = pushToHttp.time();
         try {
-            URI uri = URI.create(pushAddress);
-            HttpHeaders headers = new HttpHeaders();
-            headers.setContentType(MediaType.APPLICATION_XML);
-            headers.setAccept(Collections.singletonList(MediaType.TEXT_PLAIN));
-            RestTemplate restTemplate = new RestTemplate();
-            ResponseEntity<String> response = null;
-            try {
-                HttpEntity entity = new HttpEntity<>(pushMessage, headers);
-                response = restTemplate.postForEntity(uri, entity, String.class);
-                logger.trace("Receive {} on push to {} for subscription with id {}", response, uri, subscription.getId());
-            } catch (Exception e) {
-                logger.warn("Could not push to {} for subscription with id {}", uri, subscription.getId(), e);
-            }
-            return (response != null) ? response.getStatusCode() : null;
+            String payload = siriMarshaller.marshall(pushMessage);
+            byte[] bytes = payload.getBytes();
+            URL url = new URL(pushAddress);
+            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
+            connection.setRequestMethod("POST");
+            connection.setRequestProperty("Content-Type", "application/xml");
+            connection.setRequestProperty("Content-Length", "" + Integer.toString(bytes.length));
+            connection.setDoOutput(true);
+            DataOutputStream out = new DataOutputStream(connection.getOutputStream());
+            out.write(bytes);
+            out.flush();
+            out.close();
+            int responseCode = connection.getResponseCode();
+            logger.trace("Receive {} on push to {} for subscription with id {}", responseCode, subscription.getPushAddress(), subscription.getId());
+            return HttpStatus.valueOf(responseCode);
+        } catch (Exception e) {
+            logger.warn("Could not push to {} for subscription with id {}", subscription.getPushAddress(), subscription.getId(), e);
+            return null;
         } finally {
             context.stop();
         }

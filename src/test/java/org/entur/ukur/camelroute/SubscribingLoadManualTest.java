@@ -124,17 +124,17 @@ public class SubscribingLoadManualTest extends AbstractJUnit4SpringContextTests 
                 .withHeader("Content-Type", equalTo("application/xml"))
                 .willReturn(aResponse()));
 
-        String osloAskerUrl = "/push1";
-        Subscription osloAsker = createSubscription(osloAskerUrl, "NSR:StopPlace:337", "NSR:StopPlace:418", null, "Oslo-Asker", null);
+        Subscription osloAsker = createSubscription("/push1", "NSR:StopPlace:337", "NSR:StopPlace:418", null, "Oslo-Asker", null);
         logger.info("Created subscription from OsloS to Asker with id = {}", osloAsker.getId());
 
-        String askerOsloUrl = "/push2";
-        Subscription askerOslo = createSubscription(askerOsloUrl, null, null, null, "All delayed BNR", "BNR");
-        logger.info("Created subscription from Asker to OsloS with id = {}", askerOslo.getId());
+        Subscription codespaceBNR = createSubscription("/push2", null, null, null, "All delayed BNR", "BNR");
+        logger.info("Created subscription for codespace BNR with id = {}", codespaceBNR.getId());
 
-        String lineL1Url = "/push3";
-        Subscription lineL1 = createSubscription(lineL1Url, null, null, "NSB:Line:R11", "Line R11", null);
+        Subscription lineL1 = createSubscription("/push3", null, null, "NSB:Line:R11", "Line R11", null);
         logger.info("Created subscription for line L1 with id = {}", lineL1.getId());
+
+        Subscription codespaceRUT = createSubscription("/push4", null, null, "All delayed RUT", null, "RUT");
+        logger.info("Created subscription for codespace RUT with id = {}", codespaceRUT.getId());
 
         List<Path> etMessages = Files.walk(Paths.get("/home/jon/Documents/Entur/sanntidsmelding_alle/raw"))
                 .filter(Files::isRegularFile)
@@ -164,16 +164,18 @@ public class SubscribingLoadManualTest extends AbstractJUnit4SpringContextTests 
             List<LoggedRequest> s1Requests = findAll(postRequestedFor(urlEqualTo("/push1/et")));
             List<LoggedRequest> s2Requests = findAll(postRequestedFor(urlEqualTo("/push2/et")));
             List<LoggedRequest> s3Requests = findAll(postRequestedFor(urlEqualTo("/push3/et")));
-            logger.info("There are still {} active threads working on pushing messages - sleeps before checking received messages. Received push-messages: subscription1={}, subscription2={}, subscription3={}", activePushThreads, s1Requests.size(), s2Requests.size(), s3Requests.size());
+            List<LoggedRequest> s4Requests = findAll(postRequestedFor(urlEqualTo("/push4/et")));
+            logger.info("There are still {} active threads working on pushing messages - sleeps before checking received messages. Received push-messages: s1={}, s2={}, s3={}, s4={}", activePushThreads, s1Requests.size(), s2Requests.size(), s3Requests.size(), s4Requests.size());
             Thread.sleep(1000);
             activePushThreads = subscriptionManager.getActivePushThreads();
         }
         logger.info("Finished processing {} ET messages and sent all pushmessages in {} ms", etMessages.size(), formatTimeSince(start));
-
+        logger.info("Ukur pushed {} messages", metricsService.getTimer(MetricsService.TIMER_PUSH).getCount());
         Thread.sleep(1000); //to let all pushed messages arrive
         getEstimatedVehicleJourney("/push1/et");
         getEstimatedVehicleJourney("/push2/et");
         getEstimatedVehicleJourney("/push3/et");
+        getEstimatedVehicleJourney("/push4/et");
 
     }
 

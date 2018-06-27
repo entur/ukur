@@ -57,31 +57,9 @@ public class RestRoutesTest extends AbstractJUnit4SpringContextTests {
         assert200Response(baseUrl + "/health/subscriptions");
         assert200Response(baseUrl + "/health/subscriptions/reload");
         assert200Response(baseUrl + "/health/routes");
-        assert200Response(baseUrl + "/journeys");
-
-
-        /*
-        rest("/internal/health")
-                .bindingMode(RestBindingMode.json)
-                .get("/subscriptions").to("bean:subscriptionManager?method=listAll")
-                .get("/subscriptions/reload").to("bean:dataStorageService?method=populateSubscriptionCacheFromDatastore")
-                .get("/routes").to("direct:routeStatus")
-                .get("/live").to("direct:OK")
-                .get("/ready").to("direct:ready");
-
-        rest("/internal/journeys")
-                .bindingMode(RestBindingMode.json)
-                .get("/").to("bean:liveRouteManager?method=getJourneys()")
-                .get("/{lineref}/").to("bean:liveRouteManager?method=getJourneys(${header.lineref})");
-
-         */
-
     }
 
-
-
     private void assert200Response(String path) throws IOException {
-
         HttpURLConnection connection = (HttpURLConnection) new URL(path).openConnection();
         int responseCode = connection.getResponseCode();
         assertEquals(200, responseCode);

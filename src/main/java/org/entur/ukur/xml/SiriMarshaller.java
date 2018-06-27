@@ -56,6 +56,7 @@ public class SiriMarshaller {
         StringWriter stringWriter = new StringWriter();
         XMLStreamWriter writer = XMLOutputFactory.newFactory().createXMLStreamWriter(stringWriter);
         jaxbMarshaller.marshal(element, new NoNamespaceIndentingXMLStreamWriter(writer));
+        writer.close();
         return stringWriter.getBuffer().toString();
     }
 

@@ -24,12 +24,15 @@ import org.springframework.stereotype.Service;
 import uk.org.siri.siri20.EstimatedVehicleJourney;
 
 import java.time.ZonedDateTime;
-import java.util.*;
-import java.util.stream.Collectors;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
 
 import static org.entur.ukur.xml.SiriObjectHelper.getStringValue;
 
 @Service
+@Deprecated //was developed as an attempt to map from vehiclejourneys (nsb sx messages) to lines and stops based on ET messages. Left for reference, but not used.
 public class LiveRouteManager {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
     private DataStorageService dataStorageService;
