@@ -55,6 +55,7 @@ public class DataStorageService implements MessageListener<String> {
     private HashMap<String, Set<String>> lineNoStopsToSubscription = new HashMap<>();
     private HashMap<String, Set<String>> codespaceNoStopsToSubscription = new HashMap<>();
     private long lastReloadedTime = 0;
+    private static final int CONCURRENTMODIFICATION_ATTEMPTS = 3;
 
     public DataStorageService(Datastore datastore,
                               IMap<String, LiveJourney> currentJourneys,
@@ -137,28 +138,50 @@ public class DataStorageService implements MessageListener<String> {
 
 
     public Collection<Subscription> getSubscriptions() {
-        return idToSubscription.values();
+        for (int i = 0; i< CONCURRENTMODIFICATION_ATTEMPTS; i++) {
+            try {
+                return new HashSet<>(idToSubscription.values());
+            } catch (ConcurrentModificationException e) {
+                //will attempt several times
+                logger.debug("Got an ConcurrentModificationException while getting all subscriptions");
+            }
+        }
+        logger.error("Could not get all subscriptions due to ConcurrentModificationExceptions - attempted {} times", CONCURRENTMODIFICATION_ATTEMPTS);
+        return Collections.emptySet();
     }
 
     public Set<Subscription> getSubscriptionsForStopPoint(String stopPointRef, SubscriptionTypeEnum type) {
-        Set<String> subscriptionIds = new HashSet<>(stopToSubscription.getOrDefault(stopPointRef, Collections.emptySet()));
+        Set<String> subscriptionIds = getSubscriptionIds(stopPointRef, stopToSubscription);
         Set<Subscription> subscriptions = getSubscriptions(subscriptionIds, type);
         logger.trace("Found {} unique subscriptions containing '{}' in to/from stops",stopPointRef, subscriptions.size());
         return subscriptions;
     }
 
     public Set<Subscription> getSubscriptionsForLineRefAndNoStops(String lineRef, SubscriptionTypeEnum type) {
-        Set<String> subscriptionIds = new HashSet<>(lineNoStopsToSubscription.getOrDefault(lineRef, Collections.emptySet()));
+        Set<String> subscriptionIds = getSubscriptionIds(lineRef, lineNoStopsToSubscription);
         Set<Subscription> subscriptions = getSubscriptions(subscriptionIds, type);
         logger.trace("Found {} unique subscriptions containing '{}' in lineRefs", subscriptions.size(), lineRef);
         return subscriptions;
     }
 
     public Set<Subscription> getSubscriptionsForCodespaceAndNoStops(String codespace, SubscriptionTypeEnum type) {
-        Set<String> subscriptionIds = new HashSet<>(codespaceNoStopsToSubscription.getOrDefault(codespace, Collections.emptySet()));
+        Set<String> subscriptionIds = getSubscriptionIds(codespace, codespaceNoStopsToSubscription);
         Set<Subscription> subscriptions = getSubscriptions(subscriptionIds, type);
         logger.trace("Found {} unique subscriptions containing '{}' in codespaces", subscriptions.size(), codespace);
         return subscriptions;
+    }
+
+    private HashSet<String> getSubscriptionIds(String key, HashMap<String, Set<String>> set) {
+        for (int i = 0; i< CONCURRENTMODIFICATION_ATTEMPTS; i++) {
+            try {
+                return new HashSet<>(set.getOrDefault(key, Collections.emptySet()));
+            } catch (ConcurrentModificationException e) {
+                //will attempt several times
+                logger.debug("Got an ConcurrentModificationException while getting all subscriptions");
+            }
+        }
+        logger.error("Could not get all subscriptionIds due to ConcurrentModificationExceptions - attempted {} times", CONCURRENTMODIFICATION_ATTEMPTS);
+        return new HashSet<>();
     }
 
     private Set<Subscription> getSubscriptions(Set<String> subscriptionIds, SubscriptionTypeEnum type) {
@@ -202,7 +225,7 @@ public class DataStorageService implements MessageListener<String> {
             transaction.update(task);
             transaction.commit();
         } catch (Exception e) {
-            logger.error("Could not update subscription", e);
+            logger.warn("Could not update subscription", e);
             transaction.rollback();
             return false;
         }

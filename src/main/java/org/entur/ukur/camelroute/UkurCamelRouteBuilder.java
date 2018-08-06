@@ -330,6 +330,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
     private void configureAnsharSubscriptionRoutes(boolean etEnabled, boolean sxEnabled, boolean createSubscription, String requestorId) {
 
         rest("/internal/siriMessages")
+                .apiDocs(false)
                 .consumes("application/xml")
                 .bindingMode(RestBindingMode.off)
                 .post("/{requestorId}/{type}")

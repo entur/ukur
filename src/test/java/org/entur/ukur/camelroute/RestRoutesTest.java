@@ -31,6 +31,7 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 
 import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.fail;
 
 @RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(webEnvironment= SpringBootTest.WebEnvironment.MOCK, classes = App.class)
@@ -59,10 +60,14 @@ public class RestRoutesTest extends AbstractJUnit4SpringContextTests {
         assert200Response(baseUrl + "/health/routes");
     }
 
-    private void assert200Response(String path) throws IOException {
-        HttpURLConnection connection = (HttpURLConnection) new URL(path).openConnection();
-        int responseCode = connection.getResponseCode();
-        assertEquals(200, responseCode);
+    private void assert200Response(String path)  {
+        try {
+            HttpURLConnection connection = (HttpURLConnection) new URL(path).openConnection();
+            int responseCode = connection.getResponseCode();
+            assertEquals("Path '"+path+"' did not respond 200", 200, responseCode);
+        } catch (IOException e) {
+            fail("Got an exception while calling path '"+path+"': "+e.getClass()+": "+e.getMessage());
+        }
     }
 
 

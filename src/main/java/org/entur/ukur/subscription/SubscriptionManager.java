@@ -83,8 +83,12 @@ public class SubscriptionManager {
             hostname = "random_"+new Random().nextInt(10000); //want to separate message producing nodes from each other easy in the logs, this will work as fallback
             logger.error("Cant resolve hostname - use random name '{}' instead to differentiate nodes", hostname, e);
         }
-        metricsService.registerGauge(GAUGE_PUSH_QUEUE, () -> pushExecutor.getQueue().size());
+        metricsService.registerGauge(GAUGE_PUSH_QUEUE, this::getActivePushQueueSize);
         logger.info("There are at startup {} subscriptions", dataStorageService.getNumberOfSubscriptions());
+    }
+
+    private int getActivePushQueueSize() {
+        return pushExecutor.getQueue().size();
     }
 
     public int getActivePushThreads() {
