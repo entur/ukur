@@ -17,10 +17,7 @@ package org.entur.ukur.service;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.*;
-import com.hazelcast.core.IMap;
-import com.hazelcast.core.ITopic;
-import com.hazelcast.core.Message;
-import com.hazelcast.core.MessageListener;
+import com.hazelcast.core.*;
 import org.apache.commons.lang3.StringUtils;
 import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.subscription.Subscription;
@@ -44,7 +41,7 @@ public class DataStorageService implements MessageListener<String> {
     private static final String SUBSCRIPTION_ACTION_ADDED = "ADDED";
     private static final String SUBSCRIPTION_ACTION_UPDATED = "UPDATED";
     private static final String SUBSCRIPTION_ACTION_REMOVED = "REMOVED";
-    private final Logger logger = LoggerFactory.getLogger(this.getClass());
+    Logger logger = LoggerFactory.getLogger(this.getClass());
     private final Datastore datastore;
     private final KeyFactory subscriptionkeyFactory;
     private final IMap<String, LiveJourney> currentJourneys;
@@ -56,7 +53,7 @@ public class DataStorageService implements MessageListener<String> {
     private HashMap<String, Set<String>> codespaceNoStopsToSubscription = new HashMap<>();
     private long lastReloadedTime = 0;
     private static final int CONCURRENTMODIFICATION_ATTEMPTS = 3;
-
+    private final String serviceId = UUID.randomUUID().toString();
     public DataStorageService(Datastore datastore,
                               IMap<String, LiveJourney> currentJourneys,
                               ITopic<String> subscriptionCacheRenewerTopic) {
@@ -119,12 +116,10 @@ public class DataStorageService implements MessageListener<String> {
     }
 
     private void addOrUpdateSubscriptionInLocalStorage(Subscription subscription) {
-        lastReloadedTime = System.currentTimeMillis();
         addOrUpdateSubscriptionInLocalStorage(idToSubscription, stopToSubscription, lineNoStopsToSubscription, codespaceNoStopsToSubscription, subscription);
     }
 
     private void removeSubscriptionFromLocalStorage(String subscriptionId) {
-        lastReloadedTime = System.currentTimeMillis();
         idToSubscription.remove(subscriptionId);
     }
 
@@ -396,22 +391,30 @@ public class DataStorageService implements MessageListener<String> {
     }
 
     private void publish(String action, String subscriptionId) {
-        String message = action + " " + subscriptionId;
+        String message = action + " " + subscriptionId + " " + serviceId;
         logger.debug("Publish '{}' on subscriptionCacheRenewerTopic", message);
         subscriptionCacheRenewerTopic.publish(message);
     }
 
     @Override
     public void onMessage(Message<String> message) {
+
         String messageString = message.getMessageObject();
         logger.debug("Received message: {}", messageString);
         if (lastReloadedTime < message.getPublishTime()) {
             String[] msgParts = messageString.split(" ");
-            if (msgParts.length != 2) {
-                logger.warn("Received message on unexpected format (<ACTION> <SUBSCRIPTION-ID>): {}", messageString);
+            if (msgParts.length < 2 || msgParts.length > 3) {
+                logger.warn("Received message on unexpected format (<ACTION> <SUBSCRIPTION-ID> <SERVICEID (optional)>): {}", messageString);
             } else {
                 String action = msgParts[0];
                 String subscriptionId = msgParts[1];
+                if (msgParts.length == 3) {
+                    if (this.serviceId.equals(msgParts[2])) {
+                        //Could use message.getPublishingMember(), but it's a little tricky both to test and retrieve...
+                        logger.debug("Ignores message as this service was the sender");
+                        return;
+                    }
+                }
                 switch (action) {
                     case SUBSCRIPTION_ACTION_ADDED:
                     case SUBSCRIPTION_ACTION_UPDATED:

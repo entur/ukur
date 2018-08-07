@@ -21,6 +21,7 @@ import com.hazelcast.core.ITopic;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
 import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.subscription.Subscription;
+import org.entur.ukur.subscription.SubscriptionTypeEnum;
 import org.entur.ukur.testsupport.DatastoreTest;
 import org.junit.Test;
 import org.slf4j.Logger;
@@ -29,11 +30,13 @@ import org.slf4j.LoggerFactory;
 import java.util.Collection;
 import java.util.Iterator;
 import java.util.Set;
+import java.util.stream.Collectors;
 
 import static org.entur.ukur.subscription.SubscriptionTypeEnum.*;
 import static org.hamcrest.core.Is.is;
 import static org.junit.Assert.*;
 
+@SuppressWarnings("ALL")
 public class DataStorageServiceTest extends DatastoreTest {
     private static final Logger logger = LoggerFactory.getLogger(DataStorageServiceTest.class);
 
@@ -42,15 +45,7 @@ public class DataStorageServiceTest extends DatastoreTest {
         HazelcastInstance hazelcastInstance = new TestHazelcastInstanceFactory().newHazelcastInstance();
         ITopic<String> subscriptionTopic = hazelcastInstance.getTopic("subscriptions");
         DataStorageService service = new DataStorageService(datastore, null, subscriptionTopic);
-        Subscription subscription = new Subscription();
-        subscription.setPushAddress("http://somehost/test");
-        subscription.setName("Test#1");
-        subscription.addFromStopPoint("NSR:Quay:1");
-        subscription.addToStopPoint("NSR:Quay:2");
-        subscription.addLineRef("NSB:Line:Test1");
-        subscription.addLineRef("NSB:Line:Test2");
-        subscription.addCodespace("ABC");
-        subscription.setType(ET);
+        Subscription subscription = createSubscription("Test#1", ET, "ABC", "NSR:Quay:1", "NSR:Quay:2", "NSB:Line:Test1");
 
         //add new
         Subscription addedSubscription = service.addSubscription(subscription);
@@ -70,7 +65,7 @@ public class DataStorageServiceTest extends DatastoreTest {
 
         //and that it is counted
         assertEquals(1, service.getNumberOfSubscriptions());
-        
+
         //add another subscription to test getSubscriptionsForStopPoint
         Subscription anotherSubscription = new Subscription();
         anotherSubscription.setPushAddress("http://someotherhost/test");
@@ -195,5 +190,103 @@ public class DataStorageServiceTest extends DatastoreTest {
         assertEquals(0, unexistingCodespace2);
         assertEquals(0, unexistingLineRef);
         assertEquals(1, existingLineRef);
+    }
+
+    @Test
+    public void testSubscriptionSyncing() throws InterruptedException {
+
+        HazelcastInstance hazelcastInstance = new TestHazelcastInstanceFactory().newHazelcastInstance();
+        ITopic<String> subscriptionTopic = hazelcastInstance.getTopic("subsync#" + System.currentTimeMillis());
+        DataStorageService service1 = new DataStorageService(datastore, null, subscriptionTopic);
+        service1.logger = LoggerFactory.getLogger(DataStorageService.class.getName()+"#1");
+        service1.populateSubscriptionCacheFromDatastore(); //postconstruct...
+        assertEquals(0, service1.getNumberOfSubscriptions());
+
+        logger.info("Add some subscriptions to populate the datastore before second service is created...");
+        Subscription addedSubscription = service1.addSubscription(createSubscription("Test#1", ET, "ABC", "NSR:Quay:1", "NSR:Quay:2","NSB:Line:Test1", "NSB:Line:Test2"));
+        assertNotNull(addedSubscription.getId());
+        assertEquals(1, service1.getNumberOfSubscriptions());
+        addedSubscription = service1.addSubscription(createSubscription("Test#2", ALL, null, "NSR:Quay:1", "NSR:Quay:2", (String) null));
+        assertNotNull(addedSubscription.getId());
+        assertEquals(2, service1.getNumberOfSubscriptions());
+        addedSubscription = service1.addSubscription(createSubscription("Test#3", ALL, null, null,null, "NSB:Line:Test1"));
+        assertNotNull(addedSubscription.getId());
+        assertEquals(3, service1.getNumberOfSubscriptions());
+
+        logger.info("Creates second DataStorageService");
+        DataStorageService service2 = new DataStorageService(datastore, null, subscriptionTopic);
+        service2.logger = LoggerFactory.getLogger(DataStorageService.class.getName()+"#2");
+        assertEquals(0, service2.getNumberOfSubscriptions());
+        service2.populateSubscriptionCacheFromDatastore(); //postconstruct...
+        assertEquals(3, service2.getNumberOfSubscriptions());
+
+        logger.info("Add subscription to second DataStorageService");
+        addedSubscription = service2.addSubscription(createSubscription("Test#4", ET, null, null,null, "NSB:Line:Test1"));
+        assertNotNull(addedSubscription.getId());
+        assertNumberOfSubscriptionsWithWait(4, service2);
+        assertNumberOfSubscriptionsWithWait(4, service1);
+
+        logger.info("Update subscription to second DataStorageService");
+        addedSubscription.setName("Test#4-updated");
+        service1.updateSubscription(addedSubscription);
+        assertNumberOfSubscriptionsWithWait(4, service2);
+        assertNumberOfSubscriptionsWithWait(4, service1);
+        Subscription subFrom1 = getSubscriptionByNameWithWait(service1, "Test#4-updated");
+        logger.info("Service1 subscriptions: {}", getAllSubscriptionNames(service1));
+        assertNotNull(subFrom1);
+        assertEquals(addedSubscription.getId(), subFrom1.getId());
+        Subscription subFrom2 = getSubscriptionByNameWithWait(service2, "Test#4-updated");
+        logger.info("Service2 subscriptions: {}", getAllSubscriptionNames(service2));
+        assertNotNull(subFrom2);
+        assertEquals(addedSubscription.getId(), subFrom2.getId());
+
+        logger.info("Deletes subscription from first DataStorageService");
+        service2.removeSubscription(addedSubscription.getId());
+        assertNumberOfSubscriptionsWithWait(3, service2);
+        assertNumberOfSubscriptionsWithWait(3, service1);
+
+        logger.info("Adds 50 subscriptions to each DataStorageService...");
+        for (int i=0; i<50; i++) {
+            service1.addSubscription(createSubscription("TestManyService1#"+i, SX, null, "NSR:Quay:"+(i+1), "NSR:Quay:"+(i+2), (String) null));
+            service2.addSubscription(createSubscription("TestManyService2#"+i, ET, null, "NSR:Quay:"+(i+1), "NSR:Quay:"+(i+2), (String) null));
+        }
+        assertNumberOfSubscriptionsWithWait(103, service2);
+        assertNumberOfSubscriptionsWithWait(103, service1);
+    }
+
+    private String getAllSubscriptionNames(DataStorageService service1) {
+        return service1.getSubscriptions().stream().map(Subscription::getName).collect(Collectors.joining(", "));
+    }
+
+    private Subscription getSubscriptionByNameWithWait(DataStorageService service, String name) throws InterruptedException {
+        long startWait = System.currentTimeMillis();
+        while (service.getSubscriptionByName(name) == null && (System.currentTimeMillis() - startWait) < 5000) {
+            Thread.sleep(1);
+        }
+        return service.getSubscriptionByName(name);
+    }
+
+    private void assertNumberOfSubscriptionsWithWait(int expected, DataStorageService service) throws InterruptedException {
+        long startWait = System.currentTimeMillis();
+        while (service.getNumberOfSubscriptions() != expected && (System.currentTimeMillis() - startWait) < 5000) {
+            Thread.sleep(1);
+        }
+        assertEquals(expected, service.getNumberOfSubscriptions());
+    }
+
+    private Subscription createSubscription(String name, SubscriptionTypeEnum type, String codespace, String fromStopPoint, String toStopPoint, String... linerefs) {
+        Subscription subscription = new Subscription();
+        subscription.setPushAddress("http://somehost/test");
+        subscription.setName(name);
+        if (codespace != null) subscription.addCodespace(codespace);
+        if (fromStopPoint != null) subscription.addFromStopPoint(fromStopPoint);
+        if (toStopPoint != null) subscription.addToStopPoint(toStopPoint);
+        if (linerefs != null) {
+            for (String lineref : linerefs) {
+                subscription.addLineRef(lineref);
+            }
+        }
+        subscription.setType(type);
+        return subscription;
     }
 }
