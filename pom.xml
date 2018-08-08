@@ -359,8 +359,28 @@
                     </images>
                 </configuration>
             </plugin>
+            <plugin>
+                <groupId>org.owasp</groupId>
+                <artifactId>dependency-check-maven</artifactId>
+                <version>3.2.1</version>
+            </plugin>
         </plugins>
     </build>
+    
+    <repositories>
+        <repository>
+            <id>central</id>
+            <name>Maven Repository Switchboard</name>
+            <layout>default</layout>
+            <url>https://repo.maven.apache.org/maven2</url>
+        </repository>
+        <repository>
+            <id>conveyal</id>
+            <name>conveyal</name>
+            <layout>default</layout>
+            <url>https://maven.conveyal.com</url>
+        </repository>
+    </repositories>
 
     <profiles>
         <profile>
