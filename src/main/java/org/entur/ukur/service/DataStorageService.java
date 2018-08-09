@@ -283,6 +283,7 @@ public class DataStorageService implements MessageListener<String> {
                 .set("name", StringValue.newBuilder(s.getName()).setExcludeFromIndexes(true).build())
                 .set("pushAddress", StringValue.newBuilder(s.getPushAddress()).setExcludeFromIndexes(true).build())
                 .set("failedPushCounter", LongValue.newBuilder(s.getFailedPushCounter()).setExcludeFromIndexes(true).build())
+                .set("pushAllData", BooleanValue.of(s.isPushAllData()))
                 .set("siriSubscriptionModel", BooleanValue.of(s.isUseSiriSubscriptionModel()));
         if (s.getHeartbeatInterval() != null) {
             builder.set("heartbeatInterval", StringValue.of(s.getHeartbeatInterval().toString()));
@@ -321,6 +322,9 @@ public class DataStorageService implements MessageListener<String> {
         subscription.setType(toTypeEnum(convertValueListToStrings(entity, "types")));
         if (entity.contains("siriSubscriptionModel")) {
             subscription.setUseSiriSubscriptionModel(entity.getBoolean("siriSubscriptionModel"));
+        }
+        if (entity.contains("pushAllData")) {
+            subscription.setPushAllData(entity.getBoolean("pushAllData"));
         }
         if (entity.contains("heartbeatInterval")) {
             String heartbeatInterval = entity.getString("heartbeatInterval");
