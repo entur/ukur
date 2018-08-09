@@ -17,18 +17,18 @@ package org.entur.ukur.subscription;
 
 import java.util.HashSet;
 
-public class DeviatingStopAndSubscriptions {
+public class StopDetailsAndSubscriptions {
 
-    private final DeviatingStop deviatingStop;
+    private final StopDetails stopDetails;
     private final HashSet<Subscription> subscriptions;
 
-    public DeviatingStopAndSubscriptions(DeviatingStop deviatingStop, HashSet<Subscription> subscriptions) {
-        this.deviatingStop = deviatingStop;
+    public StopDetailsAndSubscriptions(StopDetails stopDetails, HashSet<Subscription> subscriptions) {
+        this.stopDetails = stopDetails;
         this.subscriptions = subscriptions;
     }
 
-    public DeviatingStop getDeviatingStop() {
-        return deviatingStop;
+    public StopDetails getStopDetails() {
+        return stopDetails;
     }
 
     public HashSet<Subscription> getSubscriptions() {

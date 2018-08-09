@@ -22,11 +22,12 @@ import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
+import java.io.IOException;
 import java.time.ZonedDateTime;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.*;
 
 public class JsonTesting {
 
@@ -69,5 +70,52 @@ public class JsonTesting {
         subscription.setPushAddress("http://public-ruter-server/push");
         ObjectMapper mapper = new ObjectMapper();
         logger.info("JSON: \n{}", mapper.writerWithDefaultPrettyPrinter().writeValueAsString(subscription));
+    }
+
+    @Test
+    public void testVariousJson() throws IOException, DatatypeConfigurationException {
+
+        ObjectMapper mapper = new ObjectMapper();
+        mapper.registerModule(new JavaTimeModule()); //Camel fixes this for us in production
+        Subscription emptySubscription = mapper.readValue("{}", Subscription.class);
+        assertNotNull(emptySubscription);
+        assertNull(emptySubscription.getId());
+        assertNotNull(emptySubscription.getName());
+        assertNull(emptySubscription.getPushAddress());
+        assertFalse(emptySubscription.isPushAllData());
+        assertNotNull(emptySubscription.getFromStopPoints());
+        assertTrue(emptySubscription.getFromStopPoints().isEmpty());
+        assertNotNull(emptySubscription.getToStopPoints());
+        assertTrue(emptySubscription.getToStopPoints().isEmpty());
+        assertNotNull(emptySubscription.getLineRefs());
+        assertTrue(emptySubscription.getLineRefs().isEmpty());
+        assertNotNull(emptySubscription.getCodespaces());
+        assertTrue(emptySubscription.getCodespaces().isEmpty());
+        assertEquals(SubscriptionTypeEnum.ALL, emptySubscription.getType());
+        assertFalse(emptySubscription.isUseSiriSubscriptionModel());
+        assertNull(emptySubscription.getInitialTerminationTime());
+        assertNull(emptySubscription.getHeartbeatInterval());
+
+        String json = "{\n" +
+                "\"id\" : \"someId\",\n" +
+                "\"name\" : \"blabla\",\n" +
+                "\"pushAddress\" : \"http://pushserver/push\",\n" +
+                "\"pushAllData\" : \"true\",\n" +
+                "\"type\" : \"SX\",\n" +
+                "\"useSiriSubscriptionModel\" : \"true\",\n" +
+                "\"initialTerminationTime\" : \"2018-08-16T12:49:18.105+0200\"," +
+                "\"heartbeatInterval\" : \"PT15M\"\n" +
+                "}";
+        Subscription subscription = mapper.readValue(json, Subscription.class);
+        assertNotNull(subscription);
+        assertEquals("someId", subscription.getId());
+        assertEquals("blabla", subscription.getName());
+        assertEquals("http://pushserver/push", subscription.getPushAddress());
+        assertTrue(subscription.isPushAllData());
+        assertEquals(SubscriptionTypeEnum.SX, subscription.getType());
+        assertTrue(subscription.isUseSiriSubscriptionModel());
+        assertNotNull(subscription.getInitialTerminationTime());
+        DatatypeFactory datatypeFactory = DatatypeFactory.newInstance();
+        assertEquals(datatypeFactory.newDuration("PT15M"), subscription.getHeartbeatInterval());
     }
 }

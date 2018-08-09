@@ -15,27 +15,27 @@
 
 package org.entur.ukur.subscription;
 
-public class DeviatingStop {
+public class StopDetails {
     private final String stopPointRef;
     private boolean cancelled = false;
     private boolean delayedDeparture = false;
     private boolean delayedArrival = false;
 
-    private DeviatingStop(String stopPointRef) {
+    public StopDetails(String stopPointRef) {
         this.stopPointRef = stopPointRef;
     }
 
-    public static DeviatingStop cancelled(String stopPointRef) {
-        DeviatingStop deviatingStop = new DeviatingStop(stopPointRef);
-        deviatingStop.cancelled = true;
-        return deviatingStop;
+    public static StopDetails cancelled(String stopPointRef) {
+        StopDetails stopDetails = new StopDetails(stopPointRef);
+        stopDetails.cancelled = true;
+        return stopDetails;
     }
 
-    public static DeviatingStop delayed(String stopPointRef, boolean delayedDeparture, boolean delayedArrival) {
-        DeviatingStop deviatingStop = new DeviatingStop(stopPointRef);
-        deviatingStop.delayedDeparture = delayedDeparture;
-        deviatingStop.delayedArrival= delayedArrival;
-        return deviatingStop;
+    public static StopDetails delayed(String stopPointRef, boolean delayedDeparture, boolean delayedArrival) {
+        StopDetails stopDetails = new StopDetails(stopPointRef);
+        stopDetails.delayedDeparture = delayedDeparture;
+        stopDetails.delayedArrival= delayedArrival;
+        return stopDetails;
     }
 
     public String getStopPointRef() {

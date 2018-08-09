@@ -21,8 +21,8 @@ import org.apache.commons.lang3.StringUtils;
 import org.entur.ukur.service.FileStorageService;
 import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.service.QuayAndStopPlaceMappingService;
-import org.entur.ukur.subscription.DeviatingStop;
-import org.entur.ukur.subscription.DeviatingStopAndSubscriptions;
+import org.entur.ukur.subscription.StopDetails;
+import org.entur.ukur.subscription.StopDetailsAndSubscriptions;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionManager;
 import org.entur.ukur.xml.SiriMarshaller;
@@ -36,6 +36,7 @@ import uk.org.siri.siri20.*;
 import java.io.InputStream;
 import java.time.ZonedDateTime;
 import java.util.*;
+import java.util.stream.Collectors;
 
 import static org.entur.ukur.subscription.SubscriptionTypeEnum.ET;
 import static org.entur.ukur.xml.SiriObjectHelper.getStringValue;
@@ -113,31 +114,35 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
         Timer timer = metricsService.getTimer(MetricsService.TIMER_ET_PROCESS);
         Timer.Context time = timer.time();
         try {
-            List<DeviatingStop> deviations = getEstimatedDelaysAndCancellations(estimatedVehicleJourney);
+            List<StopDetails> deviations = getEstimatedDelaysAndCancellations(estimatedVehicleJourney);
             if (deviations.isEmpty()) {
                 logger.trace("Processes EstimatedVehicleJourney (LineRef={}, DatedVehicleJourneyRef={}) - no estimated delays or cancellations", getStringValue(estimatedVehicleJourney.getLineRef()), getStringValue(estimatedVehicleJourney.getDatedVehicleJourneyRef()));
                 metricsService.getMeter(MetricsService.METER_ET_WITHOUT_DEVIATIONS).mark();
             } else {
                 logger.debug("Processes EstimatedVehicleJourney (LineRef={}, DatedVehicleJourneyRef={}) - with {} estimated delays", getStringValue(estimatedVehicleJourney.getLineRef()), getStringValue(estimatedVehicleJourney.getDatedVehicleJourneyRef()), deviations.size());
                 metricsService.getMeter(MetricsService.METER_ET_WITH_DEVIATIONS).mark();
-                List<DeviatingStopAndSubscriptions> affectedSubscriptions = findAffectedSubscriptions(deviations, estimatedVehicleJourney);
-                String lineRef = getStringValue(estimatedVehicleJourney.getLineRef());
-                String codespace = estimatedVehicleJourney.getDataSource();
-                HashSet<Subscription> subscriptionsToNoNotify = new HashSet<>();
-                for (DeviatingStopAndSubscriptions deviatingStopAndSubscriptions : affectedSubscriptions) {
-                    HashSet<Subscription> subscriptions = deviatingStopAndSubscriptions.getSubscriptions();
-                    subscriptions.removeIf(s -> notIncluded(lineRef, s.getLineRefs()));
-                    subscriptions.removeIf(s -> notIncluded(codespace, s.getCodespaces()));
-                    DeviatingStop stop = deviatingStopAndSubscriptions.getDeviatingStop();
-                    logger.debug(" - For delayed/cancelled departure from stopPlace {} there are {} affected subscriptions ", stop.getStopPointRef(), subscriptions.size());
-                    subscriptionsToNoNotify.addAll(subscriptions); //accumulates subscriptions as these are normally found twice (from and to)
+            }
+            List<StopDetailsAndSubscriptions> affectedSubscriptions = findAffectedSubscriptions(deviations, estimatedVehicleJourney);
+            String lineRef = getStringValue(estimatedVehicleJourney.getLineRef());
+            String codespace = estimatedVehicleJourney.getDataSource();
+            HashSet<Subscription> subscriptionsToNoNotify = new HashSet<>();
+            for (StopDetailsAndSubscriptions stopDetailsAndSubscriptions : affectedSubscriptions) {
+                HashSet<Subscription> subscriptions = stopDetailsAndSubscriptions.getSubscriptions();
+                subscriptions.removeIf(s -> notIncluded(lineRef, s.getLineRefs()));
+                subscriptions.removeIf(s -> notIncluded(codespace, s.getCodespaces()));
+                StopDetails stop = stopDetailsAndSubscriptions.getStopDetails();
+                logger.debug(" - For stopPlace {} there are {} affected subscriptions ", stop.getStopPointRef(), subscriptions.size());
+                subscriptionsToNoNotify.addAll(subscriptions); //accumulates subscriptions as these are normally found twice (from and to)
+            }
+            subscriptionManager.notifySubscriptionsOnStops(subscriptionsToNoNotify, estimatedVehicleJourney);
+            HashSet<Subscription> subscriptionsOnLineRefOrCodespace = findSubscriptionsOnLineRefOrCodespace(lineRef, codespace);
+            if (!subscriptionsOnLineRefOrCodespace.isEmpty()) {
+                if (deviations.isEmpty()) {
+                    //only send to subscriptions with isPushAllData=true
+                    subscriptionsOnLineRefOrCodespace.removeIf(subscription -> !subscription.isPushAllData());
                 }
-                subscriptionManager.notifySubscriptionsOnStops(subscriptionsToNoNotify, estimatedVehicleJourney);
-                HashSet<Subscription> subscriptionsOnLineRefOrCodespace = findSubscriptionsOnLineRefOrCodespace(lineRef, codespace);
-                if (!subscriptionsOnLineRefOrCodespace.isEmpty()) {
-                    logger.debug(" - There are {} affected subscriptions on lineref={} or codespace={}", subscriptionsOnLineRefOrCodespace.size(), lineRef, codespace);
-                    subscriptionManager.notifySubscriptionsWithFullMessage(subscriptionsOnLineRefOrCodespace, estimatedVehicleJourney);
-                }
+                logger.debug(" - There are {} affected subscriptions on lineref={} or codespace={}", subscriptionsOnLineRefOrCodespace.size(), lineRef, codespace);
+                subscriptionManager.notifySubscriptionsWithFullMessage(subscriptionsOnLineRefOrCodespace, estimatedVehicleJourney);
             }
         } finally {
             long nanos = time.stop();
@@ -177,10 +182,10 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
     }
 
 
-    private List<DeviatingStopAndSubscriptions> findAffectedSubscriptions(List<DeviatingStop> deviations, EstimatedVehicleJourney estimatedVehicleJourney) {
+    private List<StopDetailsAndSubscriptions> findAffectedSubscriptions(List<StopDetails> deviations, EstimatedVehicleJourney estimatedVehicleJourney) {
         HashMap<String, StopData> stops = getStopData(estimatedVehicleJourney);
-        ArrayList<DeviatingStopAndSubscriptions> affectedSubscriptions = new ArrayList<>();
-        for (DeviatingStop deviation : deviations) {
+        ArrayList<StopDetailsAndSubscriptions> affectedSubscriptions = new ArrayList<>();
+        for (StopDetails deviation : deviations) {
             HashSet<Subscription> subscriptions = new HashSet<>();
             String stopPoint = deviation.getStopPointRef();
             if (StringUtils.startsWithIgnoreCase(stopPoint, "NSR:")) {
@@ -195,13 +200,30 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
                 }
             }
             if (!subscriptions.isEmpty()) {
-                affectedSubscriptions.add(new DeviatingStopAndSubscriptions(deviation, subscriptions));
+                affectedSubscriptions.add(new StopDetailsAndSubscriptions(deviation, subscriptions));
             }
         }
+
+        //Get subscriptions with isPushAllData=true for all stops without deviations:
+        Set<String> stopRefs = stops.keySet();
+        stopRefs.removeAll(deviations.stream().map(StopDetails::getStopPointRef).collect(Collectors.toSet()));
+        for (String stopRef : stopRefs) {
+            HashSet<Subscription> subscriptions = new HashSet<>();
+            Set<Subscription> subs = subscriptionManager.getSubscriptionsForStopPoint(stopRef, ET);
+            for (Subscription sub : subs) {
+                if (sub.isPushAllData() && validDirection(sub, stops)) {
+                    subscriptions.add(sub);
+                }
+            }
+            if (!subscriptions.isEmpty()) {
+                affectedSubscriptions.add(new StopDetailsAndSubscriptions(new StopDetails(stopRef), subscriptions));
+            }
+        }
+
         return affectedSubscriptions;
     }
 
-    private boolean subscripbedStopDelayed(Subscription sub, String stopPoint, DeviatingStop deviation) {
+    private boolean subscripbedStopDelayed(Subscription sub, String stopPoint, StopDetails deviation) {
         if ( (sub.getFromStopPoints().contains(stopPoint) && deviation.isDelayedDeparture()) ||
                 (sub.getToStopPoints().contains(stopPoint) && deviation.isDelayedArrival()) ) {
             return true;
@@ -259,19 +281,19 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
         return stops;
     }
 
-    private List<DeviatingStop> getEstimatedDelaysAndCancellations(EstimatedVehicleJourney estimatedVehicleJourney) {
+    private List<StopDetails> getEstimatedDelaysAndCancellations(EstimatedVehicleJourney estimatedVehicleJourney) {
         EstimatedVehicleJourney.EstimatedCalls estimatedCalls = estimatedVehicleJourney.getEstimatedCalls();
         boolean cancelledJourney = Boolean.TRUE.equals(estimatedVehicleJourney.isCancellation());
-        List<DeviatingStop> deviations = new ArrayList<>();
+        List<StopDetails> deviations = new ArrayList<>();
         for (EstimatedCall call : estimatedCalls.getEstimatedCalls()) {
             if (futureEstimatedCall(call)) {
                 if (cancelledJourney || Boolean.TRUE.equals(call.isCancellation())) {
-                    deviations.add(DeviatingStop.cancelled(getStringValue(call.getStopPointRef())));
+                    deviations.add(StopDetails.cancelled(getStringValue(call.getStopPointRef())));
                 } else {
                     boolean delayedDeparture = call.getDepartureStatus() == CallStatusEnumeration.DELAYED || isDelayed(call.getAimedDepartureTime(), call.getExpectedDepartureTime());
                     boolean delayedArrival = call.getArrivalStatus() == CallStatusEnumeration.DELAYED || isDelayed(call.getAimedArrivalTime(), call.getExpectedArrivalTime());
                     if (delayedArrival || delayedDeparture) {
-                        deviations.add(DeviatingStop.delayed(getStringValue(call.getStopPointRef()), delayedDeparture, delayedArrival));
+                        deviations.add(StopDetails.delayed(getStringValue(call.getStopPointRef()), delayedDeparture, delayedArrival));
                     }
                 }
             }

@@ -31,7 +31,8 @@ to stops and/or lines and/or codespaces. It is optional to specify:
    "codespaces" : ["NSB", "RUT"],
    "useSiriSubscriptionModel" : false,
    "initialTerminationTime" : "9999-01-01T00:00:00+01:00",
-   "heartbeatInterval" : "PT15M"
+   "heartbeatInterval" : "PT15M",
+   "pushAllData" : false
  }
  ```   
 After successfull creation of the new subscription, Ukur responds with the same object with
@@ -48,6 +49,9 @@ Anshar uses both stop places and quays to identify affected stops, Ukur maps sto
 subscription does not have to specify quays unless only certain quays are interesting. Stops not following
 the national id format are ignored (as they never will be referenced). Also both from and to StopPoints
 must be present to receive push messages.
+
+'pushAllData' can be set to true if all realtime messages matching the subscription should be pushed, and
+not just those with deviations.
 
 
 ### XML (SIRI) format

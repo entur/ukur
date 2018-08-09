@@ -30,6 +30,7 @@ public class Subscription implements Serializable {
     private String id;
     private String name;
     private String pushAddress;
+    private Boolean pushAllData = false;
     private HashSet<String> fromStopPoints = new HashSet<>();
     private HashSet<String> toStopPoints = new HashSet<>();
     private HashSet<String> lineRefs = new HashSet<>();
@@ -87,10 +88,6 @@ public class Subscription implements Serializable {
 
     public void addToStopPoint(String stopPointRef) {
         toStopPoints.add(stopPointRef);
-    }
-
-    public void removeToStopPoint(String stopPointRef) {
-        toStopPoints.remove(stopPointRef);
     }
 
     public Set<String> getLineRefs() {
@@ -156,6 +153,15 @@ public class Subscription implements Serializable {
             type = SubscriptionTypeEnum.ALL;
         }
         this.type = type;
+    }
+
+    public boolean isPushAllData() {
+        if (pushAllData == null) return false;
+        return pushAllData;
+    }
+
+    public void setPushAllData(boolean pushAllData) {
+        this.pushAllData = pushAllData;
     }
 
     @Override

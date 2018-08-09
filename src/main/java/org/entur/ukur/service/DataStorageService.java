@@ -185,7 +185,7 @@ public class DataStorageService implements MessageListener<String> {
             String id = idIterator.next();
             Subscription subscription = idToSubscription.get(id);
             if (subscription == null) {
-                logger.warn("Removes not found subscription with id = {}", id);
+                //this happens quite often (after a subscription is removed on an other pod until the periodic populateSubscriptionCacheFromDatastore)
                 idIterator.remove();
             } else if (subscription.getType() == SubscriptionTypeEnum.ALL || subscription.getType() == type){
                 subscriptions.add(subscription);
