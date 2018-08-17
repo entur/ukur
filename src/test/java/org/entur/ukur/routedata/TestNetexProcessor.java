@@ -25,19 +25,21 @@ import javax.xml.bind.Unmarshaller;
 import java.io.ByteArrayInputStream;
 import java.io.File;
 import java.io.IOException;
-import java.time.LocalDateTime;
-import java.util.*;
+import java.util.HashMap;
+import java.util.List;
+import java.util.Map;
 import java.util.zip.ZipEntry;
 import java.util.zip.ZipFile;
 
-public class NetexProcessor {
+@SuppressWarnings("WeakerAccess")
+public class TestNetexProcessor {
 
     private static JAXBContext jaxbContext;
-    private String timeZone;
+//    private String timeZone;
 
-    public LocalDateTime publicationTimestamp;
+//    public LocalDateTime publicationTimestamp;
     public Map<String, JourneyPattern> journeyPatternsById;
-    public Map<String, ServiceJourney> serviceJourneyByPatternId;
+//    public Map<String, ServiceJourney> serviceJourneyByPatternId;
 //    public Set<String> calendarServiceIds;
 //    public Map<String, DayType> dayTypeById;
 //    public Map<String, DayTypeAssignment> dayTypeAssignmentByDayTypeId;
@@ -45,8 +47,10 @@ public class NetexProcessor {
 //    public Map<String, Boolean> dayTypeAvailable;
     public Map<String, String> quayIdByStopPointRef;
 //    public Map<String, Route> routeById;
+    public Map<String, ServiceJourney> serviceJourneyById;
 
     private ZipFile zipFile;
+
 
     static {
         try {
@@ -56,10 +60,10 @@ public class NetexProcessor {
         }
     }
 
-    public NetexProcessor(File file) throws IOException {
+    public TestNetexProcessor(File file) throws IOException {
         zipFile = new ZipFile(file, ZipFile.OPEN_READ);
         journeyPatternsById = new HashMap<>();
-        serviceJourneyByPatternId = new HashMap<>();
+//        serviceJourneyByPatternId = new HashMap<>();
 //        calendarServiceIds = new HashSet<>();
 //        dayTypeById = new HashMap<>();
 //        dayTypeAssignmentByDayTypeId = new HashMap<>();
@@ -67,6 +71,7 @@ public class NetexProcessor {
 //        dayTypeAvailable = new HashMap<>();
         quayIdByStopPointRef = new HashMap<>();
 //        routeById = new HashMap<>();
+        serviceJourneyById = new HashMap<>();
     }
 
 
@@ -95,20 +100,19 @@ public class NetexProcessor {
             List<JAXBElement<? extends Common_VersionFrameStructure>> compositeFrameOrCommonFrames = value
                     .getDataObjects().getCompositeFrameOrCommonFrame();
 
-            publicationTimestamp = value.getPublicationTimestamp();
+//            publicationTimestamp = value.getPublicationTimestamp();
 
             for (JAXBElement frame : compositeFrameOrCommonFrames) {
 
                 if (frame.getValue() instanceof CompositeFrame) {
                     CompositeFrame cf = (CompositeFrame) frame.getValue();
-                    VersionFrameDefaultsStructure frameDefaults = cf.getFrameDefaults();
-                    String timeZone = "GMT";
-                    if (frameDefaults != null && frameDefaults.getDefaultLocale() != null
-                            && frameDefaults.getDefaultLocale().getTimeZone() != null) {
-                        timeZone = frameDefaults.getDefaultLocale().getTimeZone();
-                    }
-
-                    setTimeZone(timeZone);
+//                    VersionFrameDefaultsStructure frameDefaults = cf.getFrameDefaults();
+//                    String timeZone = "GMT";
+//                    if (frameDefaults != null && frameDefaults.getDefaultLocale() != null
+//                            && frameDefaults.getDefaultLocale().getTimeZone() != null) {
+//                        timeZone = frameDefaults.getDefaultLocale().getTimeZone();
+//                    }
+//                    setTimeZone(timeZone);
 
                     List<JAXBElement<? extends Common_VersionFrameStructure>> commonFrames = cf.getFrames().getCommonFrame();
                     for (JAXBElement commonFrame : commonFrames) {
@@ -127,6 +131,7 @@ public class NetexProcessor {
         JAXBElement<PublicationDeliveryStructure> root;
         ByteArrayInputStream stream = new ByteArrayInputStream(bytesArray);
 
+        //noinspection unchecked
         root = (JAXBElement<PublicationDeliveryStructure>) createUnmarshaller().unmarshal(stream);
 
         return root.getValue();
@@ -138,24 +143,22 @@ public class NetexProcessor {
             TimetableFrame timetableFrame = (TimetableFrame) commonFrame.getValue();
 
             JourneysInFrame_RelStructure vehicleJourneys = timetableFrame.getVehicleJourneys();
-            List<Journey_VersionStructure> datedServiceJourneyOrDeadRunOrServiceJourney = vehicleJourneys
-                    .getDatedServiceJourneyOrDeadRunOrServiceJourney();
+            List<Journey_VersionStructure> datedServiceJourneyOrDeadRunOrServiceJourney = vehicleJourneys.getDatedServiceJourneyOrDeadRunOrServiceJourney();
             for (Journey_VersionStructure jStructure : datedServiceJourneyOrDeadRunOrServiceJourney) {
                 if (jStructure instanceof ServiceJourney) {
 //                    loadServiceIds((ServiceJourney) jStructure);
                     ServiceJourney sj = (ServiceJourney) jStructure;
-                    String journeyPatternId = sj.getJourneyPatternRef().getValue().getRef();
-
-                    JourneyPattern journeyPattern = journeyPatternsById.get(journeyPatternId);
-
-                    if (journeyPattern != null) {
-                        if (journeyPattern.getPointsInSequence().
-                                getPointInJourneyPatternOrStopPointInJourneyPatternOrTimingPointInJourneyPattern()
-                                .size() == sj.getPassingTimes().getTimetabledPassingTime().size()) {
-
-                            serviceJourneyByPatternId.put(journeyPatternId, sj);
-                        }
-                    }
+                    serviceJourneyById.put(sj.getId(), sj);
+//                    String journeyPatternId = sj.getJourneyPatternRef().getValue().getRef();
+//                    JourneyPattern journeyPattern = journeyPatternsById.get(journeyPatternId);
+//                    if (journeyPattern != null) {
+//                        if (journeyPattern.getPointsInSequence().
+//                                getPointInJourneyPatternOrStopPointInJourneyPatternOrTimingPointInJourneyPattern()
+//                                .size() == sj.getPassingTimes().getTimetabledPassingTime().size()) {
+//
+//                            serviceJourneyByPatternId.put(journeyPatternId, sj);
+//                        }
+//                    }
                 }
             }
         }
@@ -167,21 +170,22 @@ public class NetexProcessor {
 //        // Add all unique service ids to map. Used when mapping calendars later.
 //        calendarServiceIds.add(serviceId);
 //    }
-    private static String mapToServiceId(DayTypeRefs_RelStructure dayTypes) {
-        StringBuilder serviceId = new StringBuilder();
-        boolean first = true;
-        for (JAXBElement dt : dayTypes.getDayTypeRef()) {
-            if (!first) {
-                serviceId.append("+");
-            }
-            first = false;
-            if (dt.getValue() instanceof DayTypeRefStructure) {
-                DayTypeRefStructure dayType = (DayTypeRefStructure) dt.getValue();
-                serviceId.append(dayType.getRef());
-            }
-        }
-        return serviceId.toString();
-    }
+
+//    private static String mapToServiceId(DayTypeRefs_RelStructure dayTypes) {
+//        StringBuilder serviceId = new StringBuilder();
+//        boolean first = true;
+//        for (JAXBElement dt : dayTypes.getDayTypeRef()) {
+//            if (!first) {
+//                serviceId.append("+");
+//            }
+//            first = false;
+//            if (dt.getValue() instanceof DayTypeRefStructure) {
+//                DayTypeRefStructure dayType = (DayTypeRefStructure) dt.getValue();
+//                serviceId.append(dayType.getRef());
+//            }
+//        }
+//        return serviceId.toString();
+//    }
 
     // ServiceCalendar
 //    private void loadServiceCalendarFrames(JAXBElement commonFrame) {
@@ -283,11 +287,11 @@ public class NetexProcessor {
         }
     }
 
-    public void setTimeZone(String timeZone) {
-        this.timeZone = timeZone;
-    }
+//    public void setTimeZone(String timeZone) {
+//        this.timeZone = timeZone;
+//    }
 
-    public String getTimeZone() {
-        return timeZone;
-    }
+//    public String getTimeZone() {
+//        return timeZone;
+//    }
 }

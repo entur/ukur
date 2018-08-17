@@ -17,7 +17,7 @@ package org.entur.ukur.subscription;
 
 public class StopDetails {
     private final String stopPointRef;
-    private boolean cancelled = false;
+    private boolean cancelledOrTrackChange = false;
     private boolean delayedDeparture = false;
     private boolean delayedArrival = false;
 
@@ -25,9 +25,9 @@ public class StopDetails {
         this.stopPointRef = stopPointRef;
     }
 
-    public static StopDetails cancelled(String stopPointRef) {
+    public static StopDetails cancelledOrTrackChange(String stopPointRef) {
         StopDetails stopDetails = new StopDetails(stopPointRef);
-        stopDetails.cancelled = true;
+        stopDetails.cancelledOrTrackChange = true;
         return stopDetails;
     }
 
@@ -42,8 +42,8 @@ public class StopDetails {
         return stopPointRef;
     }
 
-    public boolean isCancelled() {
-        return cancelled;
+    public boolean isCancelledOrTrackChange() {
+        return cancelledOrTrackChange;
     }
 
     public boolean isDelayedDeparture() {

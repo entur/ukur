@@ -114,12 +114,12 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
         Timer timer = metricsService.getTimer(MetricsService.TIMER_ET_PROCESS);
         Timer.Context time = timer.time();
         try {
-            List<StopDetails> deviations = getEstimatedDelaysAndCancellations(estimatedVehicleJourney);
+            List<StopDetails> deviations = getDeviations(estimatedVehicleJourney);
             if (deviations.isEmpty()) {
-                logger.trace("Processes EstimatedVehicleJourney (LineRef={}, DatedVehicleJourneyRef={}) - no estimated delays or cancellations", getStringValue(estimatedVehicleJourney.getLineRef()), getStringValue(estimatedVehicleJourney.getDatedVehicleJourneyRef()));
+                logger.trace("Processes EstimatedVehicleJourney (LineRef={}, DatedVehicleJourneyRef={}) - no deviations", getStringValue(estimatedVehicleJourney.getLineRef()), getStringValue(estimatedVehicleJourney.getDatedVehicleJourneyRef()));
                 metricsService.getMeter(MetricsService.METER_ET_WITHOUT_DEVIATIONS).mark();
             } else {
-                logger.debug("Processes EstimatedVehicleJourney (LineRef={}, DatedVehicleJourneyRef={}) - with {} estimated delays", getStringValue(estimatedVehicleJourney.getLineRef()), getStringValue(estimatedVehicleJourney.getDatedVehicleJourneyRef()), deviations.size());
+                logger.debug("Processes EstimatedVehicleJourney (LineRef={}, DatedVehicleJourneyRef={}) - with {} deviations", getStringValue(estimatedVehicleJourney.getLineRef()), getStringValue(estimatedVehicleJourney.getDatedVehicleJourneyRef()), deviations.size());
                 metricsService.getMeter(MetricsService.METER_ET_WITH_DEVIATIONS).mark();
             }
             List<StopDetailsAndSubscriptions> affectedSubscriptions = findAffectedSubscriptions(deviations, estimatedVehicleJourney);
@@ -188,12 +188,13 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
         for (StopDetails deviation : deviations) {
             HashSet<Subscription> subscriptions = new HashSet<>();
             String stopPoint = deviation.getStopPointRef();
+            //TODO: we should possibly use stops from Destination/Arrival StopAssignment? Then a quay-only subscription could receive deviations on track-change as well (from and to the susbcribed quay)
             if (StringUtils.startsWithIgnoreCase(stopPoint, "NSR:")) {
                 //Bryr oss kun om stopPointRef på "nasjonalt format"
                 Set<Subscription> subs = subscriptionManager.getSubscriptionsForStopPoint(stopPoint, ET);
                 for (Subscription sub : subs) {
                     if (validDirection(sub, stops)) {
-                        if ( deviation.isCancelled() || subscripbedStopDelayed(sub, stopPoint, deviation) ) {
+                        if ( deviation.isCancelledOrTrackChange() || subscripbedStopDelayed(sub, stopPoint, deviation) ) {
                             subscriptions.add(sub);
                         }
                     }
@@ -281,14 +282,14 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
         return stops;
     }
 
-    private List<StopDetails> getEstimatedDelaysAndCancellations(EstimatedVehicleJourney estimatedVehicleJourney) {
+    private List<StopDetails> getDeviations(EstimatedVehicleJourney estimatedVehicleJourney) {
         EstimatedVehicleJourney.EstimatedCalls estimatedCalls = estimatedVehicleJourney.getEstimatedCalls();
         boolean cancelledJourney = Boolean.TRUE.equals(estimatedVehicleJourney.isCancellation());
         List<StopDetails> deviations = new ArrayList<>();
         for (EstimatedCall call : estimatedCalls.getEstimatedCalls()) {
             if (futureEstimatedCall(call)) {
-                if (cancelledJourney || Boolean.TRUE.equals(call.isCancellation())) {
-                    deviations.add(StopDetails.cancelled(getStringValue(call.getStopPointRef())));
+                if (cancelledJourney || Boolean.TRUE.equals(call.isCancellation()) || isTrackChange(call)) {
+                    deviations.add(StopDetails.cancelledOrTrackChange(getStringValue(call.getStopPointRef())));
                 } else {
                     boolean delayedDeparture = call.getDepartureStatus() == CallStatusEnumeration.DELAYED || isDelayed(call.getAimedDepartureTime(), call.getExpectedDepartureTime());
                     boolean delayedArrival = call.getArrivalStatus() == CallStatusEnumeration.DELAYED || isDelayed(call.getAimedArrivalTime(), call.getExpectedArrivalTime());
@@ -299,6 +300,18 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
             }
         }
         return deviations;
+    }
+
+    private boolean isTrackChange(EstimatedCall call) {
+        StopAssignmentStructure stopAssignment = call.getArrivalStopAssignment();
+        if (stopAssignment == null) {
+            //According to the profile, only one of arrival- or departureStopAssigment can be set - our logic most often populate arrival
+            stopAssignment = call.getDepartureStopAssignment();
+        }
+        if (stopAssignment != null && stopAssignment.getAimedQuayRef() != null && stopAssignment.getExpectedQuayRef() != null) {
+            return !StringUtils.equals(stopAssignment.getAimedQuayRef().getValue(), stopAssignment.getExpectedQuayRef().getValue());
+        }
+        return false;
     }
 
     private boolean futureEstimatedCall(EstimatedCall call) {
