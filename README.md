@@ -1,11 +1,15 @@
 # ukur
 Ukur detects and enable subscriptions for deviations in traffic based on real time information from Anshar.
 
+![Dataflow and concept](ukur-concept.png)
 
 ## Subscriptions
 
 There are two ways to create and maintain subscriptions in Ukur: a original json way and the standardized SIRI format with XML. 
-The latter does not support subscriptions on to- and from-stops, but otherwise they are quite similar.
+The latter does not support subscriptions on to- and from-stops, but otherwise they are quite similar. Ukur is not intended to
+push messages directly to end-user clients, instead it is ecpected that the subscriber handles that with knowledge about what 
+to push, how often etc. Also the subscriber should make sure that similar subscriptions to end-users result in only one 
+subscription to Ukur.  
 
 ### Properitary JSON format 
 
@@ -226,18 +230,24 @@ For subscriptions that contains stops, the PtSituationElement will have all othe
 to make the payload smaller, before it is sent to the various subscription endpoints. We will also remove
 affected journeys not matching the subscriptions constraint on lines and codespaces.
 
-For **ET messages**, the logic is more complex to decide if a message should be pushed. Both a from and a to 
-stop must be present in the correct order in an EstimatedVehicleJourney with one of these deviations:
- - DepartureStatus=delayed for an EstimatedCall a subscription has in its from-list
- - ArrivalStatus=delayed for an EstimatedCall a subscription has in its to-list 
- - A subscribed EstimatedCall is marked as cancelled 
-When a subscription has stops, the EstimatedVehicleJourney will have stops not subscribed upon removed 
-from RecordedCalls and EstimatedCalls to make the payload smaller, before it is sent to the subscriptions 
-push address. If only lineRefs and/or codespace are present in a subscription, the entire EstimatedVehicleJourney
+For **ET messages**, the logic is more complex to decide if a message should be pushed. Deviations are 
+detected by this logic:
+ - DepartureStatus=delayed OR ExpectedDepartureTime differs from AimedDepartureTime for an EstimatedCall.
+ - ArrivalStatus=delayed OR ExpectedArrivalTime differs from AimedArrivalTime for an EstimatedCall. 
+ - An EstimatedCall is marked as cancelled.
+ - There is a trackchange in an EstimatedCall, ie that a calls ArrivalStopAssignment/DepartureStopAssignment 
+   has a different ExpectedQuayRef than its AimedQuayRef. 
+   
+For a subscription with from-to stops, both a from- and a to-stop must be present in the correct order in 
+an EstimatedVehicleJourney with deviations. Also the EstimatedVehicleJourney will have stops not subscribed 
+upon removed from RecordedCalls and EstimatedCalls to make the payload smaller, before it is sent to the 
+subscriptions push address.
+ 
+If only lineRefs and/or codespace are present in a subscription, the entire EstimatedVehicleJourney
 will be pushed.
 
 ## More info
-See [Norsk SIRI Profil](https://rutebanken.atlassian.net/wiki/spaces/PUBLIC/pages/13729888/SIRI+profil+Norge) 
+See [Norsk SIRI Profil](https://enturas.atlassian.net/wiki/spaces/PUBLIC/pages/637370420/SIRI+profil+Norge) 
 (will be published soon) for more details on the pushmessage payload.
  
 Also, see [siri-java-model](https://github.com/entur/siri-java-model) for a java implementation 
