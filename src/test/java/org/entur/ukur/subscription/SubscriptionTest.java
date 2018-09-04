@@ -17,8 +17,9 @@ package org.entur.ukur.subscription;
 
 import org.junit.Test;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import java.time.ZonedDateTime;
+
+import static org.junit.Assert.*;
 
 public class SubscriptionTest {
 
@@ -38,4 +39,33 @@ public class SubscriptionTest {
         assertEquals("ClientID", s.getSiriClientGeneratedId());
     }
 
+    @Test
+    public void verifyRemoveLogic() {
+        Subscription s = new Subscription();
+        assertNull(s.getFirstErrorSeen());
+        assertEquals(0, s.getFailedPushCounter());
+        for (int i = 0; i < 10; i++) {
+            assertFalse(s.shouldRemove());
+        }
+        assertEquals(10, s.getFailedPushCounter());
+        s.setFirstErrorSeen(ZonedDateTime.now().minusMinutes(9).minusSeconds(59));
+        assertFalse(s.shouldRemove()); //should not remove as the first error is seen less than 10 minutes ago...
+
+        assertEquals(11, s.getFailedPushCounter());
+        s.setFirstErrorSeen(ZonedDateTime.now().minusMinutes(10).minusSeconds(1));
+        assertTrue(s.shouldRemove()); //should remove as the first error is seen more than 10 minutes ago and there are more than 3 errors...
+
+        s.resetFailedPushCounter();
+        assertNull(s.getFirstErrorSeen());
+        assertEquals(0, s.getFailedPushCounter());
+
+        assertFalse(s.shouldRemove());
+        s.setFirstErrorSeen(ZonedDateTime.now().minusMinutes(15));
+        for (int i = 1; i < 3; i++) {
+            assertEquals(i, s.getFailedPushCounter());
+            assertFalse(s.shouldRemove());
+        }
+        assertTrue(s.shouldRemove()); //as the first error is seen 15 minutes ago, we only check that the failedPushCounter is greater than 3
+        assertEquals(4, s.getFailedPushCounter());
+    }
 }

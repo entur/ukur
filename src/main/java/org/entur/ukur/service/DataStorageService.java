@@ -292,6 +292,10 @@ public class DataStorageService implements MessageListener<String> {
             Date date = Date.from(s.getInitialTerminationTime().toInstant());
             builder.set("initialTerminationTime", Timestamp.of(date));
         }
+        if (s.getFirstErrorSeen() != null) {
+            Date date = Date.from(s.getFirstErrorSeen().toInstant());
+            builder.set("firstErrorSeen", Timestamp.of(date));
+        }
         appendStringValueList(builder, "fromStopPlaces", s.getFromStopPoints());
         appendStringValueList(builder, "toStopPlaces", s.getToStopPoints());
         appendStringValueList(builder, "lineRefs", s.getLineRefs());
@@ -333,6 +337,10 @@ public class DataStorageService implements MessageListener<String> {
         if (entity.contains("initialTerminationTime")) {
             Timestamp initialTerminationTime = entity.getTimestamp("initialTerminationTime");
             subscription.setInitialTerminationTime(ZonedDateTime.ofInstant(initialTerminationTime.toSqlTimestamp().toInstant(), ZoneId.systemDefault()));
+        }
+        if (entity.contains("firstErrorSeen")) {
+            Timestamp firstErrorSeen = entity.getTimestamp("firstErrorSeen");
+            subscription.setFirstErrorSeen(ZonedDateTime.ofInstant(firstErrorSeen.toSqlTimestamp().toInstant(), ZoneId.systemDefault()));
         }
         return subscription;
     }

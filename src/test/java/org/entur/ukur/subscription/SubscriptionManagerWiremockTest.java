@@ -183,6 +183,11 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         assertThat(dataStorageService.getSubscriptions(), hasItem(subscription));
         waitAndVerifyFailedPushCounter(1, subscription);
 
+        assertNotNull(subscription.getFirstErrorSeen());
+        //modify firstErrorSeen to 10 minutes ago so that we allow for removal of the subscription after 4 failed push attempts
+        subscription.setFirstErrorSeen(subscription.getFirstErrorSeen().minusMinutes(10));
+        dataStorageService.updateSubscription(subscription);
+
         OperatorRefStructure value = new OperatorRefStructure();
         value.setValue("NSB");
         estimatedVehicleJourney.setOperatorRef(value); //must add something so it differs from the previous ones

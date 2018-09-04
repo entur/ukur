@@ -91,7 +91,9 @@ public class DataStorageServiceTest extends DatastoreTest {
         //update the subscription so it no longer has quay 3 - instead 33 that should not be found even though it still contains the previous value
         s.removeFromStopPoint("NSR:Quay:3");
         s.addFromStopPoint("NSR:Quay:33");
-        assertEquals(1, s.increaseFailedPushCounter()); //tests that this counter is updated as well
+        assertFalse(s.shouldRemove());
+        assertEquals(1, s.getFailedPushCounter());
+        assertNotNull(s.getFirstErrorSeen());
         s.setName("Updated");
         s.setPushAddress("http://someotherhost/updated");
         service.updateSubscription(s);
@@ -109,6 +111,8 @@ public class DataStorageServiceTest extends DatastoreTest {
         assertEquals(1, updatedSubscription.getFailedPushCounter());
         assertEquals("Updated", updatedSubscription.getName());
         assertEquals("http://someotherhost/updated", updatedSubscription.getPushAddress());
+        assertEquals(1, updatedSubscription.getFailedPushCounter());
+        assertNotNull(updatedSubscription.getFirstErrorSeen());
 
         //still only 2 subscriptions
         assertEquals(2, service.getNumberOfSubscriptions());

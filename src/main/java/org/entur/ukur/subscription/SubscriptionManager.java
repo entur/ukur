@@ -545,9 +545,8 @@ public class SubscriptionManager {
                     }
                 } else {
                     logger.info("Unexpected response code on push '{}' - increase failed push counter for subscription wih id {}", responseStatus, subscription.getId());
-                    long failedPushCounter = subscription.increaseFailedPushCounter();
-                    if (failedPushCounter > 3) {
-                        logger.info("Removes subscription with id {} after {} failed push attempts", subscription.getId(), failedPushCounter);
+                    if (subscription.shouldRemove()) {
+                        logger.info("Removes subscription with id {} after {} failed push attempts where first error is seen {}", subscription.getId(), subscription.getFailedPushCounter(), subscription.getFirstErrorSeen() );
                         remove(subscription.getId());
                     } else {
                         dataStorageService.updateSubscription(subscription);

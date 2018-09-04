@@ -17,6 +17,14 @@ The class org.entur.ukur.camelroute.UkurCamelRouteBuilder is responsible for set
 by spring using standard annotations. The class that starts everything is org.entur.ukur.App. The handling of SIRI messages 
 consumes lots of memory, and the pods have been tested to require about 3.5 gb of heap (-Xmx3500m).
 
+### Distribution of load bewteen nodes
+
+In Google Cloud (GCP), Ukur is normally deployed with more than one pod (node). There is a round robin loadbalancer (the service) 
+that alternates incoming http calls to the pods. In addition we split large SIRI messages from Anshar containing many 
+EstimatedVehicleJourneys or PtSituationElements into smaller messages with only one EstimatedVehicleJourney/PtSituationElement
+that is put on an ActiveMQ queue. Each pod has several consumers on this queue to distribute load both between pods 
+and internally between threads to process messages with as little delay as possible. 
+
 
 ## Deployment
 

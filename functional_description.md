@@ -1,7 +1,6 @@
 # Ukur - Functional documentation
-Ukur detects and enable subscriptions for deviations in traffic based on real time information from Anshar.
 
-![Dataflow and concept](ukur-concept.png)
+This is a functional description of how Ukur works.
 
 ## Subscriptions
 
@@ -216,9 +215,10 @@ SubscriptionTerminatedNotification to the pushaddress.
 
 ### Common 
 
-When data is posted, Ukur expects a 200 response. If Ukur posts 4 times in a row for a subscription and
-receives any other response, the subscription is removed. The push endpoint can also respond 205 
-(RESET-CONTENT) and Ukur will remove the subscription instantly.
+When data is posted, Ukur expects a 200 response. If Ukur posts at least 4 times in a row for a subscription 
+and receives any other response (or none at all), the subscription is removed if the first error happened more 
+than 10 minutes ago. Any successful push after a failed one will reset these counters. 
+The push endpoint can also respond 205 (RESET-CONTENT) and Ukur will remove the subscription instantly.
 
 ## When and what data is sent
 Ukur receives data from Anshar as soon as it arrives (or polls Anshar for ET and SX data each minute if 

@@ -39,6 +39,8 @@ public class Subscription implements Serializable {
     private Boolean useSiriSubscriptionModel;
     @JsonIgnore
     private long failedPushCounter = 0;
+    @JsonIgnore
+    private ZonedDateTime firstErrorSeen = null;
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
     private ZonedDateTime initialTerminationTime;
     private Duration heartbeatInterval;
@@ -187,15 +189,27 @@ public class Subscription implements Serializable {
 
     void resetFailedPushCounter() {
         failedPushCounter = 0;
+        firstErrorSeen = null;
     }
 
-    public long increaseFailedPushCounter() {
+    public boolean shouldRemove() {
+        if (failedPushCounter == 0 || firstErrorSeen == null) {
+            firstErrorSeen = ZonedDateTime.now();
+        }
         failedPushCounter++;
-        return failedPushCounter;
+        return failedPushCounter > 3 && ZonedDateTime.now().minusMinutes(10).isAfter(firstErrorSeen);
     }
 
     public long getFailedPushCounter() {
         return failedPushCounter;
+    }
+
+    public ZonedDateTime getFirstErrorSeen() {
+        return firstErrorSeen;
+    }
+
+    public void setFirstErrorSeen(ZonedDateTime firstErrorSeen) {
+        this.firstErrorSeen = firstErrorSeen;
     }
 
     void normalizeAndRemoveIgnoredStops() {
