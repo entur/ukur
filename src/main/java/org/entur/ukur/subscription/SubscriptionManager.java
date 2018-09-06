@@ -132,7 +132,7 @@ public class SubscriptionManager {
         return dataStorageService.getSubscriptionsForCodespaceAndNoStops(codespace, type);
     }
 
-    public void notifySubscriptionsOnStops(HashSet<Subscription> subscriptions, EstimatedVehicleJourney estimatedVehicleJourney) {
+    public void notifySubscriptionsOnStops(HashSet<Subscription> subscriptions, EstimatedVehicleJourney estimatedVehicleJourney, ZonedDateTime timestamp) {
         for (Subscription subscription : subscriptions) {
             Set<String> subscribedStops = getAllStops(subscription);
             EstimatedVehicleJourney clone = clone(estimatedVehicleJourney);
@@ -159,17 +159,17 @@ public class SubscriptionManager {
                 }
             }
             clone.setIsCompleteStopSequence(false); //since we have tampered with the calls!
-            pushMessage(subscription, clone);
+            pushMessage(subscription, clone, timestamp);
         }
     }
 
-    public void notifySubscriptionsWithFullMessage(HashSet<Subscription> subscriptions, EstimatedVehicleJourney estimatedVehicleJourney) {
+    public void notifySubscriptionsWithFullMessage(HashSet<Subscription> subscriptions, EstimatedVehicleJourney estimatedVehicleJourney, ZonedDateTime timestamp) {
         for (Subscription subscription : subscriptions) {
-            pushMessage(subscription, estimatedVehicleJourney);
+            pushMessage(subscription, estimatedVehicleJourney, timestamp);
         }
     }
 
-    public void notifySubscriptions(HashSet<Subscription> subscriptions, PtSituationElement ptSituationElement) {
+    public void notifySubscriptions(HashSet<Subscription> subscriptions, PtSituationElement ptSituationElement, ZonedDateTime timestamp) {
         for (Subscription subscription : subscriptions) {
             Set<String> subscribedStops = getAllStops(subscription);
             PtSituationElement clone = clone(ptSituationElement);
@@ -196,7 +196,7 @@ public class SubscriptionManager {
             }
 
             if (withAffects(clone)) {
-                pushMessage(subscription, clone);
+                pushMessage(subscription, clone, timestamp);
             } else {
                 BigInteger version = SiriObjectHelper.getBigIntegerValue(clone.getVersion());
                 String situationNumber = getStringValue(clone.getSituationNumber());
@@ -424,7 +424,7 @@ public class SubscriptionManager {
         return SerializationUtils.clone(toClone);
     }
 
-    private void pushMessage(Subscription subscription, Object siriElement) {
+    private void pushMessage(Subscription subscription, Object siriElement, ZonedDateTime timestamp) {
 
         String alreadySentKey = calculateUniqueKey(subscription, siriElement);
         Long ifPresent = alreadySentCache.get(alreadySentKey);
@@ -438,7 +438,7 @@ public class SubscriptionManager {
 
         alreadySentCache.put(alreadySentKey, System.currentTimeMillis());
         logger.debug("PUSH ({}) {} to subscription with id={}, name={}, pushAddress={}", hostname, siriElement.getClass().getSimpleName(), subscription.getId(), subscription.getName(), subscription.getPushAddress());
-        pushToHttp(subscription, siriElement);
+        pushToHttp(subscription, siriElement, timestamp);
     }
 
     private String calculateUniqueKey(Subscription subscription, Object siriElement) {
@@ -497,7 +497,7 @@ public class SubscriptionManager {
         });
     }
 
-    private void pushToHttp(Subscription subscription, Object siriElement) {
+    private void pushToHttp(Subscription subscription, Object siriElement, ZonedDateTime timestamp) {
         pushExecutor.execute(() -> {
             try {
                 String pushAddress = subscription.getPushAddress();
@@ -506,7 +506,7 @@ public class SubscriptionManager {
                     Siri siri = new Siri();
                     siri.setVersion(SIRI_VERSION);
                     siri.setServiceDelivery(new ServiceDelivery());
-                    siri.getServiceDelivery().setResponseTimestamp(ZonedDateTime.now()); //TODO: Should get this from the original message - now (if it is used) is probably wrong...
+                    siri.getServiceDelivery().setResponseTimestamp(timestamp);
                     RequestorRef producer = new RequestorRef();
                     if (siriElement instanceof EstimatedVehicleJourney) {
                         producer.setValue(((EstimatedVehicleJourney) siriElement).getDataSource());
@@ -526,7 +526,6 @@ public class SubscriptionManager {
                     siri.getServiceDelivery().setProducerRef(producer);
                     pushMessage = siri;
                 } else {
-                    //TODO: Remove this else-block once transition to the siri subscription model is completed! And subscription.useSiriSubscriptionModel() as well
                     pushMessage = siriElement;
                     if (siriElement instanceof EstimatedVehicleJourney) {
                         pushAddress += "/et";

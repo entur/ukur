@@ -86,7 +86,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         assertEquals(0, subscription.getFailedPushCounter());
         HashSet<Subscription> subscriptions = new HashSet<>();
         subscriptions.add(subscription);
-        subscriptionManager.notifySubscriptionsOnStops(subscriptions, new EstimatedVehicleJourney());
+        subscriptionManager.notifySubscriptionsOnStops(subscriptions, new EstimatedVehicleJourney(), ZonedDateTime.now());
         waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
         assertEquals(0, subscription.getFailedPushCounter());
     }
@@ -112,7 +112,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         subscriptions.add(subscription);
         EstimatedVehicleJourney et = new EstimatedVehicleJourney();
         et.setDataSource("TEST");
-        subscriptionManager.notifySubscriptionsOnStops(subscriptions, et);
+        subscriptionManager.notifySubscriptionsOnStops(subscriptions, et, ZonedDateTime.now());
         waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
         List<LoggedRequest> loggedRequests = findAll(postRequestedFor(urlEqualTo(url)));
         assertEquals(1, loggedRequests.size());
@@ -153,7 +153,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         HashSet<Subscription> subscriptions = new HashSet<>();
         subscriptions.add(subscription);
         assertThat(dataStorageService.getSubscriptions(), hasItem(subscription));
-        subscriptionManager.notifySubscriptionsOnStops(subscriptions, new EstimatedVehicleJourney());
+        subscriptionManager.notifySubscriptionsOnStops(subscriptions, new EstimatedVehicleJourney(), ZonedDateTime.now());
         waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
         waitUntilSubscriptionIsRemoved(subscription);
         assertFalse(new HashSet<>(subscriptionManager.listAll()).contains(subscription));
@@ -178,7 +178,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         subscriptions.add(subscription);
 
         EstimatedVehicleJourney estimatedVehicleJourney = new EstimatedVehicleJourney();
-        subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney);
+        subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney, ZonedDateTime.now());
         waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
         assertThat(dataStorageService.getSubscriptions(), hasItem(subscription));
         waitAndVerifyFailedPushCounter(1, subscription);
@@ -191,19 +191,19 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         OperatorRefStructure value = new OperatorRefStructure();
         value.setValue("NSB");
         estimatedVehicleJourney.setOperatorRef(value); //must add something so it differs from the previous ones
-        subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney);
+        subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney, ZonedDateTime.now());
         waitAndVerifyAtLeast(2, postRequestedFor(urlEqualTo(url)));
         assertThat(dataStorageService.getSubscriptions(), hasItem(subscription));
         waitAndVerifyFailedPushCounter(2, subscription);
 
         estimatedVehicleJourney.setCancellation(false); //must add something so it differs from the previous ones
-        subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney);
+        subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney, ZonedDateTime.now());
         waitAndVerifyAtLeast(3, postRequestedFor(urlEqualTo(url)));
         assertThat(dataStorageService.getSubscriptions(), hasItem(subscription));
         waitAndVerifyFailedPushCounter(3, subscription);
 
         estimatedVehicleJourney.setDataSource("blabla"); //must add something so it differs from the previous ones
-        subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney);
+        subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney, ZonedDateTime.now());
         waitAndVerifyAtLeast(4, postRequestedFor(urlEqualTo(url)));
         waitAndVerifyFailedPushCounter(4, subscription);
         waitUntilSubscriptionIsRemoved(subscription);
@@ -225,7 +225,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         subscriptions.add(subscription);
         EstimatedVehicleJourney estimatedVehicleJourney = createEstimatedVehicleJourney();
         //first notify
-        subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney);
+        subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney, ZonedDateTime.now());
         waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
         assertEquals(0, subscription.getFailedPushCounter());
         assertEquals(1, alreadySentCache.keySet().size());
@@ -235,7 +235,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         //to demonstrate that equals and hashcode does not work for cxf generated objects...
         assertNotEquals(estimatedVehicleJourney, estimatedVehicleJourney1);
         assertNotEquals(estimatedVehicleJourney.hashCode(), estimatedVehicleJourney1.hashCode());
-        subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney1);
+        subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney1, ZonedDateTime.now());
         waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
         assertEquals(0, subscription.getFailedPushCounter());
         assertEquals(1, alreadySentCache.keySet().size());
@@ -244,7 +244,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         EstimatedCall notInterestingCall = estimatedVehicleJourney.getEstimatedCalls().getEstimatedCalls().get(1);
         assertEquals("Stop2", notInterestingCall.getStopPointNames().get(0).getValue());
         notInterestingCall.setExpectedDepartureTime(notInterestingCall.getExpectedDepartureTime().plusMinutes(1));
-        subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney);
+        subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney, ZonedDateTime.now());
         waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
         assertEquals(0, subscription.getFailedPushCounter());
         assertEquals(1, alreadySentCache.keySet().size());
@@ -253,7 +253,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         EstimatedCall interestingCall = estimatedVehicleJourney.getEstimatedCalls().getEstimatedCalls().get(0);
         assertEquals("Stop1", interestingCall.getStopPointNames().get(0).getValue());
         interestingCall.setExpectedDepartureTime(interestingCall.getExpectedDepartureTime().plusMinutes(1));
-        subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney);
+        subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney, ZonedDateTime.now());
         waitAndVerifyAtLeast(2, postRequestedFor(urlEqualTo(url)));
         assertEquals(0, subscription.getFailedPushCounter());
         assertEquals(2, alreadySentCache.keySet().size());
@@ -275,7 +275,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         subscriptions.add(subscription);
         PtSituationElement ptSituationElement1 = createPtSituationElement();
         //first notify
-        subscriptionManager.notifySubscriptions(subscriptions, ptSituationElement1);
+        subscriptionManager.notifySubscriptions(subscriptions, ptSituationElement1, ZonedDateTime.now());
         waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
         assertEquals(0, subscription.getFailedPushCounter());
         assertEquals(1, alreadySentCache.keySet().size());
@@ -286,7 +286,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         assertNotEquals(ptSituationElement1.hashCode(), ptSituationElement2.hashCode());
         assertEquals(ptSituationElement1.getSituationNumber().getValue(), ptSituationElement2.getSituationNumber().getValue());
         assertEquals(ptSituationElement1.getVersion().getValue(), ptSituationElement2.getVersion().getValue());
-        subscriptionManager.notifySubscriptions(subscriptions, ptSituationElement2);
+        subscriptionManager.notifySubscriptions(subscriptions, ptSituationElement2, ZonedDateTime.now());
         waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
         assertEquals(0, subscription.getFailedPushCounter());
         assertEquals(1, alreadySentCache.keySet().size());
@@ -300,7 +300,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         assertNotEquals(ptSituationElement1.hashCode(), ptSituationElement3.hashCode());
         assertEquals(ptSituationElement1.getSituationNumber().getValue(), ptSituationElement3.getSituationNumber().getValue());
         assertNotEquals(ptSituationElement1.getVersion().getValue(), ptSituationElement3.getVersion().getValue());
-        subscriptionManager.notifySubscriptions(subscriptions, ptSituationElement3);
+        subscriptionManager.notifySubscriptions(subscriptions, ptSituationElement3, ZonedDateTime.now());
         waitAndVerifyAtLeast(2, postRequestedFor(urlEqualTo(url)));
         assertEquals(0, subscription.getFailedPushCounter());
         assertEquals(2, alreadySentCache.keySet().size());
@@ -314,7 +314,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         assertEquals(ptSituationElement1.getSituationNumber().getValue(), ptSituationElement4.getSituationNumber().getValue());
         assertEquals(ptSituationElement1.getVersion().getValue(), ptSituationElement4.getVersion().getValue());
         assertNotEquals(ptSituationElement1.getValidityPeriods().get(0).getEndTime(), ptSituationElement4.getValidityPeriods().get(0).getEndTime());
-        subscriptionManager.notifySubscriptions(subscriptions, ptSituationElement4);
+        subscriptionManager.notifySubscriptions(subscriptions, ptSituationElement4, ZonedDateTime.now());
         waitAndVerifyAtLeast(2, postRequestedFor(urlEqualTo(url)));
         assertEquals(0, subscription.getFailedPushCounter());
         Thread.sleep(100); //allow some time for a last call to be made...
@@ -333,7 +333,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         Subscription subscriptionWithStop = createSubscription(urlWithStop, "NSR:StopPlace:1", "NSR:StopPlace:3", "NSB:Line:Line1");
         HashSet<Subscription> subscriptions = new HashSet<>();
         subscriptions.add(subscriptionWithStop);
-        subscriptionManager.notifySubscriptions(subscriptions, createPtSituationElement());
+        subscriptionManager.notifySubscriptions(subscriptions, createPtSituationElement(), ZonedDateTime.now());
 
         waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(urlWithStop)));
         PtSituationElement msgForSubsciptionWithStops = getPushedPtSituationElement(urlWithStop);
@@ -358,7 +358,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         Subscription subscriptionWithStop = createSubscription(urlWithStop, null, null, null, "NSB");
         HashSet<Subscription> subscriptions = new HashSet<>();
         subscriptions.add(subscriptionWithStop);
-        subscriptionManager.notifySubscriptions(subscriptions, createPtSituationElement());
+        subscriptionManager.notifySubscriptions(subscriptions, createPtSituationElement(), ZonedDateTime.now());
 
         waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(urlWithStop)));
         PtSituationElement msgForSubsciptionWithStops = getPushedPtSituationElement(urlWithStop);
@@ -381,7 +381,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
 
         HashSet<Subscription> subscriptions = new HashSet<>();
         subscriptions.add(subscriptionWithoutStop);
-        subscriptionManager.notifySubscriptions(subscriptions, createPtSituationElement());
+        subscriptionManager.notifySubscriptions(subscriptions, createPtSituationElement(), ZonedDateTime.now());
 
 
         waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(urlWithoutStop)));

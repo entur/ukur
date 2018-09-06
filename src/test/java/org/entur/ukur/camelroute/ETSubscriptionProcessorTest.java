@@ -140,9 +140,9 @@ public class ETSubscriptionProcessorTest {
 
         ArgumentCaptor<HashSet> subscriptionsOnStopsCaptor= ArgumentCaptor.forClass(HashSet.class);
         ArgumentCaptor<HashSet> subscriptionsOnLineOrVehicleJourneyCaptor= ArgumentCaptor.forClass(HashSet.class);
-        assertTrue(processor.processEstimatedVehicleJourney(journey));
-        verify(subscriptionManagerMock).notifySubscriptionsOnStops(subscriptionsOnStopsCaptor.capture(), eq(journey));
-        verify(subscriptionManagerMock).notifySubscriptionsWithFullMessage(subscriptionsOnLineOrVehicleJourneyCaptor.capture(), eq(journey));
+        assertTrue(processor.processEstimatedVehicleJourney(journey, ZonedDateTime.now()));
+        verify(subscriptionManagerMock).notifySubscriptionsOnStops(subscriptionsOnStopsCaptor.capture(), eq(journey), any());
+        verify(subscriptionManagerMock).notifySubscriptionsWithFullMessage(subscriptionsOnLineOrVehicleJourneyCaptor.capture(), eq(journey), any());
         HashSet<Subscription> notifiedSubscriptionsOnStops = subscriptionsOnStopsCaptor.getValue();
         assertEquals(4, notifiedSubscriptionsOnStops.size());
         assertTrue(notifiedSubscriptionsOnStops.contains(s_R1_E1));
@@ -169,7 +169,7 @@ public class ETSubscriptionProcessorTest {
         QuayAndStopPlaceMappingService mappingMock = mock(QuayAndStopPlaceMappingService.class);
         SubscriptionManager subscriptionManager = new SubscriptionManager(dataStorageMock, siriMarshaller, metricsService, new HashMap<>(), new HashMap<>(), mappingMock) {
             @Override
-            public void notifySubscriptionsOnStops(HashSet<Subscription> subscriptions, EstimatedVehicleJourney estimatedVehicleJourney) {
+            public void notifySubscriptionsOnStops(HashSet<Subscription> subscriptions, EstimatedVehicleJourney estimatedVehicleJourney, ZonedDateTime timestamp) {
                 subscriptionsNotified.addAll(subscriptions);
             }
         };
@@ -201,7 +201,7 @@ public class ETSubscriptionProcessorTest {
         journey.setOperatorRef(operatorRef);
         journey.setDatedVehicleJourneyRef(new DatedVehicleJourneyRef());
 
-        boolean processed = processor.processEstimatedVehicleJourney(journey);
+        boolean processed = processor.processEstimatedVehicleJourney(journey, ZonedDateTime.now());
         assertTrue(processed);
         assertEquals(2, subscriptionsNotified.size());
         assertThat(subscriptionsNotified, hasItem(s1));
@@ -272,9 +272,9 @@ public class ETSubscriptionProcessorTest {
 
         ArgumentCaptor<HashSet> subscriptionsOnStopsCaptor= ArgumentCaptor.forClass(HashSet.class);
         ArgumentCaptor<HashSet> subscriptionsOnLineOrVehicleJourneyCaptor= ArgumentCaptor.forClass(HashSet.class);
-        assertTrue(processor.processEstimatedVehicleJourney(journey));
-        verify(subscriptionManagerMock).notifySubscriptionsOnStops(subscriptionsOnStopsCaptor.capture(), eq(journey));
-        verify(subscriptionManagerMock).notifySubscriptionsWithFullMessage(subscriptionsOnLineOrVehicleJourneyCaptor.capture(), eq(journey));
+        assertTrue(processor.processEstimatedVehicleJourney(journey, ZonedDateTime.now()));
+        verify(subscriptionManagerMock).notifySubscriptionsOnStops(subscriptionsOnStopsCaptor.capture(), eq(journey), any());
+        verify(subscriptionManagerMock).notifySubscriptionsWithFullMessage(subscriptionsOnLineOrVehicleJourneyCaptor.capture(), eq(journey), any());
         HashSet<Subscription> notifiedSubscriptionsOnStops = subscriptionsOnStopsCaptor.getValue();
         assertEquals(4, notifiedSubscriptionsOnStops.size());
         assertTrue(notifiedSubscriptionsOnStops.contains(allMessages_R1_E1));
@@ -342,9 +342,9 @@ public class ETSubscriptionProcessorTest {
 
         ArgumentCaptor<HashSet> subscriptionsOnStopsCaptor= ArgumentCaptor.forClass(HashSet.class);
         ArgumentCaptor<HashSet> subscriptionsOnLineOrVehicleJourneyCaptor= ArgumentCaptor.forClass(HashSet.class);
-        assertTrue(processor.processEstimatedVehicleJourney(journey));
-        verify(subscriptionManagerMock).notifySubscriptionsOnStops(subscriptionsOnStopsCaptor.capture(), eq(journey));
-        verify(subscriptionManagerMock).notifySubscriptionsWithFullMessage(subscriptionsOnLineOrVehicleJourneyCaptor.capture(), eq(journey));
+        assertTrue(processor.processEstimatedVehicleJourney(journey, ZonedDateTime.now()));
+        verify(subscriptionManagerMock).notifySubscriptionsOnStops(subscriptionsOnStopsCaptor.capture(), eq(journey), any());
+        verify(subscriptionManagerMock).notifySubscriptionsWithFullMessage(subscriptionsOnLineOrVehicleJourneyCaptor.capture(), eq(journey), any());
         HashSet<Subscription> notifiedSubscriptionsOnStops = subscriptionsOnStopsCaptor.getValue();
         assertEquals(4, notifiedSubscriptionsOnStops.size());
         assertTrue(notifiedSubscriptionsOnStops.contains(s_R1_E1));

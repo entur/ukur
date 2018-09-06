@@ -78,8 +78,12 @@ public class SXSubscriptionProcessor implements Processor {
             Timer timer = metricsService.getTimer(MetricsService.TIMER_SX_UNMARSHALL);
             Timer.Context time = timer.time();
             PtSituationElement ptSituationElement;
+            ZonedDateTime timestamp;
             try {
-                ptSituationElement = siriMarshaller.unmarshall(xml, PtSituationElement.class);
+                Siri siri = siriMarshaller.unmarshall(xml, Siri.class);
+                ServiceDelivery serviceDelivery = siri.getServiceDelivery();
+                timestamp = serviceDelivery.getResponseTimestamp();
+                ptSituationElement = serviceDelivery.getSituationExchangeDeliveries().get(0).getSituations().getPtSituationElements().get(0);
             } finally {
                 time.stop();
             }
@@ -87,8 +91,7 @@ public class SXSubscriptionProcessor implements Processor {
                 throw new IllegalArgumentException("No PtSituationElement element...");
             }
             metricsService.registerReceivedMessage(PtSituationElement.class);
-
-            if (processPtSituationElement(ptSituationElement)) {
+            if (processPtSituationElement(ptSituationElement, timestamp)) {
                 if (storeMessagesToFile) {
                     fileStorageService.writeToFile(ptSituationElement);
                 }
@@ -99,7 +102,7 @@ public class SXSubscriptionProcessor implements Processor {
         }
     }
 
-    private boolean processPtSituationElement(PtSituationElement ptSituationElement) {
+    private boolean processPtSituationElement(PtSituationElement ptSituationElement, ZonedDateTime timestamp) {
         AffectsScopeStructure affects = ptSituationElement.getAffects();
         if (affects == null) {
             logger.debug("Got PtSituationElement without any effects - nothing to notify");
@@ -158,7 +161,7 @@ public class SXSubscriptionProcessor implements Processor {
             }
             logger.debug("There are {} subscriptions to notify", subscriptionsToNotify.size());
             if (!subscriptionsToNotify.isEmpty()) {
-                subscriptionManager.notifySubscriptions(subscriptionsToNotify, ptSituationElement);
+                subscriptionManager.notifySubscriptions(subscriptionsToNotify, ptSituationElement, timestamp);
             }
         } finally {
             long nanos = time.stop();

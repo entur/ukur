@@ -84,6 +84,7 @@ public class PollingRouteBuilderTest extends AbstractJUnit4SpringContextTests {
         //things are asynchronous: wait until expected conditions are met (or time out)
         long start = System.currentTimeMillis();
         while (metricsService.getTimer(timer).getCount() < expectedCount) {
+//            logger.debug("got "+metricsService.getTimer(timer).getCount()+" - expects "+ expectedCount);
             if ((System.currentTimeMillis() - start) > 5000) {
                 fail("This takes to long...");
             }

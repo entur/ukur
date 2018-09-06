@@ -306,7 +306,8 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                         logger.debug("Received XML with {} PtSituationElements", Math.round(total));
                     }
                 })
-                .split(siriNamespace.xpath("//s:PtSituationElement"))
+                .to("xslt:xsl/prepareSiriSplit.xsl")
+                .split(siriNamespace.xpath("//s:Siri"))
                 .bean(metricsService, "registerSentMessage('PtSituationElement')")
                 .to("activemq:queue:" + UkurConfiguration.SX_QUEUE);
 
@@ -322,7 +323,8 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                         logger.debug("Received XML with {} EstimatedVehicleJourneys", Math.round(total));
                     }
                 })
-                .split(siriNamespace.xpath("//s:EstimatedVehicleJourney[not(ns2:ServiceFeatureRef/text()='freightTrain')]"))
+                .to("xslt:xsl/prepareSiriSplit.xsl")
+                .split(siriNamespace.xpath("//s:Siri"))
                 .bean(metricsService, "registerSentMessage('EstimatedVehicleJourney')")
                 .to("activemq:queue:" + UkurConfiguration.ET_QUEUE);
     }

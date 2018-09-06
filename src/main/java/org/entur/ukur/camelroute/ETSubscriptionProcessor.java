@@ -84,8 +84,12 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
             Timer timer = metricsService.getTimer(MetricsService.TIMER_ET_UNMARSHALL);
             Timer.Context time = timer.time();
             EstimatedVehicleJourney estimatedVehicleJourney;
+            ZonedDateTime timestamp;
             try {
-                estimatedVehicleJourney = siriMarshaller.unmarshall(xml, EstimatedVehicleJourney.class);
+                Siri siri = siriMarshaller.unmarshall(xml, Siri.class);
+                ServiceDelivery serviceDelivery = siri.getServiceDelivery();
+                timestamp = serviceDelivery.getResponseTimestamp();
+                estimatedVehicleJourney = serviceDelivery.getEstimatedTimetableDeliveries().get(0).getEstimatedJourneyVersionFrames().get(0).getEstimatedVehicleJourneies().get(0);
             } finally {
                 time.stop();
             }
@@ -94,7 +98,7 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
             }
             metricsService.registerReceivedMessage(EstimatedVehicleJourney.class);
 
-            if (processEstimatedVehicleJourney(estimatedVehicleJourney)) {
+            if (processEstimatedVehicleJourney(estimatedVehicleJourney, timestamp)) {
                 if (storeMessagesToFile) {
                     fileStorageService.writeToFile(estimatedVehicleJourney);
                 }
@@ -105,7 +109,7 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
         }
     }
 
-    boolean processEstimatedVehicleJourney(EstimatedVehicleJourney estimatedVehicleJourney) {
+    boolean processEstimatedVehicleJourney(EstimatedVehicleJourney estimatedVehicleJourney, ZonedDateTime timestamp) {
         if (shouldIgnoreJourney(estimatedVehicleJourney)) {
             logger.debug("Ignores EstimatedVehicleJourney with LineRef {}", getStringValue(estimatedVehicleJourney.getLineRef()));
             metricsService.getMeter(MetricsService.METER_ET_IGNORED).mark();
@@ -134,7 +138,7 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
                 logger.debug(" - For stopPlace {} there are {} affected subscriptions ", stop.getStopPointRef(), subscriptions.size());
                 subscriptionsToNoNotify.addAll(subscriptions); //accumulates subscriptions as these are normally found twice (from and to)
             }
-            subscriptionManager.notifySubscriptionsOnStops(subscriptionsToNoNotify, estimatedVehicleJourney);
+            subscriptionManager.notifySubscriptionsOnStops(subscriptionsToNoNotify, estimatedVehicleJourney, timestamp);
             HashSet<Subscription> subscriptionsOnLineRefOrCodespace = findSubscriptionsOnLineRefOrCodespace(lineRef, codespace);
             if (!subscriptionsOnLineRefOrCodespace.isEmpty()) {
                 if (deviations.isEmpty()) {
@@ -142,7 +146,7 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
                     subscriptionsOnLineRefOrCodespace.removeIf(subscription -> !subscription.isPushAllData());
                 }
                 logger.debug(" - There are {} affected subscriptions on lineref={} or codespace={}", subscriptionsOnLineRefOrCodespace.size(), lineRef, codespace);
-                subscriptionManager.notifySubscriptionsWithFullMessage(subscriptionsOnLineRefOrCodespace, estimatedVehicleJourney);
+                subscriptionManager.notifySubscriptionsWithFullMessage(subscriptionsOnLineRefOrCodespace, estimatedVehicleJourney, timestamp);
             }
         } finally {
             long nanos = time.stop();
@@ -345,7 +349,6 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
         return false;
     }
 
-    //TODO: case of stop ids given are relevant... That's not nessecary!
     private ZonedDateTime findOne(HashMap<String, StopData> stops, Set<String> fromStopPoints, int direction) {
         for (String fromStopPoint : fromStopPoints) {
             StopData stopData = stops.get(fromStopPoint);
