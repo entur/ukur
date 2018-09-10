@@ -21,6 +21,7 @@ import com.codahale.metrics.graphite.GraphiteReporter;
 import com.google.common.base.Strings;
 import com.google.common.collect.Sets;
 import org.apache.camel.component.metrics.MetricsComponent;
+import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -156,7 +157,7 @@ public class MetricsService {
 
     @SuppressWarnings("unused") //Used directly from Camel route
     public void registerMessageDelay(String name, String timestamp) {
-        if (timestamp != null) {
+        if (StringUtils.isNotBlank(timestamp)) {
             ZonedDateTime zonedDateTime = ZonedDateTime.parse(timestamp, DateTimeFormatter.ISO_OFFSET_DATE_TIME);
             registerMessageDelay(name, zonedDateTime);
         }
