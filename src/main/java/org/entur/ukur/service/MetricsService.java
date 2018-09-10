@@ -33,6 +33,9 @@ import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.io.IOException;
 import java.net.InetSocketAddress;
+import java.time.ZonedDateTime;
+import java.time.format.DateTimeFormatter;
+import java.time.temporal.ChronoUnit;
 import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
 
@@ -59,6 +62,8 @@ public class MetricsService {
     public static final String METER_ET_IGNORED            = "message.et-ignored";
     public static final String METER_ET_WITHOUT_DEVIATIONS = "message.et-without-deviations";
     public static final String METER_ET_WITH_DEVIATIONS    = "message.et-with-deviations";
+    public static final String HISTOGRAM_RECEIVED_DELAY    = "histogram.received_delay";
+    public static final String HISTOGRAM_PROCESSED_DELAY   = "histogram.processed_delay";
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final MetricRegistry metrics = new MetricRegistry();
     private final boolean graphiteEnabled;
@@ -97,7 +102,7 @@ public class MetricsService {
                     .convertDurationsTo(TimeUnit.MILLISECONDS)
                     .filter(MetricFilter.ALL)
                     //each of the metric attributes below results in a 3.1mb database per metric in graphite - disables the one we don't need:
-                    .disabledMetricAttributes(Sets.newHashSet(MAX, MEAN, MIN, STDDEV, P50, P75, P95, P98, P99, P999, M1_RATE, M5_RATE, M15_RATE))
+                    .disabledMetricAttributes(Sets.newHashSet(MAX, MEAN, MIN, STDDEV, P50, P75, P98, P99, P999, M1_RATE, M5_RATE, M15_RATE))
                     .build(graphite);
         }
     }
@@ -141,13 +146,33 @@ public class MetricsService {
         metrics.meter(counterName).mark();
     }
 
+    public void registerMessageDelay(String name, ZonedDateTime timestamp) {
+        if (timestamp != null) {
+            final Histogram delays = metrics.histogram(name, () -> new Histogram(getReservoir()));
+            long delay = ChronoUnit.MILLIS.between(timestamp, ZonedDateTime.now());
+            delays.update(delay);
+        }
+    }
+
+    @SuppressWarnings("unused") //Used directly from Camel route
+    public void registerMessageDelay(String name, String timestamp) {
+        if (timestamp != null) {
+            ZonedDateTime zonedDateTime = ZonedDateTime.parse(timestamp, DateTimeFormatter.ISO_OFFSET_DATE_TIME);
+            registerMessageDelay(name, zonedDateTime);
+        }
+    }
+
+    private SlidingTimeWindowArrayReservoir getReservoir() {
+        return new SlidingTimeWindowArrayReservoir(1, TimeUnit.MINUTES);
+    }
+
     public void registerReceivedMessage(Class messageClass) {
         String counterName = "message.received." + messageClass.getSimpleName();
         metrics.meter(counterName).mark();
     }
 
     public Timer getTimer(String name) {
-        return metrics.timer(name, () -> new Timer(new SlidingTimeWindowArrayReservoir(1, TimeUnit.MINUTES)));
+        return metrics.timer(name, () -> new Timer(getReservoir()));
     }
 
     public void registerGauge(String name, Gauge<?> gauge) {
@@ -164,6 +189,10 @@ public class MetricsService {
 
     public SortedMap<String, Meter> getMeters() {
         return metrics.getMeters();
+    }
+
+    public SortedMap<String, Histogram> getHistograms() {
+        return metrics.getHistograms();
     }
 
     public Meter getMeter(String name) {

@@ -23,6 +23,8 @@ import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionTypeEnum;
 import org.entur.ukur.testsupport.DatastoreTest;
+import org.junit.After;
+import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -39,10 +41,23 @@ import static org.junit.Assert.*;
 @SuppressWarnings("ALL")
 public class DataStorageServiceTest extends DatastoreTest {
     private static final Logger logger = LoggerFactory.getLogger(DataStorageServiceTest.class);
+    private HazelcastInstance hazelcastInstance;
+
+
+    @Override
+    @Before
+    public void setUp() throws Exception {
+        super.setUp();
+        hazelcastInstance = new TestHazelcastInstanceFactory().newHazelcastInstance();
+    }
+
+    @After
+    public void tearDown() throws Exception {
+        hazelcastInstance.shutdown();
+    }
 
     @Test
     public void testSubscriptionHandling() {
-        HazelcastInstance hazelcastInstance = new TestHazelcastInstanceFactory().newHazelcastInstance();
         ITopic<String> subscriptionTopic = hazelcastInstance.getTopic("subscriptions");
         DataStorageService service = new DataStorageService(datastore, null, subscriptionTopic);
         Subscription subscription = createSubscription("Test#1", ET, "ABC", "NSR:Quay:1", "NSR:Quay:2", "NSB:Line:Test1");
@@ -166,7 +181,6 @@ public class DataStorageServiceTest extends DatastoreTest {
 
     @Test
     public void testLineOnlySubscription() {
-        HazelcastInstance hazelcastInstance = new TestHazelcastInstanceFactory().newHazelcastInstance();
         IMap<String, LiveJourney> liveJourneyIMap = hazelcastInstance.getMap("journeys");
         ITopic<String> subscriptionTopic = hazelcastInstance.getTopic("subscriptions");
         DataStorageService service = new DataStorageService(datastore, liveJourneyIMap, subscriptionTopic);
@@ -199,7 +213,6 @@ public class DataStorageServiceTest extends DatastoreTest {
     @Test
     public void testSubscriptionSyncing() throws InterruptedException {
 
-        HazelcastInstance hazelcastInstance = new TestHazelcastInstanceFactory().newHazelcastInstance();
         ITopic<String> subscriptionTopic = hazelcastInstance.getTopic("subsync#" + System.currentTimeMillis());
         DataStorageService service1 = new DataStorageService(datastore, null, subscriptionTopic);
         service1.logger = LoggerFactory.getLogger(DataStorageService.class.getName()+"#1");

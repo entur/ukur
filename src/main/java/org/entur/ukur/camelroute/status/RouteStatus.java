@@ -15,10 +15,7 @@
 
 package org.entur.ukur.camelroute.status;
 
-import com.codahale.metrics.Gauge;
-import com.codahale.metrics.Meter;
-import com.codahale.metrics.Snapshot;
-import com.codahale.metrics.Timer;
+import com.codahale.metrics.*;
 
 import java.util.HashMap;
 
@@ -43,6 +40,10 @@ public class RouteStatus {
     private HashMap<String, Long> timerMax_ms = new HashMap<>();
     private HashMap<String, Long> timerMean_ms = new HashMap<>();
     private HashMap<String, Long> timer95thPersentile_ms = new HashMap<>();
+    private HashMap<String, Long> histogramCounts = new HashMap<>();
+    private HashMap<String, Long> histogramMax_ms = new HashMap<>();
+    private HashMap<String, Double> histogramMean_ms = new HashMap<>();
+    private HashMap<String, Double> histogram95thPersentile_ms = new HashMap<>();
 
     public String getHostname() {
         return hostname;
@@ -92,6 +93,22 @@ public class RouteStatus {
         return timer95thPersentile_ms;
     }
 
+    public HashMap<String, Long> getHistogramCounts() {
+        return histogramCounts;
+    }
+
+    public HashMap<String, Long> getHistogramMax_ms() {
+        return histogramMax_ms;
+    }
+
+    public HashMap<String, Double> getHistogramMean_ms() {
+        return histogramMean_ms;
+    }
+
+    public HashMap<String, Double> getHistogram95thPersentile_ms() {
+        return histogram95thPersentile_ms;
+    }
+
     public String getStatusHeartbeat() {
         return statusHeartbeat;
     }
@@ -132,6 +149,14 @@ public class RouteStatus {
         timerMax_ms.put(name, convertToMilliseconds(snapshot.getMax()));
         timerMean_ms.put(name, convertToMilliseconds(snapshot.getMean()));
         timer95thPersentile_ms.put(name, convertToMilliseconds(snapshot.get95thPercentile()));
+    }
+
+    public void addHistogram(String name, Histogram histogram) {
+        Snapshot snapshot = histogram.getSnapshot();
+        histogramCounts.put(name, histogram.getCount());
+        histogramMax_ms.put(name, snapshot.getMax());
+        histogramMean_ms.put(name, snapshot.getMean());
+        histogram95thPersentile_ms.put(name, snapshot.get95thPercentile());
     }
 
     private long convertToMilliseconds(double nanos) {

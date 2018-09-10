@@ -103,6 +103,7 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
                     fileStorageService.writeToFile(estimatedVehicleJourney);
                 }
             }
+            metricsService.registerMessageDelay(MetricsService.HISTOGRAM_PROCESSED_DELAY, timestamp);
         } catch (Exception e) {
             //We always want to acknowlede so things don't end up on DLQ
             logger.error("Caught error during processing of exchange with expected EstimatedVehicleJourney", e);

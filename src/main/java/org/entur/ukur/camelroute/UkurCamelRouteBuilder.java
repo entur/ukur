@@ -16,6 +16,7 @@
 package org.entur.ukur.camelroute;
 
 import com.codahale.metrics.Gauge;
+import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -257,6 +258,9 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                     for (Map.Entry<String, Gauge> entry : metricsService.getGauges().entrySet()) {
                         status.addGauge(entry.getKey(), entry.getValue());
                     }
+                    for (Map.Entry<String, Histogram> entry : metricsService.getHistograms().entrySet()) {
+                        status.addHistogram(entry.getKey(), entry.getValue());
+                    }
                     exchange.getOut().setBody(status);
                 });
 
@@ -294,6 +298,8 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
             }
         };
 
+        XPathExpression responseTimestampExpression = siriNamespace.xpath("/s:Siri/s:ServiceDelivery/s:ResponseTimestamp/text()", String.class);
+
         from("direct:processPtSituationElements")
                 .routeId("processPtSituationElements")
                 .process(exchange -> {
@@ -306,6 +312,8 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                         logger.debug("Received XML with {} PtSituationElements", Math.round(total));
                     }
                 })
+                .setHeader("responseTimestamp", responseTimestampExpression)
+                .bean(metricsService, "registerMessageDelay("+MetricsService.HISTOGRAM_RECEIVED_DELAY +", ${header.responseTimestamp} )")
                 .to("xslt:xsl/prepareSiriSplit.xsl")
                 .split(siriNamespace.xpath("//s:Siri"))
                 .bean(metricsService, "registerSentMessage('PtSituationElement')")
@@ -323,6 +331,8 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                         logger.debug("Received XML with {} EstimatedVehicleJourneys", Math.round(total));
                     }
                 })
+                .setHeader("responseTimestamp", responseTimestampExpression)
+                .bean(metricsService, "registerMessageDelay("+MetricsService.HISTOGRAM_RECEIVED_DELAY +", ${header.responseTimestamp} )")
                 .to("xslt:xsl/prepareSiriSplit.xsl")
                 .split(siriNamespace.xpath("//s:Siri"))
                 .bean(metricsService, "registerSentMessage('EstimatedVehicleJourney')")

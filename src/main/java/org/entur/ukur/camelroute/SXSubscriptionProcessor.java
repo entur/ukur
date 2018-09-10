@@ -96,6 +96,7 @@ public class SXSubscriptionProcessor implements Processor {
                     fileStorageService.writeToFile(ptSituationElement);
                 }
             }
+            metricsService.registerMessageDelay(MetricsService.HISTOGRAM_PROCESSED_DELAY, timestamp);
         } catch (Exception e) {
             //We always want to acknowlede so things don't end up on DLQ
             logger.error("Caught error during processing of exchange with expected PtSituationElement", e);
