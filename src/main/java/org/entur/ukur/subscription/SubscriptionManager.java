@@ -46,7 +46,6 @@ import java.util.concurrent.ThreadPoolExecutor;
 
 import static org.entur.ukur.service.MetricsService.GAUGE_PUSH_QUEUE;
 import static org.entur.ukur.subscription.SiriXMLSubscriptionHandler.SIRI_VERSION;
-import static org.entur.ukur.xml.SiriObjectHelper.getBigIntegerValue;
 import static org.entur.ukur.xml.SiriObjectHelper.getStringValue;
 
 @Service
@@ -425,39 +424,8 @@ public class SubscriptionManager {
     }
 
     private void pushMessage(Subscription subscription, Object siriElement, ZonedDateTime timestamp) {
-
-        String alreadySentKey = calculateUniqueKey(subscription, siriElement);
-        Long ifPresent = alreadySentCache.get(alreadySentKey);
-        //TODO: ROR-282 (Støtte endret validity for SX meldinger)
-
-        if (ifPresent != null) {
-            long diffInSecs = (System.currentTimeMillis() - ifPresent) / 1000;
-            logger.debug("skips message since it has already been pushed to the same subscription (id={}) {} seconds ago", subscription.getId(), diffInSecs);
-            return;
-        }
-
-        alreadySentCache.put(alreadySentKey, System.currentTimeMillis());
         logger.debug("PUSH ({}) {} to subscription with id={}, name={}, pushAddress={}", hostname, siriElement.getClass().getSimpleName(), subscription.getId(), subscription.getName(), subscription.getPushAddress());
         pushToHttp(subscription, siriElement, timestamp);
-    }
-
-    private String calculateUniqueKey(Subscription subscription, Object siriElement) {
-        if (siriElement instanceof PtSituationElement) {
-            PtSituationElement situationElement = (PtSituationElement) siriElement;
-            String sitNumber = getStringValue(situationElement.getSituationNumber());
-            String situationNumber = sitNumber == null ? UUID.randomUUID().toString() : sitNumber;
-            BigInteger version = getBigIntegerValue(situationElement.getVersion());
-            return subscription.getId()+"_"+situationNumber+"_"+version;
-        }
-        String content;
-        try {
-            //Can't use the cxf generated objects directly, has to convert it to something we can compare
-            content = siriMarshaller.marshall(siriElement);
-        } catch (Exception e) {
-            logger.warn("Could not marshall {}", e);
-            content = subscription.getId()+"_"+UUID.randomUUID().toString();
-        }
-        return subscription.getId()+"_"+content.length()+"_"+content.hashCode();
     }
 
     private void pushNotification(Subscription subscription, NotificationTypeEnum type) {

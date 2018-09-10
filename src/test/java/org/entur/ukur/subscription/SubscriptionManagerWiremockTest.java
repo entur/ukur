@@ -30,6 +30,7 @@ import org.entur.ukur.testsupport.DatastoreTest;
 import org.entur.ukur.xml.SiriMarshaller;
 import org.hamcrest.CoreMatchers;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import uk.org.siri.siri20.*;
@@ -210,6 +211,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
     }
 
     @Test
+    @Ignore //Ukur does not have this logic anymore (the test left if we should re-introduce it...)
     public void dontPushSameETMessageMoreThanOnce() throws JAXBException, XMLStreamException {
 
         String url = "/push/duplicates/et";
@@ -260,6 +262,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
     }
 
     @Test
+    @Ignore //Ukur does not have this logic anymore (the test left if we should re-introduce it...)
     public void dontPushSameSXMessageMoreThanOnce() throws JAXBException, XMLStreamException, InterruptedException {
 
         String url = "/push/duplicates/sx";
