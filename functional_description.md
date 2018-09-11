@@ -225,7 +225,7 @@ Ukur receives data from Anshar as soon as it arrives (or polls Anshar for ET and
 the Anshar subscription is disabled). ET messages and SX from all operators and producers will be processed, 
 but certain ET messages (freightTrain) are ignored.
 
-All **SX messages** are sent to matching subscriptions once per subscription with same SituationNumber+Version. 
+All **SX messages** are sent to matching subscriptions. 
 For subscriptions that contains stops, the PtSituationElement will have all other stops removed from Affects 
 to make the payload smaller, before it is sent to the various subscription endpoints. We will also remove
 affected journeys not matching the subscriptions constraint on lines and codespaces.
@@ -245,6 +245,14 @@ subscriptions push address.
  
 If only lineRefs and/or codespace are present in a subscription, the entire EstimatedVehicleJourney
 will be pushed.
+
+There is no logic in Ukur to detect if a message has already been sent, so the similar message will be pushed 
+several times as Ukur receives both ET and SX messages many times depending on how often the source produce it.
+SX messages often has a relative short validity and will be sent again with adjusted validity. ET messages
+will be pushed to relevant susbcribers as long as there are estimated calls with expected delays, for a from-to
+subscription the message might appear identical when we remove all other calls (except when it is wrapped in a
+Siri/ServiceDelivery element, then the ResponseTimestamp will differ even). 
+It is the subscribers responsibility to filter messages that already has been pushed to it's clients.
 
 ## More info
 See [Norsk SIRI Profil](https://enturas.atlassian.net/wiki/spaces/PUBLIC/pages/637370420/SIRI+profil+Norge) 
