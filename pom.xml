@@ -35,7 +35,7 @@
         <fabric8.dockerUser>carbon-1287/</fabric8.dockerUser>
         <docker.image>eu.gcr.io/${fabric8.dockerUser}${project.artifactId}:${project.version}</docker.image>
         <docker.cleanup>none</docker.cleanup>
-        <activemq.version>5.15.2</activemq.version>
+        <activemq.version>5.15.6</activemq.version>
         <metrics-version>3.2.6</metrics-version>
     </properties>
 
@@ -82,22 +82,6 @@
                 <groupId>io.fabric8</groupId>
                 <artifactId>kubernetes-client</artifactId>
                 <version>2.6.3</version>
-            </dependency>
-            <dependency>
-                <groupId>com.google.inject</groupId>
-                <artifactId>guice</artifactId>
-                <version>3.0</version>
-            </dependency>
-            <dependency>
-                <groupId>org.entur.helpers</groupId>
-                <artifactId>hazelcast-helper</artifactId>
-                <version>0.0.3-SNAPSHOT</version>
-            </dependency>
-            <!-- Need to add this explicitly, to avoid old dep. Problem with either maven or nexus... -->
-            <dependency>
-                <groupId>io.fabric8</groupId>
-                <artifactId>kubernetes-client</artifactId>
-                <version>2.6.1</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -166,6 +150,7 @@
         <dependency>
             <groupId>org.entur.helpers</groupId>
             <artifactId>hazelcast-helper</artifactId>
+            <version>0.0.4-SNAPSHOT</version>
         </dependency>
 
         <dependency>
@@ -177,31 +162,25 @@
         <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
-            <version>3.4</version>
+            <version>3.8</version>
         </dependency>
 
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>20.0</version>
-        </dependency>
-
-        <dependency>
-            <groupId>com.googlecode.json-simple</groupId>
-            <artifactId>json-simple</artifactId>
-            <version>1.1</version>
+            <version>26.0-jre</version>
         </dependency>
 
         <dependency>
             <groupId>net.logstash.logback</groupId>
             <artifactId>logstash-logback-encoder</artifactId>
-            <version>4.9</version>
+            <version>5.2</version>
         </dependency>
 
         <dependency>
             <groupId>org.codehaus.jackson</groupId>
             <artifactId>jackson-jaxrs</artifactId>
-            <version>1.9.0</version>
+            <version>1.9.13</version>
         </dependency>
 
         <dependency>
@@ -240,7 +219,7 @@
         <dependency>
             <groupId>com.google.cloud</groupId>
             <artifactId>google-cloud-datastore</artifactId>
-            <version>1.16.0</version>
+            <version>1.44.0</version>
         </dependency>
 
         <!-- testing -->
@@ -278,7 +257,7 @@
         <dependency>
             <groupId>com.hazelcast</groupId>
             <artifactId>hazelcast</artifactId>
-            <version>3.7.6</version>
+            <version>3.7.6</version> <!--TODO: update to 3.9.4-->
             <classifier>tests</classifier>
             <scope>test</scope>
         </dependency>
