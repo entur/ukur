@@ -424,7 +424,7 @@ public class SubscriptionManager {
     }
 
     private void pushMessage(Subscription subscription, Object siriElement, ZonedDateTime timestamp) {
-        logger.debug("PUSH ({}) {} to subscription with id={}, name={}, pushAddress={}", hostname, siriElement.getClass().getSimpleName(), subscription.getId(), subscription.getName(), subscription.getPushAddress());
+        logger.info("PUSH ({}) {} to subscription with id={}, name={}, pushAddress={}", hostname, siriElement.getClass().getSimpleName(), subscription.getId(), subscription.getName(), subscription.getPushAddress());
         pushToHttp(subscription, siriElement, timestamp);
     }
 
