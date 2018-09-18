@@ -66,23 +66,23 @@
                 <scope>import</scope>
             </dependency>
 
-            <dependency>
-                <groupId>io.fabric8</groupId>
-                <artifactId>fabric8-project</artifactId>
-                <version>${fabric8.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
+            <!--<dependency>-->
+                <!--<groupId>io.fabric8</groupId>-->
+                <!--<artifactId>fabric8-project</artifactId>-->
+                <!--<version>${fabric8.version}</version>-->
+                <!--<type>pom</type>-->
+                <!--<scope>import</scope>-->
+            <!--</dependency>-->
             <dependency>
                 <groupId>org.entur.helpers</groupId>
                 <artifactId>hazelcast-helper</artifactId>
-                <version>0.0.3-SNAPSHOT</version>
+                <version>0.0.4-SNAPSHOT</version>
             </dependency>
             <!-- Need to add this explicitly, to avoid old dep. Problem with either maven or nexus... -->
             <dependency>
                 <groupId>io.fabric8</groupId>
                 <artifactId>kubernetes-client</artifactId>
-                <version>2.6.1</version>
+                <version>2.6.3</version>
             </dependency>
         </dependencies>
     </dependencyManagement>
@@ -319,6 +319,8 @@
                 <version>${fabric8.version}</version>
                 <executions>
                     <execution>
+                        <id>json</id>
+                        <phase>generate-resources</phase>
                         <goals>
                             <goal>json</goal>
                         </goals>
