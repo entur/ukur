@@ -29,14 +29,15 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <docker.maven.plugin.version>0.21.0</docker.maven.plugin.version>
-        <spring.version>1.5.14.RELEASE</spring.version>
+        <spring.version>2.0.5.RELEASE</spring.version>
         <fabric8.version>2.3.7</fabric8.version>
         <docker.from>eu.gcr.io/carbon-1287/java-base-image</docker.from>
         <fabric8.dockerUser>carbon-1287/</fabric8.dockerUser>
         <docker.image>eu.gcr.io/${fabric8.dockerUser}${project.artifactId}:${project.version}</docker.image>
         <docker.cleanup>none</docker.cleanup>
         <activemq.version>5.15.6</activemq.version>
-        <metrics-version>3.2.6</metrics-version>
+        <metrics-version>4.0.3</metrics-version>
+        <camel.version>2.22.1</camel.version>
     </properties>
 
     <licenses>
@@ -57,26 +58,15 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-            <dependency>
-                <groupId>io.fabric8</groupId>
-                <artifactId>fabric8-project</artifactId>
-                <version>${fabric8.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
-            </dependency>
 
             <!--<dependency>-->
-                <!--<groupId>io.fabric8</groupId>-->
-                <!--<artifactId>fabric8-project</artifactId>-->
-                <!--<version>${fabric8.version}</version>-->
+                <!--<groupId>org.apache.camel</groupId>-->
+                <!--<artifactId>camel-spring-boot-dependencies</artifactId>-->
+                <!--<version>${camel.version}</version>-->
                 <!--<type>pom</type>-->
                 <!--<scope>import</scope>-->
             <!--</dependency>-->
-            <dependency>
-                <groupId>org.entur.helpers</groupId>
-                <artifactId>hazelcast-helper</artifactId>
-                <version>0.0.4-SNAPSHOT</version>
-            </dependency>
+
             <!-- Need to add this explicitly, to avoid old dep. Problem with either maven or nexus... -->
             <dependency>
                 <groupId>io.fabric8</groupId>
@@ -91,51 +81,67 @@
         <dependency>
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-core</artifactId>
+            <version>${camel.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-http4</artifactId>
+            <version>${camel.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-hazelcast</artifactId>
+            <version>${camel.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-jetty</artifactId>
+            <version>${camel.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-jackson</artifactId>
+            <version>${camel.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-jaxb</artifactId>
+            <version>${camel.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-spring-boot</artifactId>
+            <version>${camel.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-quartz2</artifactId>
+            <version>${camel.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-spring</artifactId>
+            <version>${camel.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-bean-validator</artifactId>
+            <version>${camel.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-swagger-java</artifactId>
+            <version>${camel.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.activemq</groupId>
             <artifactId>activemq-camel</artifactId>
             <version>${activemq.version}</version>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.camel</groupId>
+            <artifactId>camel-metrics</artifactId>
+            <version>${camel.version}</version>
         </dependency>
 
         <dependency>
@@ -211,10 +217,6 @@
             <artifactId>metrics-graphite</artifactId>
             <version>${metrics-version}</version>
         </dependency>
-        <dependency>
-            <groupId>org.apache.camel</groupId>
-            <artifactId>camel-metrics</artifactId>
-        </dependency>
 
         <dependency>
             <groupId>com.google.cloud</groupId>
@@ -241,11 +243,13 @@
         <dependency>
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-test</artifactId>
+            <version>${camel.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-test-spring</artifactId>
+            <version>${camel.version}</version>
             <scope>test</scope>
         </dependency>
         <dependency>
@@ -257,7 +261,7 @@
         <dependency>
             <groupId>com.hazelcast</groupId>
             <artifactId>hazelcast</artifactId>
-            <version>3.7.6</version> <!--TODO: update to 3.9.4-->
+            <version>3.9.4</version>
             <classifier>tests</classifier>
             <scope>test</scope>
         </dependency>
