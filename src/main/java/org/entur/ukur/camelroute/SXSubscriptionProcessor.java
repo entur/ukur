@@ -19,9 +19,6 @@ import com.codahale.metrics.Timer;
 import org.apache.camel.Exchange;
 import org.apache.camel.Processor;
 import org.apache.commons.lang3.StringUtils;
-import org.entur.ukur.routedata.Call;
-import org.entur.ukur.routedata.LiveJourney;
-import org.entur.ukur.routedata.LiveRouteManager;
 import org.entur.ukur.service.FileStorageService;
 import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.subscription.Subscription;
@@ -39,7 +36,6 @@ import java.io.InputStream;
 import java.io.Serializable;
 import java.time.ZonedDateTime;
 import java.util.*;
-import java.util.stream.Collectors;
 
 import static org.entur.ukur.subscription.SubscriptionTypeEnum.SX;
 import static org.entur.ukur.xml.SiriObjectHelper.getStringValue;
@@ -50,7 +46,6 @@ public class SXSubscriptionProcessor implements Processor {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
     private SubscriptionManager subscriptionManager;
     private SiriMarshaller siriMarshaller;
-    private LiveRouteManager liveRouteManager;
     private FileStorageService fileStorageService;
     private MetricsService metricsService;
     @Value("${ukur.camel.sx.store.files:false}")
@@ -59,12 +54,10 @@ public class SXSubscriptionProcessor implements Processor {
     @Autowired
     public SXSubscriptionProcessor(SubscriptionManager subscriptionManager,
                                    SiriMarshaller siriMarshaller,
-                                   LiveRouteManager liveRouteManager,
                                    FileStorageService fileStorageService,
                                    MetricsService metricsService) {
         this.subscriptionManager = subscriptionManager;
         this.siriMarshaller = siriMarshaller;
-        this.liveRouteManager = liveRouteManager;
         this.fileStorageService = fileStorageService;
         this.metricsService = metricsService;
         logger.debug("Initializes...");
@@ -133,7 +126,6 @@ public class SXSubscriptionProcessor implements Processor {
                     getStringValue(ptSituationElement.getSituationNumber()), affectedStopPlaceRefs.size(), numberAffectedVehicleJourneys, affectedLineRefs.size());
             for (String ref : affectedLineRefs) {
                 subscriptionsToNotify.addAll(subscriptionManager.getSubscriptionsForLineRef(ref, SX));
-                affectedStopPlaceRefs.addAll(liveRouteManager.getStopsForLine(ref));
             }
             for (String ref : affectedStopPlaceRefs) {
                 subscriptionsToNotify.addAll(subscriptionManager.getSubscriptionsForStopPoint(ref, SX));
@@ -223,7 +215,6 @@ public class SXSubscriptionProcessor implements Processor {
     }
 
     HashSet<Subscription> findAffectedSubscriptions(List<AffectedVehicleJourneyStructure> affectedVehicleJourneies) {
-        HashMap<String, LiveJourney> journeys = null;
         HashSet<Subscription> subscriptions = new HashSet<>();
         for (AffectedVehicleJourneyStructure affectedVehicleJourney : affectedVehicleJourneies) {
             List<AffectedRouteStructure> routes = affectedVehicleJourney.getRoutes();
@@ -250,41 +241,7 @@ public class SXSubscriptionProcessor implements Processor {
                 }
                 boolean hasCompleteRoute = !Boolean.TRUE.equals(stopPoints.isAffectedOnly());
                 String lineRef = getStringValue(affectedVehicleJourney.getLineRef());
-                List<VehicleJourneyRef> vehicleJourneyReves = affectedVehicleJourney.getVehicleJourneyReves();
-                if (vehicleJourneyReves == null || vehicleJourneyReves.isEmpty()) {
-                    logger.trace("No vehicleJourneyRef in AffectedVehicleJourneyStructure");
-                } else if (vehicleJourneyReves.size() > 1) {
-                    logger.warn("More than one ({}) vehicleJourneyRef in AffectedVehicleJourneyStructure - 'norsk siri profil' only allows one", vehicleJourneyReves.size());
-                } else {
-                    String vehicleJourneyRef = getStringValue(vehicleJourneyReves.get(0));
-                    if (StringUtils.isBlank(vehicleJourneyRef)) {
-                        logger.warn("Has a blank vehicleJourneyRef - can't look it up");
-                    } else if (!hasCompleteRoute || lineRef == null) {
-                        if (journeys == null) {
-                            journeys = getJourneys();
-                        }
-                        LiveJourney liveJourney = journeys.get(vehicleJourneyRef.trim());
-                        if (liveJourney == null) {
-                            logger.trace("Has no route data for journey with vehicleJourneyRef: {}", vehicleJourneyRef);
-                        } else {
-                            if (!hasCompleteRoute) {
-                                orderedListOfStops = liveJourney.getCalls().stream()
-                                        .map(Call::getStopPointRef)
-                                        .collect(Collectors.toList());
-                                hasCompleteRoute = true;
-                            }
-                            if (lineRef == null) {
-                                lineRef = liveJourney.getLineRef();
-                                if (StringUtils.isNotBlank(lineRef)) {
-                                    //update the original message with lineref so we later can pick out the relevant part when generating the push message
-                                    LineRef ref = new LineRef();
-                                    ref.setValue(lineRef);
-                                    affectedVehicleJourney.setLineRef(ref);
-                                }
-                            }
-                        }
-                    }
-                }
+                //TODO: ideally the SX message should have all data we need to find affected subscription, but it doesn't.. Can look up against route-data (OTP does that to match SX messages with
 
                 for (String stop : orderedListOfStops) {
                     Set<Subscription> subscriptionsForStopPoint = subscriptionManager.getSubscriptionsForStopPoint(stop, SX);
@@ -319,17 +276,6 @@ public class SXSubscriptionProcessor implements Processor {
             subscriptions.addAll(subscriptionsForLineRef);
         }
         return subscriptions;
-    }
-
-    private HashMap<String, LiveJourney> getJourneys() {
-        HashMap<String, LiveJourney> journeys;//only get journeys once per PtSituationElement since access can be slow (hazelcast)
-        journeys = new HashMap<>();
-        for (LiveJourney liveJourney : liveRouteManager.getJourneys()) {
-            //Since SX messages from NSB specify Vehicle
-            journeys.put(liveJourney.getVehicleRef(), liveJourney);
-        }
-        logger.trace("Returns {} journeys from liveRouteManager", journeys.size());
-        return journeys;
     }
 
     private boolean affected(Subscription subscription, List<String> orderedListOfStops) {

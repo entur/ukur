@@ -19,10 +19,8 @@ import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import com.github.tomakehurst.wiremock.matching.RequestPatternBuilder;
 import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.core.IMap;
 import com.hazelcast.core.ITopic;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
-import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.service.QuayAndStopPlaceMappingService;
@@ -30,7 +28,6 @@ import org.entur.ukur.testsupport.DatastoreTest;
 import org.entur.ukur.xml.SiriMarshaller;
 import org.hamcrest.CoreMatchers;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import uk.org.siri.siri20.*;
@@ -39,9 +36,11 @@ import javax.xml.bind.JAXBException;
 import javax.xml.datatype.DatatypeFactory;
 import javax.xml.datatype.Duration;
 import javax.xml.stream.XMLStreamException;
-import java.math.BigInteger;
 import java.time.ZonedDateTime;
-import java.util.*;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
@@ -55,7 +54,6 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
     public WireMockRule wireMockRule = new WireMockRule(options().dynamicPort());
 
     private SubscriptionManager subscriptionManager;
-    private Map<Object, Long> alreadySentCache;
     private SiriMarshaller siriMarshaller;
     private DataStorageService dataStorageService;
 
@@ -63,15 +61,12 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
     @Before
     public void setUp() throws Exception {
         super.setUp();
-        alreadySentCache =  new HashMap<>();
         siriMarshaller = new SiriMarshaller();
         HazelcastInstance hazelcastInstance = new TestHazelcastInstanceFactory().newHazelcastInstance();
-        IMap<String, LiveJourney> liveJourneyIMap = hazelcastInstance.getMap("journeys");
         ITopic<String> subscriptionTopic = hazelcastInstance.getTopic("subscriptions");
-        liveJourneyIMap.clear();
         MetricsService metricsService = new MetricsService();
-        dataStorageService = new DataStorageService(datastore, liveJourneyIMap, subscriptionTopic);
-        subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsService, alreadySentCache, new HashMap<>(), mock(QuayAndStopPlaceMappingService.class));
+        dataStorageService = new DataStorageService(datastore, subscriptionTopic);
+        subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsService, new HashMap<>(), mock(QuayAndStopPlaceMappingService.class));
     }
 
     @Test
@@ -208,122 +203,6 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         waitAndVerifyAtLeast(4, postRequestedFor(urlEqualTo(url)));
         waitAndVerifyFailedPushCounter(4, subscription);
         waitUntilSubscriptionIsRemoved(subscription);
-    }
-
-    @Test
-    @Ignore //Ukur does not have this logic anymore (the test left if we should re-introduce it...)
-    public void dontPushSameETMessageMoreThanOnce() throws JAXBException, XMLStreamException {
-
-        String url = "/push/duplicates/et";
-        stubFor(post(urlEqualTo(url))
-                .withHeader("Content-Type", equalTo("application/xml"))
-                .willReturn(aResponse()));
-
-        Subscription subscription = createSubscription(url, "NSR:Quay:232", "NSR:Quay:125", null);
-        verify(0, postRequestedFor(urlEqualTo(url)));
-        assertEquals(0, subscription.getFailedPushCounter());
-        assertTrue(alreadySentCache.keySet().isEmpty());
-        HashSet<Subscription> subscriptions = new HashSet<>();
-        subscriptions.add(subscription);
-        EstimatedVehicleJourney estimatedVehicleJourney = createEstimatedVehicleJourney();
-        //first notify
-        subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney, ZonedDateTime.now());
-        waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
-        assertEquals(0, subscription.getFailedPushCounter());
-        assertEquals(1, alreadySentCache.keySet().size());
-
-        //second notify with same payload (but new instance) (should not be sent)
-        EstimatedVehicleJourney estimatedVehicleJourney1 = createEstimatedVehicleJourney();
-        //to demonstrate that equals and hashcode does not work for cxf generated objects...
-        assertNotEquals(estimatedVehicleJourney, estimatedVehicleJourney1);
-        assertNotEquals(estimatedVehicleJourney.hashCode(), estimatedVehicleJourney1.hashCode());
-        subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney1, ZonedDateTime.now());
-        waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
-        assertEquals(0, subscription.getFailedPushCounter());
-        assertEquals(1, alreadySentCache.keySet().size());
-
-        //third notify with payload modified but not for subscribed stops (should not be sent)
-        EstimatedCall notInterestingCall = estimatedVehicleJourney.getEstimatedCalls().getEstimatedCalls().get(1);
-        assertEquals("Stop2", notInterestingCall.getStopPointNames().get(0).getValue());
-        notInterestingCall.setExpectedDepartureTime(notInterestingCall.getExpectedDepartureTime().plusMinutes(1));
-        subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney, ZonedDateTime.now());
-        waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
-        assertEquals(0, subscription.getFailedPushCounter());
-        assertEquals(1, alreadySentCache.keySet().size());
-
-        //fourth notify with payload modified for a subscribed stop (should be sent)
-        EstimatedCall interestingCall = estimatedVehicleJourney.getEstimatedCalls().getEstimatedCalls().get(0);
-        assertEquals("Stop1", interestingCall.getStopPointNames().get(0).getValue());
-        interestingCall.setExpectedDepartureTime(interestingCall.getExpectedDepartureTime().plusMinutes(1));
-        subscriptionManager.notifySubscriptionsOnStops(subscriptions, estimatedVehicleJourney, ZonedDateTime.now());
-        waitAndVerifyAtLeast(2, postRequestedFor(urlEqualTo(url)));
-        assertEquals(0, subscription.getFailedPushCounter());
-        assertEquals(2, alreadySentCache.keySet().size());
-    }
-
-    @Test
-    @Ignore //Ukur does not have this logic anymore (the test left if we should re-introduce it...)
-    public void dontPushSameSXMessageMoreThanOnce() throws JAXBException, XMLStreamException, InterruptedException {
-
-        String url = "/push/duplicates/sx";
-        stubFor(post(urlEqualTo(url))
-                .withHeader("Content-Type", equalTo("application/xml"))
-                .willReturn(aResponse()));
-
-        Subscription subscription = createSubscription(url, "NSR:StopPlace:1", "NSR:StopPlace:2", null);
-        verify(0, postRequestedFor(urlEqualTo(url)));
-        assertEquals(0, subscription.getFailedPushCounter());
-        assertTrue(alreadySentCache.keySet().isEmpty());
-        HashSet<Subscription> subscriptions = new HashSet<>();
-        subscriptions.add(subscription);
-        PtSituationElement ptSituationElement1 = createPtSituationElement();
-        //first notify
-        subscriptionManager.notifySubscriptions(subscriptions, ptSituationElement1, ZonedDateTime.now());
-        waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
-        assertEquals(0, subscription.getFailedPushCounter());
-        assertEquals(1, alreadySentCache.keySet().size());
-        verify(1, postRequestedFor(urlEqualTo(url)));
-
-        //second notify with same payload (but new instance) (should not be sent)
-        PtSituationElement ptSituationElement2 = createPtSituationElement();
-        assertNotEquals(ptSituationElement1.hashCode(), ptSituationElement2.hashCode());
-        assertEquals(ptSituationElement1.getSituationNumber().getValue(), ptSituationElement2.getSituationNumber().getValue());
-        assertEquals(ptSituationElement1.getVersion().getValue(), ptSituationElement2.getVersion().getValue());
-        subscriptionManager.notifySubscriptions(subscriptions, ptSituationElement2, ZonedDateTime.now());
-        waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(url)));
-        assertEquals(0, subscription.getFailedPushCounter());
-        assertEquals(1, alreadySentCache.keySet().size());
-        verify(1, postRequestedFor(urlEqualTo(url)));
-
-        //third notify with same ptSituationElement with version changed - should be sent
-        PtSituationElement ptSituationElement3 = createPtSituationElement();
-        SituationVersion version = new SituationVersion();
-        version.setValue(BigInteger.valueOf(77));
-        ptSituationElement3.setVersion(version);
-        assertNotEquals(ptSituationElement1.hashCode(), ptSituationElement3.hashCode());
-        assertEquals(ptSituationElement1.getSituationNumber().getValue(), ptSituationElement3.getSituationNumber().getValue());
-        assertNotEquals(ptSituationElement1.getVersion().getValue(), ptSituationElement3.getVersion().getValue());
-        subscriptionManager.notifySubscriptions(subscriptions, ptSituationElement3, ZonedDateTime.now());
-        waitAndVerifyAtLeast(2, postRequestedFor(urlEqualTo(url)));
-        assertEquals(0, subscription.getFailedPushCounter());
-        assertEquals(2, alreadySentCache.keySet().size());
-        verify(2, postRequestedFor(urlEqualTo(url)));
-
-        //fourth notify with same ptSituationElement and original version changed, but different validity (spec/profile says version should be changed if validity is changed!) - should NOT be sent
-        PtSituationElement ptSituationElement4 = createPtSituationElement();
-        HalfOpenTimestampOutputRangeStructure validity = ptSituationElement4.getValidityPeriods().get(0);
-        validity.setEndTime(validity.getEndTime().plusHours(1));
-        assertNotEquals(ptSituationElement1.hashCode(), ptSituationElement4.hashCode());
-        assertEquals(ptSituationElement1.getSituationNumber().getValue(), ptSituationElement4.getSituationNumber().getValue());
-        assertEquals(ptSituationElement1.getVersion().getValue(), ptSituationElement4.getVersion().getValue());
-        assertNotEquals(ptSituationElement1.getValidityPeriods().get(0).getEndTime(), ptSituationElement4.getValidityPeriods().get(0).getEndTime());
-        subscriptionManager.notifySubscriptions(subscriptions, ptSituationElement4, ZonedDateTime.now());
-        waitAndVerifyAtLeast(2, postRequestedFor(urlEqualTo(url)));
-        assertEquals(0, subscription.getFailedPushCounter());
-        Thread.sleep(100); //allow some time for a last call to be made...
-        assertEquals(2, alreadySentCache.keySet().size());
-        verify(2, postRequestedFor(urlEqualTo(url)));
-
     }
 
     @Test
@@ -597,62 +476,6 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
                 "  </Affects>\n" +
                 "</PtSituationElement>";
         return siriMarshaller.unmarshall(xml, PtSituationElement.class);
-    }
-
-    private EstimatedVehicleJourney createEstimatedVehicleJourney() throws JAXBException, XMLStreamException {
-        String xml ="<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n" +
-                "<EstimatedVehicleJourney xmlns=\"http://www.siri.org.uk/siri\" xmlns:ns2=\"http://www.ifopt.org.uk/acsb\" xmlns:ns4=\"http://datex2.eu/schema/2_0RC1/2_0\" xmlns:ns3=\"http://www.ifopt.org.uk/ifopt\">\n" +
-                "    <LineRef>NSB:Line:L123</LineRef>\n" +
-                "    <DirectionRef>Test</DirectionRef>\n" +
-                "    <DatedVehicleJourneyRef>2118:2018-02-08</DatedVehicleJourneyRef>\n" +
-                "    <VehicleMode>rail</VehicleMode>\n" +
-                "    <OriginName>Asker</OriginName>\n" +
-                "    <OriginShortName>ASR</OriginShortName>\n" +
-                "    <OperatorRef>NSB</OperatorRef>\n" +
-                "    <ProductCategoryRef>Lt</ProductCategoryRef>\n" +
-                "    <ServiceFeatureRef>passengerTrain</ServiceFeatureRef>\n" +
-                "    <VehicleRef>2118</VehicleRef>\n" +
-                "    <EstimatedCalls>\n" +
-                "        <EstimatedCall>\n" +
-                "            <StopPointRef>NSR:Quay:232</StopPointRef>\n" +
-                "            <StopPointName>Stop1</StopPointName>\n" +
-                "            <RequestStop>false</RequestStop>\n" +
-                "            <ArrivalBoardingActivity>alighting</ArrivalBoardingActivity>\n" +
-                "            <AimedDepartureTime>2018-02-08T08:48:00+01:00</AimedDepartureTime>\n" +
-                "            <ExpectedDepartureTime>2018-02-08T09:00:48+01:00</ExpectedDepartureTime>\n" +
-                "            <DepartureStatus>delayed</DepartureStatus>\n" +
-                "            <DeparturePlatformName>6</DeparturePlatformName>\n" +
-                "            <DepartureBoardingActivity>boarding</DepartureBoardingActivity>\n" +
-                "        </EstimatedCall>\n" +
-                "        <EstimatedCall>\n" +
-                "            <StopPointRef>NSR:Quay:444</StopPointRef>\n" +
-                "            <StopPointName>Stop2</StopPointName>\n" +
-                "            <RequestStop>false</RequestStop>\n" +
-                "            <ArrivalBoardingActivity>alighting</ArrivalBoardingActivity>\n" +
-                "            <AimedDepartureTime>2018-02-08T08:49:00+01:00</AimedDepartureTime>\n" +
-                "            <ExpectedDepartureTime>2018-02-08T10:00:48+01:00</ExpectedDepartureTime>\n" +
-                "            <DepartureStatus>delayed</DepartureStatus>\n" +
-                "            <DeparturePlatformName>6</DeparturePlatformName>\n" +
-                "            <DepartureBoardingActivity>boarding</DepartureBoardingActivity>\n" +
-                "        </EstimatedCall>\n" +
-                "        <EstimatedCall>\n" +
-                "            <StopPointRef>NSR:Quay:125</StopPointRef>\n" +
-                "            <StopPointName>Stop3</StopPointName>\n" +
-                "            <RequestStop>false</RequestStop>\n" +
-                "            <AimedArrivalTime>2018-02-08T09:23:00+01:00</AimedArrivalTime>\n" +
-                "            <ExpectedArrivalTime>2018-02-08T09:29:08+01:00</ExpectedArrivalTime>\n" +
-                "            <ArrivalStatus>delayed</ArrivalStatus>\n" +
-                "            <ArrivalPlatformName>9</ArrivalPlatformName>\n" +
-                "            <ArrivalBoardingActivity>alighting</ArrivalBoardingActivity>\n" +
-                "            <AimedDepartureTime>2018-02-08T09:26:00+01:00</AimedDepartureTime>\n" +
-                "            <ExpectedDepartureTime>2018-02-08T09:29:38+01:00</ExpectedDepartureTime>\n" +
-                "            <DepartureStatus>delayed</DepartureStatus>\n" +
-                "            <DeparturePlatformName>9</DeparturePlatformName>\n" +
-                "            <DepartureBoardingActivity>boarding</DepartureBoardingActivity>\n" +
-                "        </EstimatedCall>\n" +
-                "    </EstimatedCalls>\n" +
-                "</EstimatedVehicleJourney>";
-        return siriMarshaller.unmarshall(xml, EstimatedVehicleJourney.class);
     }
 
     private Subscription createSubscription(String pushAddress, String from, String to, String line) {

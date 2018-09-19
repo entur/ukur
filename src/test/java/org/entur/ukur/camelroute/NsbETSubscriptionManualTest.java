@@ -21,12 +21,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.core.IMap;
 import com.hazelcast.core.ITopic;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
-import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.FileStorageService;
 import org.entur.ukur.service.MetricsService;
@@ -79,12 +77,11 @@ public class NsbETSubscriptionManualTest extends DatastoreTest {
     public void setUp() throws Exception {
         super.setUp();
         HazelcastInstance hazelcastInstance = new TestHazelcastInstanceFactory().newHazelcastInstance();
-        IMap<String, LiveJourney> liveJourneyIMap = hazelcastInstance.getMap("journeys");
         ITopic<String> subscriptionTopic = hazelcastInstance.getTopic("subscriptions");
         siriMarshaller = new SiriMarshaller();
-        DataStorageService dataStorageService = new DataStorageService(datastore, liveJourneyIMap, subscriptionTopic);
+        DataStorageService dataStorageService = new DataStorageService(datastore, subscriptionTopic);
         quayAndStopPlaceMappingService = new QuayAndStopPlaceMappingService(metricsService);
-        subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsService, new HashMap<>(), new HashMap<>(), quayAndStopPlaceMappingService);
+        subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsService, new HashMap<>(), quayAndStopPlaceMappingService);
         ETSubscriptionProcessor = new ETSubscriptionProcessor(subscriptionManager, siriMarshaller, mock(FileStorageService.class), metricsService, quayAndStopPlaceMappingService);
         ETSubscriptionProcessor.skipCallTimeChecks = true; //since we post old recorded ET messages
     }

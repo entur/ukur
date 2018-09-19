@@ -54,7 +54,6 @@ public class SubscriptionManager {
     private DataStorageService dataStorageService;
     private SiriMarshaller siriMarshaller;
     private MetricsService metricsService;
-    private Map<Object, Long> alreadySentCache;
     private QuayAndStopPlaceMappingService quayAndStopPlaceMappingService;
     private String hostname;
     private Logger logger = LoggerFactory.getLogger(this.getClass());
@@ -66,13 +65,11 @@ public class SubscriptionManager {
     public SubscriptionManager(DataStorageService dataStorageService,
                                SiriMarshaller siriMarshaller,
                                MetricsService metricsService,
-                               @Qualifier("alreadySentCache") Map<Object, Long> alreadySentCache,
                                @Qualifier("heartbeats") Map<String, Long> subscriptionNextHeartbeat,
                                QuayAndStopPlaceMappingService quayAndStopPlaceMappingService) {
         this.dataStorageService = dataStorageService;
         this.siriMarshaller = siriMarshaller;
         this.metricsService = metricsService;
-        this.alreadySentCache = alreadySentCache;
         this.subscriptionNextHeartbeat = subscriptionNextHeartbeat;
         this.quayAndStopPlaceMappingService = quayAndStopPlaceMappingService;
         try {

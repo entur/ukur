@@ -21,13 +21,10 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.core.IMap;
 import com.hazelcast.core.ITopic;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
-import org.entur.ukur.routedata.LiveJourney;
-import org.entur.ukur.routedata.LiveRouteManager;
 import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.FileStorageService;
 import org.entur.ukur.service.MetricsService;
@@ -42,7 +39,6 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import uk.org.siri.siri20.EstimatedVehicleJourney;
 import uk.org.siri.siri20.PtSituationElement;
 
 import javax.xml.bind.JAXBException;
@@ -71,7 +67,6 @@ public class NsbSXSubscriptionManualTest extends DatastoreTest {
     public WireMockRule wireMockRule = new WireMockRule(options().dynamicPort());
     private SubscriptionManager subscriptionManager;
     private SXSubscriptionProcessor SXSubscriptionProcessor;
-    private LiveRouteManager liveRouteManager;
     private QuayAndStopPlaceMappingService quayAndStopPlaceMappingService;
     private SiriMarshaller siriMarshaller;
 
@@ -79,15 +74,13 @@ public class NsbSXSubscriptionManualTest extends DatastoreTest {
     public void setUp() throws Exception {
         super.setUp();
         HazelcastInstance hazelcastInstance = new TestHazelcastInstanceFactory().newHazelcastInstance();
-        IMap<String, LiveJourney> liveJourneyIMap = hazelcastInstance.getMap("journeys");
         ITopic<String> subscriptionTopic = hazelcastInstance.getTopic("subscriptions");
         MetricsService metricsService = new MetricsService();
         siriMarshaller = new SiriMarshaller();
-        DataStorageService dataStorageService = new DataStorageService(datastore, liveJourneyIMap, subscriptionTopic);
+        DataStorageService dataStorageService = new DataStorageService(datastore, subscriptionTopic);
         quayAndStopPlaceMappingService = new QuayAndStopPlaceMappingService(metricsService);
-        subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsService, new HashMap<>(), new HashMap<>(), quayAndStopPlaceMappingService);
-        liveRouteManager = new LiveRouteManager(dataStorageService, quayAndStopPlaceMappingService);
-        SXSubscriptionProcessor = new SXSubscriptionProcessor(subscriptionManager, siriMarshaller, liveRouteManager, mock(FileStorageService.class), metricsService);
+        subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsService, new HashMap<>(), quayAndStopPlaceMappingService);
+        SXSubscriptionProcessor = new SXSubscriptionProcessor(subscriptionManager, siriMarshaller, mock(FileStorageService.class), metricsService);
     }
 
     @Test
@@ -98,7 +91,6 @@ public class NsbSXSubscriptionManualTest extends DatastoreTest {
         logCtx.getLogger("org.entur").setLevel(Level.INFO); //pauses TRACE logging as we trace a lot during setup...
 
         populateQuayAndStopPlaceMappingService("https://api-test.entur.org/stop_places/1.0/list/stop_place_quays/");
-        populateLiveRouteManager("/home/jon/Documents/Entur/nsb_sanntidsmeldinger/et/");
 
         logCtx.getLogger("org.entur").setLevel(Level.TRACE);
 
@@ -225,23 +217,5 @@ public class NsbSXSubscriptionManualTest extends DatastoreTest {
         }
 
     }
-
-    private void populateLiveRouteManager(String path) {
-        try {
-            List<Path> etMessages = Files.walk(Paths.get(path))
-                    .filter(Files::isRegularFile)
-                    .collect(Collectors.toList());
-            long start = System.currentTimeMillis();
-            logger.info("About to populate the live route manager with data from {} EstimatedVehicleJourneys", etMessages.size());
-            for (Path etMessage : etMessages) {
-                FileInputStream fis = new FileInputStream(etMessage.toFile());
-                liveRouteManager.updateJourney(siriMarshaller.unmarshall(fis, EstimatedVehicleJourney.class));
-            }
-            logger.info("It took {} ms to handle {} EstimatedVehicleJourneys", String.format("%,d", (System.currentTimeMillis()-start)), etMessages.size());
-        } catch (Exception e) {
-            logger.error("Could not get journeys from ET messages", e);
-        }
-    }
-
 
 }

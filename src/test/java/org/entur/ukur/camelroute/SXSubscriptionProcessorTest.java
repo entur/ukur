@@ -16,12 +16,9 @@
 package org.entur.ukur.camelroute;
 
 import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.core.IMap;
 import com.hazelcast.core.ITopic;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
 import org.apache.commons.lang3.StringUtils;
-import org.entur.ukur.routedata.LiveJourney;
-import org.entur.ukur.routedata.LiveRouteManager;
 import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.FileStorageService;
 import org.entur.ukur.service.MetricsService;
@@ -37,35 +34,30 @@ import org.slf4j.LoggerFactory;
 import uk.org.siri.siri20.*;
 
 import java.io.Serializable;
-import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
 import static org.junit.Assert.*;
 import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.when;
 
 public class SXSubscriptionProcessorTest extends DatastoreTest {
     private final Logger logger = LoggerFactory.getLogger(getClass());
 
     private SubscriptionManager subscriptionManager;
     private SXSubscriptionProcessor processor;
-    private LiveRouteManager liveRouteManagerMock;
     private SiriMarshaller siriMarshaller;
 
     @Before
     public void setUp() throws Exception {
         super.setUp();
         HazelcastInstance hazelcastInstance = new TestHazelcastInstanceFactory().newHazelcastInstance();
-        IMap<String, LiveJourney> liveJourneyIMap = hazelcastInstance.getMap("journeys");
         ITopic<String> subscriptionTopic = hazelcastInstance.getTopic("subscriptions");
         MetricsService metricsServiceMock = mock(MetricsService.class);
         siriMarshaller = new SiriMarshaller();
-        DataStorageService dataStorageService = new DataStorageService(datastore, liveJourneyIMap, subscriptionTopic);
-        subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsServiceMock, new HashMap<>(), new HashMap<>(), new QuayAndStopPlaceMappingService(metricsServiceMock));
-        liveRouteManagerMock = mock(LiveRouteManager.class);
-        processor = new SXSubscriptionProcessor(subscriptionManager, siriMarshaller, liveRouteManagerMock, mock(FileStorageService.class), mock(MetricsService.class));
+        DataStorageService dataStorageService = new DataStorageService(datastore, subscriptionTopic);
+        subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsServiceMock, new HashMap<>(), new QuayAndStopPlaceMappingService(metricsServiceMock));
+        processor = new SXSubscriptionProcessor(subscriptionManager, siriMarshaller, mock(FileStorageService.class), mock(MetricsService.class));
     }
 
     @Test
@@ -91,9 +83,8 @@ public class SXSubscriptionProcessorTest extends DatastoreTest {
         //All when we don't know if all stops is present in route
         assertPresent(asList(s1, s0), processor.findAffectedSubscriptions(createVehicleJourneys(Collections.singletonList("2"), null, true)));
 
-        //Only one when we look up the camelroute if not all stops is present in route
-        when(liveRouteManagerMock.getJourneys()).thenReturn(Collections.singletonList(createLiveJourney("line#1", "123", asList("1", "2", "3"))));
-        assertPresent(Collections.singletonList(s1), processor.findAffectedSubscriptions(createVehicleJourneys(Collections.singletonList("2"), "123", true)));
+        //TODO: Both affected when not all stops is present in route - should be only one but we have no way of telling as only affected stops are present in the sx message
+        assertPresent(asList(s1, s0), processor.findAffectedSubscriptions(createVehicleJourneys(Collections.singletonList("2"), "123", true)));
     }
 
     @Test
@@ -143,8 +134,6 @@ public class SXSubscriptionProcessorTest extends DatastoreTest {
                 "</PtSituationElement>\n";
         PtSituationElement ptSituationElement = siriMarshaller.unmarshall(SX_with_one_affected_stop_on_journey, PtSituationElement.class);
 
-        when(liveRouteManagerMock.getJourneys()).thenReturn(Collections.singletonList(createLiveJourney("line#1", "64", asList("1", "2", "440"))));
-
         assertNotNull(ptSituationElement);
         assertNotNull(ptSituationElement.getAffects());
 
@@ -166,18 +155,13 @@ public class SXSubscriptionProcessorTest extends DatastoreTest {
     @Test
     public void testSubscriptionsWithLineAndStops() {
         //These are supposed to be found
-        Subscription s_stops_line = createSubscription("from-to-line", "NSR:StopPlace:10", "NSR:StopPlace:20", "line#1");
-        Subscription s_line = createSubscription("line", null, null, "line#1");
-        List<Subscription> expectedSubscriptions = asList(s_stops_line, s_line);
+        Subscription s_stops_line = createSubscription("from-to-line", "NSR:StopPlace:10", "NSR:StopPlace:20", null);
+        List<Subscription> expectedSubscriptions = Collections.singletonList(s_stops_line);
         //These are not supposed to be found as they have one or more conditions set that doesn't match:
+        createSubscription("line", null, null, "line#1"); //TODO: Is not found as the SX message does not contain LineRef
         createSubscription("NOHIT3-from-to-line", "NSR:StopPlace:40", "NSR:StopPlace:30", "line#1");
         createSubscription("NOHIT4-from-to-line", "NSR:StopPlace:10", "NSR:StopPlace:20", "line#2");
         createSubscription("NOHIT8-line", null, null, "line#2");
-
-        ArrayList<LiveJourney> testRouteData = new ArrayList<>();
-        testRouteData.add(createLiveJourney("line#1", "vehicle#1", asList("10", "20", "30", "40")));
-        testRouteData.add(createLiveJourney("line#x", "vehicle#x", asList("10", "20", "30", "40")));
-        when(liveRouteManagerMock.getJourneys()).thenReturn(testRouteData);
 
         AffectsScopeStructure.VehicleJourneys vehiclejourney = new AffectsScopeStructure.VehicleJourneys();
         AffectedVehicleJourneyStructure affectedVehicleJourneyStructure = new AffectedVehicleJourneyStructure();
@@ -251,13 +235,7 @@ public class SXSubscriptionProcessorTest extends DatastoreTest {
         return stop1;
     }
 
-    private EstimatedCall createEstimatedCall(String s2) {
-        EstimatedCall estimatedCall1 = new EstimatedCall();
-        estimatedCall1.setStopPointRef(createStopPointRef(s2));
-        return estimatedCall1;
-    }
-
-    private StopPointRef createStopPointRef(String value) {
+        private StopPointRef createStopPointRef(String value) {
         StopPointRef stopPointRef = new StopPointRef();
         stopPointRef.setValue(value);
         return stopPointRef;
@@ -275,37 +253,6 @@ public class SXSubscriptionProcessorTest extends DatastoreTest {
 
     private Subscription createSubscription(String name, String fromStop, String toStop) {
         return createSubscription(name, fromStop, toStop, null);
-    }
-
-    private LiveJourney createLiveJourney(String line, String vehicleRef, List<String> stops) {
-        EstimatedVehicleJourney someJourney = new EstimatedVehicleJourney();
-        if (vehicleRef != null) {
-            VehicleRef value = new VehicleRef();
-            value.setValue(vehicleRef);
-            someJourney.setVehicleRef(value);
-        }
-        if (line != null) {
-            LineRef lineRef = new LineRef();
-            lineRef.setValue(line);
-            someJourney.setLineRef(lineRef);
-        }
-        EstimatedVehicleJourney.EstimatedCalls estimatedCalls = new EstimatedVehicleJourney.EstimatedCalls();
-        someJourney.setEstimatedCalls(estimatedCalls);
-        List<EstimatedCall> calls = estimatedCalls.getEstimatedCalls();
-        ZonedDateTime now = ZonedDateTime.now();
-        for (String stop : stops) {
-            now = now.plusMinutes(10);
-            EstimatedCall call = createEstimatedCall("NSR:StopPlace:" + stop);
-            call.getStopPointNames();
-            call.setAimedArrivalTime(now);
-            call.setExpectedArrivalTime(now);
-            call.setArrivalStatus(CallStatusEnumeration.ON_TIME);
-            call.setAimedDepartureTime(now);
-            call.setExpectedDepartureTime(now);
-            call.setDepartureStatus(CallStatusEnumeration.ON_TIME);
-            calls.add(call);
-        }
-        return new LiveJourney(someJourney, mock(QuayAndStopPlaceMappingService.class));
     }
 
     private List<AffectedVehicleJourneyStructure> createVehicleJourneys(List<String> stops, String vehicleJourneyRef, boolean affectedOnly) {

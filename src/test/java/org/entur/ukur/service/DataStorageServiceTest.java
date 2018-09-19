@@ -16,10 +16,8 @@
 package org.entur.ukur.service;
 
 import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.core.IMap;
 import com.hazelcast.core.ITopic;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
-import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionTypeEnum;
 import org.entur.ukur.testsupport.DatastoreTest;
@@ -59,7 +57,7 @@ public class DataStorageServiceTest extends DatastoreTest {
     @Test
     public void testSubscriptionHandling() {
         ITopic<String> subscriptionTopic = hazelcastInstance.getTopic("subscriptions");
-        DataStorageService service = new DataStorageService(datastore, null, subscriptionTopic);
+        DataStorageService service = new DataStorageService(datastore, subscriptionTopic);
         Subscription subscription = createSubscription("Test#1", ET, "ABC", "NSR:Quay:1", "NSR:Quay:2", "NSB:Line:Test1");
 
         //add new
@@ -181,9 +179,8 @@ public class DataStorageServiceTest extends DatastoreTest {
 
     @Test
     public void testLineOnlySubscription() {
-        IMap<String, LiveJourney> liveJourneyIMap = hazelcastInstance.getMap("journeys");
         ITopic<String> subscriptionTopic = hazelcastInstance.getTopic("subscriptions");
-        DataStorageService service = new DataStorageService(datastore, liveJourneyIMap, subscriptionTopic);
+        DataStorageService service = new DataStorageService(datastore, subscriptionTopic);
         Subscription subscription = new Subscription();
         subscription.setPushAddress("http://somehost/test");
         subscription.setName("Test#1");
@@ -214,7 +211,7 @@ public class DataStorageServiceTest extends DatastoreTest {
     public void testSubscriptionSyncing() throws InterruptedException {
 
         ITopic<String> subscriptionTopic = hazelcastInstance.getTopic("subsync#" + System.currentTimeMillis());
-        DataStorageService service1 = new DataStorageService(datastore, null, subscriptionTopic);
+        DataStorageService service1 = new DataStorageService(datastore, subscriptionTopic);
         service1.logger = LoggerFactory.getLogger(DataStorageService.class.getName()+"#1");
         service1.populateSubscriptionCacheFromDatastore(); //postconstruct...
         assertEquals(0, service1.getNumberOfSubscriptions());
@@ -231,7 +228,7 @@ public class DataStorageServiceTest extends DatastoreTest {
         assertEquals(3, service1.getNumberOfSubscriptions());
 
         logger.info("Creates second DataStorageService");
-        DataStorageService service2 = new DataStorageService(datastore, null, subscriptionTopic);
+        DataStorageService service2 = new DataStorageService(datastore, subscriptionTopic);
         service2.logger = LoggerFactory.getLogger(DataStorageService.class.getName()+"#2");
         assertEquals(0, service2.getNumberOfSubscriptions());
         service2.populateSubscriptionCacheFromDatastore(); //postconstruct...

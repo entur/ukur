@@ -17,9 +17,10 @@ package org.entur.ukur.service;
 
 import com.google.cloud.Timestamp;
 import com.google.cloud.datastore.*;
-import com.hazelcast.core.*;
+import com.hazelcast.core.ITopic;
+import com.hazelcast.core.Message;
+import com.hazelcast.core.MessageListener;
 import org.apache.commons.lang3.StringUtils;
-import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionTypeEnum;
 import org.slf4j.Logger;
@@ -44,7 +45,6 @@ public class DataStorageService implements MessageListener<String> {
     Logger logger = LoggerFactory.getLogger(this.getClass());
     private final Datastore datastore;
     private final KeyFactory subscriptionkeyFactory;
-    private final IMap<String, LiveJourney> currentJourneys;
     private ITopic<String> subscriptionCacheRenewerTopic;
 
     private HashMap<String, Subscription> idToSubscription = new HashMap<>();
@@ -54,12 +54,9 @@ public class DataStorageService implements MessageListener<String> {
     private long lastReloadedTime = 0;
     private static final int CONCURRENTMODIFICATION_ATTEMPTS = 3;
     private final String serviceId = UUID.randomUUID().toString();
-    public DataStorageService(Datastore datastore,
-                              IMap<String, LiveJourney> currentJourneys,
-                              ITopic<String> subscriptionCacheRenewerTopic) {
+    public DataStorageService(Datastore datastore, ITopic<String> subscriptionCacheRenewerTopic) {
         this.datastore = datastore;
         this.subscriptionkeyFactory = datastore.newKeyFactory().setKind(KIND_SUBSCRIPTIONS);
-        this.currentJourneys = currentJourneys;
         this.subscriptionCacheRenewerTopic = subscriptionCacheRenewerTopic;
         this.subscriptionCacheRenewerTopic.addMessageListener(this);
         //To support that subscriptions are changed from the console (or we get out of sync...)
@@ -245,37 +242,6 @@ public class DataStorageService implements MessageListener<String> {
         return null;
     }
 
-    public void putCurrentJourney(LiveJourney liveJourney) {
-        currentJourneys.set(liveJourney.getVehicleRef(), liveJourney);
-    }
-
-    public Collection<LiveJourney> getCurrentJourneys() {
-        return currentJourneys.values();
-    }
-
-    public int getNumberOfCurrentJourneys() {
-        try {
-            return currentJourneys.size();
-        } catch (Exception e) {
-            logger.warn("Could not get currentJourneys' size - returns -1", e);
-            return -1;
-        }
-    }
-
-    @SuppressWarnings("Duplicates")
-    public void removeJourneysOlderThan(ZonedDateTime time) {
-        Collection<LiveJourney> values = getCurrentJourneys();
-        HashSet<String> toFlush = new HashSet<>();
-        for (LiveJourney journey : values) {
-            if (time.isAfter(journey.getLastArrivalTime())) {
-                toFlush.add(journey.getVehicleRef());
-            }
-        }
-        logger.trace("Will flush {} journeys out of a total of {}", toFlush.size(), values.size());
-        for (String flush : toFlush) {
-            currentJourneys.delete(flush);
-        }
-    }
 
     private Entity convertEntity(Subscription s, Key key) {
         Entity.Builder builder = Entity.newBuilder(key)

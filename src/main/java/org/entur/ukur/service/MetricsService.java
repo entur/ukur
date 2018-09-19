@@ -55,7 +55,6 @@ public class MetricsService {
     public static final String TIMER_ET_UNMARSHALL         = "timer.unmarshall.EstimatedVehicleJourney";
     public static final String TIMER_SX_UNMARSHALL         = "timer.unmarshall.PtSituationElement";
     public static final String GAUGE_SUBSCRIPTIONS         = "gauge.subscriptions";
-    public static final String GAUGE_LIVE_JOURNEYS         = "gauge.liveJourneys";
     public static final String GAUGE_STOPPLACES            = "gauge.stopPlaces";
     public static final String GAUGE_PUSH_QUEUE            = "gauge.pushQueue";
     public static final String METER_ET_DLQ                = "message.dlq.et";

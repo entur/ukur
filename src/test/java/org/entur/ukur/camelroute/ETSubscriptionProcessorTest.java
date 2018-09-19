@@ -39,7 +39,6 @@ import static junit.framework.TestCase.assertTrue;
 import static org.entur.ukur.subscription.SubscriptionTypeEnum.ET;
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.junit.Assert.*;
-import static org.mockito.Matchers.eq;
 import static org.mockito.Mockito.*;
 
 public class ETSubscriptionProcessorTest {
@@ -167,7 +166,7 @@ public class ETSubscriptionProcessorTest {
         DataStorageService dataStorageMock = mock(DataStorageService.class);
         HashSet<Subscription> subscriptionsNotified = new HashSet<>();
         QuayAndStopPlaceMappingService mappingMock = mock(QuayAndStopPlaceMappingService.class);
-        SubscriptionManager subscriptionManager = new SubscriptionManager(dataStorageMock, siriMarshaller, metricsService, new HashMap<>(), new HashMap<>(), mappingMock) {
+        SubscriptionManager subscriptionManager = new SubscriptionManager(dataStorageMock, siriMarshaller, metricsService, new HashMap<>(), mappingMock) {
             @Override
             public void notifySubscriptionsOnStops(HashSet<Subscription> subscriptions, EstimatedVehicleJourney estimatedVehicleJourney, ZonedDateTime timestamp) {
                 subscriptionsNotified.addAll(subscriptions);

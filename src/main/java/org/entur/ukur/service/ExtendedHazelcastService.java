@@ -15,9 +15,7 @@
 
 package org.entur.ukur.service;
 
-import com.hazelcast.config.MapConfig;
 import com.hazelcast.core.*;
-import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.setup.UkurConfiguration;
 import org.rutebanken.hazelcasthelper.service.HazelCastService;
 import org.rutebanken.hazelcasthelper.service.KubernetesService;
@@ -48,11 +46,6 @@ public class ExtendedHazelcastService extends HazelCastService {
     }
 
     @Bean
-    public Map<Object, Long> alreadySentCache() {
-        return hazelcast.getMap("ukur.alreadySentCache");
-    }
-
-    @Bean
     public Map<String, Long> heartbeats() {
         return hazelcast.getMap("ukur.heartbeats");
     }
@@ -63,25 +56,8 @@ public class ExtendedHazelcastService extends HazelCastService {
     }
 
     @Bean
-    public IMap<String, LiveJourney> currentJourneys() {
-        return hazelcast.getMap("ukur.currentJourneys");
-    }
-
-    @Bean
     public ITopic<String> subscriptionCacheRenewerTopic() {
         return hazelcast.getTopic("ukur.subscriptionCacheRenewer");
-    }
-
-    @Override
-    public List<MapConfig> getAdditionalMapConfigurations() {
-        List<MapConfig> mapConfigs = super.getAdditionalMapConfigurations();
-
-        mapConfigs.add(
-                new MapConfig()
-                        .setName("ukur.alreadySentCache")
-                        .setMaxIdleSeconds(3600)); //one hour
-        return mapConfigs;
-
     }
 
     /**

@@ -19,10 +19,8 @@ package org.entur.ukur.setup;
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.datastore.testing.LocalDatastoreHelper;
-import com.hazelcast.core.IMap;
 import com.hazelcast.core.ITopic;
 import org.apache.commons.lang3.StringUtils;
-import org.entur.ukur.routedata.LiveJourney;
 import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.MetricsService;
 import org.slf4j.Logger;
@@ -39,15 +37,12 @@ import java.io.IOException;
 public class DataStorageConfiguration {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
     private final MetricsService metricsService;
-    private IMap<String, LiveJourney> currentJourneys;
     private ITopic<String> subscriptionCacheRenewerTopic;
 
     @Autowired
     public DataStorageConfiguration(MetricsService metricsService,
-                                    @Qualifier("currentJourneys") IMap<String, LiveJourney> currentJourneys,
                                     @Qualifier("subscriptionCacheRenewerTopic") ITopic<String> subscriptionCacheRenewerTopic) {
         this.metricsService = metricsService;
-        this.currentJourneys = currentJourneys;
         this.subscriptionCacheRenewerTopic = subscriptionCacheRenewerTopic;
     }
 
@@ -77,11 +72,9 @@ public class DataStorageConfiguration {
         logger.info("Creates a DataStorageService on Google Datastore");
         DataStorageService dataStorageService = new DataStorageService(
                 service,
-                currentJourneys,
                 subscriptionCacheRenewerTopic);
 
         metricsService.registerGauge(MetricsService.GAUGE_SUBSCRIPTIONS, dataStorageService::getNumberOfSubscriptions);
-        metricsService.registerGauge(MetricsService.GAUGE_LIVE_JOURNEYS, dataStorageService::getNumberOfCurrentJourneys);
 
         return dataStorageService;
     }
