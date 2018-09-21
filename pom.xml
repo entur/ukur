@@ -31,7 +31,7 @@
         <docker.maven.plugin.version>0.21.0</docker.maven.plugin.version>
         <spring.version>2.0.5.RELEASE</spring.version>
         <fabric8.version>2.3.7</fabric8.version>
-        <docker.from>eu.gcr.io/carbon-1287/java-base-image-jon</docker.from>
+        <docker.from>eu.gcr.io/carbon-1287/java-base-image</docker.from>
         <fabric8.dockerUser>carbon-1287/</fabric8.dockerUser>
         <docker.image>eu.gcr.io/${fabric8.dockerUser}${project.artifactId}:${project.version}</docker.image>
         <docker.cleanup>none</docker.cleanup>
