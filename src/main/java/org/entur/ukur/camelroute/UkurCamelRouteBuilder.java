@@ -122,6 +122,10 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
 
     @Override
     public void configure() {
+        onException(Exception.class)
+                .handled(true)
+                .transform().simple("${exception.message}");
+
         createWorkerRoutes(config.getTiamatStopPlaceQuaysURL());
         createRestRoutes(config.getRestPort(), config.isEtEnabled(), config.isSxEnabled(), config.useAnsharSubscription());
         createQuartzRoutes(config.getHeartbeatCheckInterval(), config.isTiamatStopPlaceQuaysEnabled(), config.getTiamatStopPlaceQuaysInterval());

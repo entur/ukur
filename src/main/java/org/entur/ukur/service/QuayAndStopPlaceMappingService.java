@@ -77,6 +77,14 @@ public class QuayAndStopPlaceMappingService {
         return stopPlaceIdToQuayIds.size();
     }
 
+    public boolean isValidStopPlace(String stopPlace) {
+        return stopPlaceIdToQuayIds.containsKey(stopPlace);
+    }
+
+    public boolean isValidQuayId(String quayId) {
+        return quayIdToStopPlaceId.containsKey(quayId);
+    }
+
     public HashMap<String, Collection<String>> getAllStopPlaces() {
         return new HashMap<>(stopPlaceIdToQuayIds);
     }

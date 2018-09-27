@@ -92,6 +92,10 @@ public class Subscription implements Serializable {
         toStopPoints.add(stopPointRef);
     }
 
+    public void removeToStopPoint(String stopPointRef) {
+        toStopPoints.remove(stopPointRef);
+    }
+
     public Set<String> getLineRefs() {
         return Collections.unmodifiableSet(lineRefs);
     }

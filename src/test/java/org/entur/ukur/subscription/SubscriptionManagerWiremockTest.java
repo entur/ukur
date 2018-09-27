@@ -18,6 +18,7 @@ package org.entur.ukur.subscription;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import com.github.tomakehurst.wiremock.matching.RequestPatternBuilder;
 import com.github.tomakehurst.wiremock.verification.LoggedRequest;
+import com.google.common.collect.Sets;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.ITopic;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
@@ -66,7 +67,14 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         ITopic<String> subscriptionTopic = hazelcastInstance.getTopic("subscriptions");
         MetricsService metricsService = new MetricsService();
         dataStorageService = new DataStorageService(datastore, subscriptionTopic);
-        subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsService, new HashMap<>(), mock(QuayAndStopPlaceMappingService.class));
+
+        HashMap<String, Collection<String>> stopPlacesAndQuays = new HashMap<>();
+        stopPlacesAndQuays.put("NSR:StopPlace:1", Sets.newHashSet("NSR:Quay:232"));
+        stopPlacesAndQuays.put("NSR:StopPlace:3", Sets.newHashSet("NSR:Quay:125"));
+        QuayAndStopPlaceMappingService quayAndStopPlaceMappingService = new QuayAndStopPlaceMappingService(mock(MetricsService.class));
+        quayAndStopPlaceMappingService.updateStopsAndQuaysMap(stopPlacesAndQuays);
+
+        subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsService, new HashMap<>(), quayAndStopPlaceMappingService);
     }
 
     @Test

@@ -65,7 +65,7 @@ public class SiriXMLSubscriptionHandler {
                     return addOrReplaceSubscription(requestorRef, subscriptionIdentifier, initialTerminationTime, heartbeatInterval, codespace, lineRefs, address, SubscriptionTypeEnum.SX);
 
                 } else {
-                    return generateSubscriptionResponse(false, requestorRef,"Only one SituationExchangeSubscriptionRequest is supported");
+                    return generateSubscriptionResponse(false, requestorRef, "Only one SituationExchangeSubscriptionRequest is supported");
                 }
             }
 
@@ -85,19 +85,19 @@ public class SiriXMLSubscriptionHandler {
                     return addOrReplaceSubscription(requestorRef, subscriptionIdentifier, initialTerminationTime, heartbeatInterval, codespace, lineRefs, address, SubscriptionTypeEnum.ET);
 
                 } else {
-                    return generateSubscriptionResponse(false, requestorRef,"Only one EstimatedTimetableSubscriptionRequest is supported");
+                    return generateSubscriptionResponse(false, requestorRef, "Only one EstimatedTimetableSubscriptionRequest is supported");
                 }
             }
 
-            return generateSubscriptionResponse(false, requestorRef,"Requires either a SituationExchangeSubscriptionRequest or an EstimatedTimetableSubscriptionRequest");
+            return generateSubscriptionResponse(false, requestorRef, "Requires either a SituationExchangeSubscriptionRequest or an EstimatedTimetableSubscriptionRequest");
         } else if (request.getTerminateSubscriptionRequest() != null) {
             TerminateSubscriptionRequestStructure terminateSubscriptionRequest = request.getTerminateSubscriptionRequest();
             String requestorRef = getStringValue(terminateSubscriptionRequest.getRequestorRef());
             if (StringUtils.isBlank(requestorRef)) {
-                return generateTerminateSubscriptionResponse(false, requestorRef,"RequestorRef is required");
+                return generateTerminateSubscriptionResponse(false, requestorRef, "RequestorRef is required");
             }
             if (terminateSubscriptionRequest.getSubscriptionReves().size() != 1) {
-                return generateTerminateSubscriptionResponse(false, requestorRef,"A single SubscriptionRef is required");
+                return generateTerminateSubscriptionResponse(false, requestorRef, "A single SubscriptionRef is required");
             }
             String subscriptionRef = getStringValue(terminateSubscriptionRequest.getSubscriptionReves().get(0));
             logger.info("New TerminateSubscriptionRequest: requestorRef={}, subscriptionRef={}", requestorRef, subscriptionRef);
@@ -109,7 +109,7 @@ public class SiriXMLSubscriptionHandler {
                 //We respond successfull regardless of the subscription actually exists so we can't be used to guess subscription names
                 logger.warn("TerminateSubscriptionRequest on unmatched subscription, generated name is: {}", name);
             }
-            return generateTerminateSubscriptionResponse(true, requestorRef,null);
+            return generateTerminateSubscriptionResponse(true, requestorRef, null);
         } else {
             logger.warn("Got an unknown Siri-request");
             //TODO: create new exception class and add exception handler in camel route to give proper errormessages to client
@@ -117,8 +117,16 @@ public class SiriXMLSubscriptionHandler {
         }
     }
 
-    private Siri addOrReplaceSubscription(String requestorRef, String subscriptionIdentifier, ZonedDateTime initialTerminationTime, Duration heartbeatInterval, String codespace, Set<String> lineRefs, String address, SubscriptionTypeEnum type) {
-        logger.info("New {} subscription (siri XML): requestorRef={}, subscriptionIdentifier={}, initialTerminationTime={}, heartbeatInterval={}, codespace={}, lines={}, address={}",
+    private Siri addOrReplaceSubscription(String requestorRef,
+                                          String subscriptionIdentifier,
+                                          ZonedDateTime initialTerminationTime,
+                                          Duration heartbeatInterval,
+                                          String codespace,
+                                          Set<String> lineRefs,
+                                          String address,
+                                          SubscriptionTypeEnum type){
+        logger.info("New {} subscription (siri XML): requestorRef={}, subscriptionIdentifier={}, initialTerminationTime={}," +
+                        " heartbeatInterval={}, codespace={}, lines={}, address={}",
                 type, requestorRef, subscriptionIdentifier, initialTerminationTime, heartbeatInterval, codespace, lineRefs, address);
 
         StringBuilder error = new StringBuilder();
@@ -137,7 +145,7 @@ public class SiriXMLSubscriptionHandler {
         if (initialTerminationTime != null && ZonedDateTime.now().isAfter(initialTerminationTime)) {
             error.append("InitialTerminationTime is in the past.\n");
         }
-        if (error.length()>0) {
+        if (error.length() > 0) {
             return generateSubscriptionResponse(false, requestorRef, error.toString());
         }
 
@@ -164,7 +172,7 @@ public class SiriXMLSubscriptionHandler {
             subscription.setId(existing.getId());
         }
         subscriptionManager.addOrUpdate(subscription, true);
-        return generateSubscriptionResponse(true, requestorRef,null);
+        return generateSubscriptionResponse(true, requestorRef, null);
     }
 
     private Siri generateTerminateSubscriptionResponse(boolean success, String requestorRef, String errorMessage) {

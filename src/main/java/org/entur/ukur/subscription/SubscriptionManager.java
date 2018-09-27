@@ -353,39 +353,61 @@ public class SubscriptionManager {
         }
     }
 
-    Subscription addOrUpdate(Subscription s, boolean siriXML) {
-        if (s == null) {
+    Subscription addOrUpdate(Subscription subscription, boolean siriXML) {
+        if (subscription == null) {
             throw new IllegalArgumentException("No subscription given");
         }
-        if (StringUtils.isBlank(s.getPushAddress())) {
+        if (StringUtils.isBlank(subscription.getPushAddress())) {
             throw new IllegalArgumentException("PushAddress is required");
         }
-        s.normalizeAndRemoveIgnoredStops();
-        boolean noToStops = s.getToStopPoints().isEmpty();
-        boolean noFromStops = s.getFromStopPoints().isEmpty();
-        boolean noCodespaces = s.getCodespaces().isEmpty();
-        boolean noLineRefs = s.getLineRefs().isEmpty();
+        subscription.normalizeAndRemoveIgnoredStops();
+        removeInvalidStopPointsFromSubscription(subscription);
+
+        boolean noToStops = subscription.getToStopPoints().isEmpty();
+        boolean noFromStops = subscription.getFromStopPoints().isEmpty();
+        boolean noCodespaces = subscription.getCodespaces().isEmpty();
+        boolean noLineRefs = subscription.getLineRefs().isEmpty();
         if (noToStops && noFromStops && noCodespaces && noLineRefs) {
-            throw new IllegalArgumentException("No criterias given, must have at least one lineRef, one codespace or a fromStop and a toStop");
+            throw new IllegalArgumentException("No criterias given, must have at least one lineRef, one codespace or a valid fromStop and a valid toStop." +
+                    " Please check NSR database for valid stops");
         }
         if ( (noFromStops && !noToStops) || (noToStops && !noFromStops)) {
-            throw new IllegalArgumentException("Must have both TO and FROM stops");
+            throw new IllegalArgumentException("Must have both TO and FROM valid stops");
         }
-        if (!siriXML && s.isSiriXMLBasedSubscription()) {
+
+        if (!siriXML && subscription.isSiriXMLBasedSubscription()) {
             throw new IllegalArgumentException("Illegal name (can't start with 'SIRI-XML')");
         }
-        if (StringUtils.isNotBlank(s.getId())) {
-            logger.info("Attempts to updates subscription with id {}", s.getId());
-            if ( dataStorageService.updateSubscription(s)) {
-                logger.info("Updated subscription with id {} successfully", s.getId());
+        if (StringUtils.isNotBlank(subscription.getId())) {
+            logger.info("Attempts to updates subscription with id {}", subscription.getId());
+            if ( dataStorageService.updateSubscription(subscription)) {
+                logger.info("Updated subscription with id {} successfully", subscription.getId());
             } else {
                 throw new IllegalArgumentException("Could not update subscription");
             }
-            return s;
+            return subscription;
         } else {
-            Subscription added = dataStorageService.addSubscription(s);
+            Subscription added = dataStorageService.addSubscription(subscription);
             logger.info("Added new subscription - assigns id: {}", added.getId());
             return added;
+        }
+    }
+
+    private void removeInvalidStopPointsFromSubscription(Subscription subscription) {
+        Set<String> fromStopPoints = subscription.getFromStopPoints();
+        Set<String> toStopPoints = subscription.getToStopPoints();
+
+        for (String fromStopPoint : fromStopPoints) {
+            if (!quayAndStopPlaceMappingService.isValidStopPlace(fromStopPoint) &&
+                    !quayAndStopPlaceMappingService.isValidQuayId(fromStopPoint)) {
+                subscription.removeFromStopPoint(fromStopPoint);
+            }
+        }
+        for (String toStopPoint : toStopPoints) {
+            if (!quayAndStopPlaceMappingService.isValidStopPlace(toStopPoint) &&
+                    !quayAndStopPlaceMappingService.isValidQuayId(toStopPoint)) {
+                subscription.removeToStopPoint(toStopPoint);
+            }
         }
     }
 

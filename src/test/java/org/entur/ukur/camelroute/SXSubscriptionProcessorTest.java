@@ -15,6 +15,7 @@
 
 package org.entur.ukur.camelroute;
 
+import com.google.common.collect.Sets;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.core.ITopic;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
@@ -56,7 +57,25 @@ public class SXSubscriptionProcessorTest extends DatastoreTest {
         MetricsService metricsServiceMock = mock(MetricsService.class);
         siriMarshaller = new SiriMarshaller();
         DataStorageService dataStorageService = new DataStorageService(datastore, subscriptionTopic);
-        subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsServiceMock, new HashMap<>(), new QuayAndStopPlaceMappingService(metricsServiceMock));
+        HashMap<String, Collection<String>> stopPlacesAndQuays = new HashMap<>();
+        stopPlacesAndQuays.put("NSR:StopPlace:0", Sets.newHashSet("NSR:Quay:232"));
+        stopPlacesAndQuays.put("NSR:StopPlace:1", Sets.newHashSet("NSR:Quay:232"));
+        stopPlacesAndQuays.put("NSR:StopPlace:2", Sets.newHashSet("NSR:Quay:232"));
+        stopPlacesAndQuays.put("NSR:StopPlace:3", Sets.newHashSet("NSR:Quay:125"));
+        stopPlacesAndQuays.put("NSR:StopPlace:22", Sets.newHashSet("NSR:Quay:125"));
+        stopPlacesAndQuays.put("NSR:StopPlace:222", Sets.newHashSet("NSR:Quay:125"));
+        stopPlacesAndQuays.put("NSR:StopPlace:3", Sets.newHashSet("NSR:Quay:125"));
+        stopPlacesAndQuays.put("NSR:StopPlace:33", Sets.newHashSet("NSR:Quay:125"));
+        stopPlacesAndQuays.put("NSR:StopPlace:333", Sets.newHashSet("NSR:Quay:125"));
+        stopPlacesAndQuays.put("NSR:StopPlace:5", Sets.newHashSet("NSR:Quay:125"));
+        stopPlacesAndQuays.put("NSR:StopPlace:10", Sets.newHashSet("NSR:Quay:125"));
+        stopPlacesAndQuays.put("NSR:StopPlace:20", Sets.newHashSet("NSR:Quay:125"));
+        stopPlacesAndQuays.put("NSR:StopPlace:30", Sets.newHashSet("NSR:Quay:125"));
+        stopPlacesAndQuays.put("NSR:StopPlace:40", Sets.newHashSet("NSR:Quay:125"));
+        QuayAndStopPlaceMappingService quayAndStopPlaceMappingService = new QuayAndStopPlaceMappingService(mock(MetricsService.class));
+        quayAndStopPlaceMappingService.updateStopsAndQuaysMap(stopPlacesAndQuays);
+
+        subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsServiceMock, new HashMap<>(), quayAndStopPlaceMappingService);
         processor = new SXSubscriptionProcessor(subscriptionManager, siriMarshaller, mock(FileStorageService.class), mock(MetricsService.class));
     }
 
