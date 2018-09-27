@@ -49,7 +49,7 @@ public class RestRoutesTest extends AbstractJUnit4SpringContextTests {
      * Simply call the various internal REST endpoints to make sure they do not have any runtime errors.
      */
     @Test
-    public void testInternalRESTendpoints() throws Exception {
+    public void testInternalRESTendpoints() {
         String baseUrl = "http://localhost:"+config.getRestPort()+"/internal";
 
         tiamatStopPlaceQuaysProcessor.hasRun = true; //to allow health/ready respond OK

@@ -25,7 +25,17 @@ import org.entur.ukur.subscription.SubscriptionManager;
 import org.entur.ukur.xml.SiriMarshaller;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
-import uk.org.siri.siri20.*;
+import uk.org.siri.siri20.CallStatusEnumeration;
+import uk.org.siri.siri20.DatedVehicleJourneyRef;
+import uk.org.siri.siri20.EstimatedCall;
+import uk.org.siri.siri20.EstimatedVehicleJourney;
+import uk.org.siri.siri20.LineRef;
+import uk.org.siri.siri20.OperatorRefStructure;
+import uk.org.siri.siri20.QuayRefStructure;
+import uk.org.siri.siri20.RecordedCall;
+import uk.org.siri.siri20.StopAssignmentStructure;
+import uk.org.siri.siri20.StopPointRef;
+import uk.org.siri.siri20.VehicleRef;
 
 import javax.xml.bind.JAXBException;
 import java.time.ZonedDateTime;
@@ -38,11 +48,19 @@ import java.util.Set;
 import static junit.framework.TestCase.assertTrue;
 import static org.entur.ukur.subscription.SubscriptionTypeEnum.ET;
 import static org.hamcrest.CoreMatchers.hasItem;
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 public class ETSubscriptionProcessorTest {
 
+
+    private int subscriptionCounter = 0;
 
     @Test
     public void validDirection() throws JAXBException {
@@ -108,26 +126,39 @@ public class ETSubscriptionProcessorTest {
 
         Set<Subscription> subscriptionsForStopPoint = new HashSet<>();
         //Expects these to be found:
-        Subscription s_R1_E1 = createSubscription("s_R1_E1", subscriptionsForStopPoint, "R1", "E1", null, null, false);
-        Subscription s_R1_E1_c = createSubscription("s_R1_E1_c", subscriptionsForStopPoint, "R1", "E1", "BNR", null, false);
-        Subscription s_R1_E1_c_l = createSubscription("s_R1_E1_c_l", subscriptionsForStopPoint, "R1", "E1", "BNR", "NSB:Line:1", false);
-        Subscription s_R1_E1_l = createSubscription("s_R1_E1_l", subscriptionsForStopPoint, "R1", "E1", null, "NSB:Line:1", false);
-        Subscription s_l_c = createSubscription("s_l_c", subscriptionsForStopPoint, null, null, "BNR", "NSB:Line:1", false);
-        Subscription s_l = createSubscription("s_l", subscriptionsForStopPoint, null, null, null, "NSB:Line:1", false);
-        Subscription s_c = createSubscription("s_c", subscriptionsForStopPoint, null, null, "BNR", null, false);
+        Subscription sR1E1 =
+                createSubscription("s_R1_E1", subscriptionsForStopPoint, "R1", "E1", null, null, false);
+        Subscription sR1E1C = createSubscription("s_R1_E1_c", subscriptionsForStopPoint,
+                "R1", "E1", "BNR", null, false);
+        Subscription sR1E1CL = createSubscription("s_R1_E1_c_l", subscriptionsForStopPoint,
+                "R1", "E1", "BNR", "NSB:Line:1", false);
+        Subscription sR1E1L = createSubscription("s_R1_E1_l", subscriptionsForStopPoint, "R1", "E1",
+                null, "NSB:Line:1", false);
+        Subscription sLC = createSubscription("s_l_c", subscriptionsForStopPoint, null, null, "BNR",
+                "NSB:Line:1", false);
+        Subscription sL = createSubscription("s_l", subscriptionsForStopPoint, null, null,
+                null, "NSB:Line:1", false);
+        Subscription sC = createSubscription("s_c", subscriptionsForStopPoint, null, null,
+                "BNR", null, false);
         //These should not be found:
         createSubscription("notfound1", subscriptionsForStopPoint, "E1", "R1", null, null, false);
-        createSubscription("notfound2", subscriptionsForStopPoint, "R1", "E1", "XXX", "NSB:Line:2", false);
-        Subscription s_l_cx = createSubscription("s_l_cx", subscriptionsForStopPoint, null, null, "XXX", "NSB:Line:1", false);
-        Subscription s_lx_c = createSubscription("s_lx_c", subscriptionsForStopPoint, null, null, "BNR", "NSB:Line:2", false);
-        createSubscription("notfound3", subscriptionsForStopPoint, "x1", "E1", "BNR", "NSB:Line:1", false);
-        createSubscription("notfound4", subscriptionsForStopPoint, "R1", "x1", "BNR", "NSB:Line:1", false);
+        createSubscription("notfound2", subscriptionsForStopPoint, "R1", "E1", "XXX",
+                "NSB:Line:2", false);
+        Subscription sLCx = createSubscription("s_l_cx", subscriptionsForStopPoint, null,
+                null, "XXX", "NSB:Line:1", false);
+        Subscription sLxC = createSubscription("s_lx_c", subscriptionsForStopPoint, null, null,
+                "BNR", "NSB:Line:2", false);
+        createSubscription("notfound3", subscriptionsForStopPoint, "x1", "E1",
+                "BNR", "NSB:Line:1", false);
+        createSubscription("notfound4", subscriptionsForStopPoint, "R1", "x1",
+                "BNR", "NSB:Line:1", false);
 
-        SubscriptionManager subscriptionManagerMock = mock(SubscriptionManager.class); //must be somewhat carefull so we don't spend to much time testing the mock...
-        when((subscriptionManagerMock.getSubscriptionsForStopPoint("NSR:Quay:E1", ET))).thenReturn(subscriptionsForStopPoint);
-        when((subscriptionManagerMock.getSubscriptionsForStopPoint("NSR:Quay:R1", ET))).thenReturn(subscriptionsForStopPoint);
-        when((subscriptionManagerMock.getSubscriptionsForLineRef("NSB:Line:1", ET))).thenReturn(new HashSet<>(Arrays.asList(s_l, s_l_c, s_l_cx)));
-        when((subscriptionManagerMock.getSubscriptionsForCodespace("BNR", ET))).thenReturn(new HashSet<>(Arrays.asList(s_l_c, s_c, s_lx_c)));
+        SubscriptionManager subscriptionManagerMock =
+                mock(SubscriptionManager.class); //must be somewhat carefull so we don't spend to much time testing the mock...
+        when(subscriptionManagerMock.getSubscriptionsForStopPoint("NSR:Quay:E1", ET)).thenReturn(subscriptionsForStopPoint);
+        when(subscriptionManagerMock.getSubscriptionsForStopPoint("NSR:Quay:R1", ET)).thenReturn(subscriptionsForStopPoint);
+        when(subscriptionManagerMock.getSubscriptionsForLineRef("NSB:Line:1", ET)).thenReturn(new HashSet<>(Arrays.asList(sL, sLC, sLCx)));
+        when(subscriptionManagerMock.getSubscriptionsForCodespace("BNR", ET)).thenReturn(new HashSet<>(Arrays.asList(sLC, sC, sLxC)));
 
         QuayAndStopPlaceMappingService mappingMock = mock(QuayAndStopPlaceMappingService.class);
         when(mappingMock.mapQuayToStopPlace("NSR:Quay:E1")).thenReturn("NSR:StopPlace:E1");
@@ -137,22 +168,22 @@ public class ETSubscriptionProcessorTest {
                 new SiriMarshaller(), mock(FileStorageService.class),
                 new MetricsService(), mappingMock);
 
-        ArgumentCaptor<HashSet> subscriptionsOnStopsCaptor= ArgumentCaptor.forClass(HashSet.class);
-        ArgumentCaptor<HashSet> subscriptionsOnLineOrVehicleJourneyCaptor= ArgumentCaptor.forClass(HashSet.class);
+        ArgumentCaptor<HashSet> subscriptionsOnStopsCaptor = ArgumentCaptor.forClass(HashSet.class);
+        ArgumentCaptor<HashSet> subscriptionsOnLineOrVehicleJourneyCaptor = ArgumentCaptor.forClass(HashSet.class);
         assertTrue(processor.processEstimatedVehicleJourney(journey, ZonedDateTime.now()));
         verify(subscriptionManagerMock).notifySubscriptionsOnStops(subscriptionsOnStopsCaptor.capture(), eq(journey), any());
         verify(subscriptionManagerMock).notifySubscriptionsWithFullMessage(subscriptionsOnLineOrVehicleJourneyCaptor.capture(), eq(journey), any());
         HashSet<Subscription> notifiedSubscriptionsOnStops = subscriptionsOnStopsCaptor.getValue();
         assertEquals(4, notifiedSubscriptionsOnStops.size());
-        assertTrue(notifiedSubscriptionsOnStops.contains(s_R1_E1));
-        assertTrue(notifiedSubscriptionsOnStops.contains(s_R1_E1_c));
-        assertTrue(notifiedSubscriptionsOnStops.contains(s_R1_E1_c_l));
-        assertTrue(notifiedSubscriptionsOnStops.contains(s_R1_E1_l));
+        assertTrue(notifiedSubscriptionsOnStops.contains(sR1E1));
+        assertTrue(notifiedSubscriptionsOnStops.contains(sR1E1C));
+        assertTrue(notifiedSubscriptionsOnStops.contains(sR1E1CL));
+        assertTrue(notifiedSubscriptionsOnStops.contains(sR1E1L));
         HashSet<Subscription> notifiedSubscriptionsWithFullMessage = subscriptionsOnLineOrVehicleJourneyCaptor.getValue();
         assertEquals(3, notifiedSubscriptionsWithFullMessage.size());
-        assertTrue(notifiedSubscriptionsWithFullMessage.contains(s_l_c));
-        assertTrue(notifiedSubscriptionsWithFullMessage.contains(s_l));
-        assertTrue(notifiedSubscriptionsWithFullMessage.contains(s_c));
+        assertTrue(notifiedSubscriptionsWithFullMessage.contains(sLC));
+        assertTrue(notifiedSubscriptionsWithFullMessage.contains(sL));
+        assertTrue(notifiedSubscriptionsWithFullMessage.contains(sC));
     }
 
     @Test
@@ -166,12 +197,14 @@ public class ETSubscriptionProcessorTest {
         DataStorageService dataStorageMock = mock(DataStorageService.class);
         HashSet<Subscription> subscriptionsNotified = new HashSet<>();
         QuayAndStopPlaceMappingService mappingMock = mock(QuayAndStopPlaceMappingService.class);
-        SubscriptionManager subscriptionManager = new SubscriptionManager(dataStorageMock, siriMarshaller, metricsService, new HashMap<>(), mappingMock) {
-            @Override
-            public void notifySubscriptionsOnStops(HashSet<Subscription> subscriptions, EstimatedVehicleJourney estimatedVehicleJourney, ZonedDateTime timestamp) {
-                subscriptionsNotified.addAll(subscriptions);
-            }
-        };
+        SubscriptionManager subscriptionManager =
+                new SubscriptionManager(dataStorageMock, siriMarshaller, metricsService, new HashMap<>(), mappingMock) {
+                    @Override
+                    public void notifySubscriptionsOnStops(HashSet<Subscription> subscriptions,
+                                                           EstimatedVehicleJourney estimatedVehicleJourney, ZonedDateTime timestamp) {
+                        subscriptionsNotified.addAll(subscriptions);
+                    }
+                };
 
         ETSubscriptionProcessor processor = new ETSubscriptionProcessor(subscriptionManager, siriMarshaller,
                 mock(FileStorageService.class), metricsService, mappingMock);
@@ -234,32 +267,36 @@ public class ETSubscriptionProcessorTest {
         createSubscription("s_R1_E1_c", subscriptionsForStopPoint, "R1", "E1", "BNR", null, false);
         createSubscription("s_R1_E1_c_l", subscriptionsForStopPoint, "R1", "E1", "BNR", "NSB:Line:1", false);
         createSubscription("s_R1_E1_l", subscriptionsForStopPoint, "R1", "E1", null, "NSB:Line:1", false);
-        Subscription s_l_c = createSubscription("s_l_c", subscriptionsForStopPoint, null, null, "BNR", "NSB:Line:1", false);
-        Subscription s_l = createSubscription("s_l", subscriptionsForStopPoint, null, null, null, "NSB:Line:1", false);
-        Subscription s_c = createSubscription("s_c", subscriptionsForStopPoint, null, null, "BNR", null, false);
-        Subscription s_l_cx = createSubscription("s_l_cx", subscriptionsForStopPoint, null, null, "XXX", "NSB:Line:1", false);
-        Subscription s_lx_c = createSubscription("s_lx_c", subscriptionsForStopPoint, null, null, "BNR", "NSB:Line:2", false);
+        Subscription sLC = createSubscription("s_l_c", subscriptionsForStopPoint, null, null, "BNR", "NSB:Line:1", false);
+        Subscription sL = createSubscription("s_l", subscriptionsForStopPoint, null, null, null, "NSB:Line:1", false);
+        Subscription sC = createSubscription("s_c", subscriptionsForStopPoint, null, null, "BNR", null, false);
+        Subscription sLCx = createSubscription("s_l_cx", subscriptionsForStopPoint, null, null, "XXX", "NSB:Line:1", false);
+        Subscription sLxC = createSubscription("s_lx_c", subscriptionsForStopPoint, null, null, "BNR", "NSB:Line:2", false);
         //Expects these to be found:
-        Subscription allMessages_R1_E1 = createSubscription("allMessages_R1_E1", subscriptionsForStopPoint, "R1", "E1", null, null, false);
-        Subscription allMessages_R1_E1_c = createSubscription("allMessages_R1_E1_c", subscriptionsForStopPoint, "R1", "E1", "BNR", null, false);
-        Subscription allMessages_R1_E1_c_l = createSubscription("allMessages_R1_E1_c_l", subscriptionsForStopPoint, "R1", "E1", "BNR", "NSB:Line:1", false);
-        Subscription allMessages_R1_E1_l = createSubscription("allMessages_R1_E1_l", subscriptionsForStopPoint, "R1", "E1", null, "NSB:Line:1", false);
-        Subscription allMessages_l_c = createSubscription("allMessages_l_c", subscriptionsForStopPoint, null, null, "BNR", "NSB:Line:1", false);
-        Subscription allMessages_l = createSubscription("allMessages_l", subscriptionsForStopPoint, null, null, null, "NSB:Line:1", false);
-        Subscription allMessages_c = createSubscription("allMessages_c", subscriptionsForStopPoint, null, null, "BNR", null, false);
-        allMessages_R1_E1.setPushAllData(true);
-        allMessages_R1_E1_c.setPushAllData(true);
-        allMessages_R1_E1_c_l.setPushAllData(true);
-        allMessages_R1_E1_l.setPushAllData(true);
-        allMessages_l_c.setPushAllData(true);
-        allMessages_l.setPushAllData(true);
-        allMessages_c.setPushAllData(true);
+        Subscription allMessagesR1E1 = createSubscription("allMessages_R1_E1", subscriptionsForStopPoint, "R1", "E1", null, null, false);
+        Subscription allMessagesR1E1C = createSubscription("allMessages_R1_E1_c", subscriptionsForStopPoint, "R1", "E1", "BNR", null, false);
+        Subscription allMessagesR1E1CL =
+                createSubscription("allMessages_R1_E1_c_l", subscriptionsForStopPoint, "R1", "E1", "BNR", "NSB:Line:1", false);
+        Subscription allMessagesR1E1L = createSubscription("allMessages_R1_E1_l", subscriptionsForStopPoint, "R1", "E1", null, "NSB:Line:1", false);
+        Subscription allMessagesLC = createSubscription("allMessages_l_c", subscriptionsForStopPoint, null, null, "BNR", "NSB:Line:1", false);
+        Subscription allMessagesL = createSubscription("allMessages_l", subscriptionsForStopPoint, null, null, null, "NSB:Line:1", false);
+        Subscription allMessagesC = createSubscription("allMessages_c", subscriptionsForStopPoint, null, null, "BNR", null, false);
+        allMessagesR1E1.setPushAllData(true);
+        allMessagesR1E1C.setPushAllData(true);
+        allMessagesR1E1CL.setPushAllData(true);
+        allMessagesR1E1L.setPushAllData(true);
+        allMessagesLC.setPushAllData(true);
+        allMessagesL.setPushAllData(true);
+        allMessagesC.setPushAllData(true);
 
-        SubscriptionManager subscriptionManagerMock = mock(SubscriptionManager.class); //must be somewhat carefull so we don't spend to much time testing the mock...
-        when((subscriptionManagerMock.getSubscriptionsForStopPoint("NSR:Quay:E1", ET))).thenReturn(subscriptionsForStopPoint);
-        when((subscriptionManagerMock.getSubscriptionsForStopPoint("NSR:Quay:R1", ET))).thenReturn(subscriptionsForStopPoint);
-        when((subscriptionManagerMock.getSubscriptionsForLineRef("NSB:Line:1", ET))).thenReturn(new HashSet<>(Arrays.asList(s_l, s_l_c, s_l_cx, allMessages_l, allMessages_l_c)));
-        when((subscriptionManagerMock.getSubscriptionsForCodespace("BNR", ET))).thenReturn(new HashSet<>(Arrays.asList(s_l_c, s_c, s_lx_c, allMessages_l_c, allMessages_c)));
+        SubscriptionManager subscriptionManagerMock =
+                mock(SubscriptionManager.class); //must be somewhat carefull so we don't spend to much time testing the mock...
+        when(subscriptionManagerMock.getSubscriptionsForStopPoint("NSR:Quay:E1", ET)).thenReturn(subscriptionsForStopPoint);
+        when(subscriptionManagerMock.getSubscriptionsForStopPoint("NSR:Quay:R1", ET)).thenReturn(subscriptionsForStopPoint);
+        when(subscriptionManagerMock.getSubscriptionsForLineRef("NSB:Line:1", ET))
+                .thenReturn(new HashSet<>(Arrays.asList(sL, sLC, sLCx, allMessagesL, allMessagesLC)));
+        when(subscriptionManagerMock.getSubscriptionsForCodespace("BNR", ET))
+                .thenReturn(new HashSet<>(Arrays.asList(sLC, sC, sLxC, allMessagesLC, allMessagesC)));
 
         QuayAndStopPlaceMappingService mappingMock = mock(QuayAndStopPlaceMappingService.class);
         when(mappingMock.mapQuayToStopPlace("NSR:Quay:E1")).thenReturn("NSR:StopPlace:E1");
@@ -269,22 +306,22 @@ public class ETSubscriptionProcessorTest {
                 new SiriMarshaller(), mock(FileStorageService.class),
                 new MetricsService(), mappingMock);
 
-        ArgumentCaptor<HashSet> subscriptionsOnStopsCaptor= ArgumentCaptor.forClass(HashSet.class);
-        ArgumentCaptor<HashSet> subscriptionsOnLineOrVehicleJourneyCaptor= ArgumentCaptor.forClass(HashSet.class);
+        ArgumentCaptor<HashSet> subscriptionsOnStopsCaptor = ArgumentCaptor.forClass(HashSet.class);
+        ArgumentCaptor<HashSet> subscriptionsOnLineOrVehicleJourneyCaptor = ArgumentCaptor.forClass(HashSet.class);
         assertTrue(processor.processEstimatedVehicleJourney(journey, ZonedDateTime.now()));
         verify(subscriptionManagerMock).notifySubscriptionsOnStops(subscriptionsOnStopsCaptor.capture(), eq(journey), any());
         verify(subscriptionManagerMock).notifySubscriptionsWithFullMessage(subscriptionsOnLineOrVehicleJourneyCaptor.capture(), eq(journey), any());
         HashSet<Subscription> notifiedSubscriptionsOnStops = subscriptionsOnStopsCaptor.getValue();
         assertEquals(4, notifiedSubscriptionsOnStops.size());
-        assertTrue(notifiedSubscriptionsOnStops.contains(allMessages_R1_E1));
-        assertTrue(notifiedSubscriptionsOnStops.contains(allMessages_R1_E1_c));
-        assertTrue(notifiedSubscriptionsOnStops.contains(allMessages_R1_E1_c_l));
-        assertTrue(notifiedSubscriptionsOnStops.contains(allMessages_R1_E1_l));
+        assertTrue(notifiedSubscriptionsOnStops.contains(allMessagesR1E1));
+        assertTrue(notifiedSubscriptionsOnStops.contains(allMessagesR1E1C));
+        assertTrue(notifiedSubscriptionsOnStops.contains(allMessagesR1E1CL));
+        assertTrue(notifiedSubscriptionsOnStops.contains(allMessagesR1E1L));
         HashSet<Subscription> notifiedSubscriptionsWithFullMessage = subscriptionsOnLineOrVehicleJourneyCaptor.getValue();
         assertEquals(3, notifiedSubscriptionsWithFullMessage.size());
-        assertTrue(notifiedSubscriptionsWithFullMessage.contains(allMessages_l_c));
-        assertTrue(notifiedSubscriptionsWithFullMessage.contains(allMessages_l));
-        assertTrue(notifiedSubscriptionsWithFullMessage.contains(allMessages_c));
+        assertTrue(notifiedSubscriptionsWithFullMessage.contains(allMessagesLC));
+        assertTrue(notifiedSubscriptionsWithFullMessage.contains(allMessagesL));
+        assertTrue(notifiedSubscriptionsWithFullMessage.contains(allMessagesC));
     }
 
     @SuppressWarnings("unchecked")
@@ -310,26 +347,27 @@ public class ETSubscriptionProcessorTest {
 
         Set<Subscription> subscriptionsForStopPoint = new HashSet<>();
         //Expects these to be found:
-        Subscription s_R1_E1 = createSubscription("s_R1_E1", subscriptionsForStopPoint, "R1", "E1", null, null, false);
-        Subscription s_R1_E1_c = createSubscription("s_R1_E1_c", subscriptionsForStopPoint, "R1", "E1", "BNR", null, false);
-        Subscription s_R1_E1_c_l = createSubscription("s_R1_E1_c_l", subscriptionsForStopPoint, "R1", "E1", "BNR", "NSB:Line:1", false);
-        Subscription s_R1_E1_l = createSubscription("s_R1_E1_l", subscriptionsForStopPoint, "R1", "E1", null, "NSB:Line:1", false);
-        Subscription s_l_c = createSubscription("s_l_c", subscriptionsForStopPoint, null, null, "BNR", "NSB:Line:1", false);
-        Subscription s_l = createSubscription("s_l", subscriptionsForStopPoint, null, null, null, "NSB:Line:1", false);
-        Subscription s_c = createSubscription("s_c", subscriptionsForStopPoint, null, null, "BNR", null, false);
+        Subscription sR1E1 = createSubscription("s_R1_E1", subscriptionsForStopPoint, "R1", "E1", null, null, false);
+        Subscription sR1E1C = createSubscription("s_R1_E1_c", subscriptionsForStopPoint, "R1", "E1", "BNR", null, false);
+        Subscription sR1E1CL = createSubscription("s_R1_E1_c_l", subscriptionsForStopPoint, "R1", "E1", "BNR", "NSB:Line:1", false);
+        Subscription sR1E1L = createSubscription("s_R1_E1_l", subscriptionsForStopPoint, "R1", "E1", null, "NSB:Line:1", false);
+        Subscription sLC = createSubscription("s_l_c", subscriptionsForStopPoint, null, null, "BNR", "NSB:Line:1", false);
+        Subscription sL = createSubscription("s_l", subscriptionsForStopPoint, null, null, null, "NSB:Line:1", false);
+        Subscription sC = createSubscription("s_c", subscriptionsForStopPoint, null, null, "BNR", null, false);
         //These should not be found:
         createSubscription("notfound1", subscriptionsForStopPoint, "E1", "R1", null, null, false);
         createSubscription("notfound2", subscriptionsForStopPoint, "R1", "E1", "XXX", "NSB:Line:2", false);
-        Subscription s_l_cx = createSubscription("s_l_cx", subscriptionsForStopPoint, null, null, "XXX", "NSB:Line:1", false);
-        Subscription s_lx_c = createSubscription("s_lx_c", subscriptionsForStopPoint, null, null, "BNR", "NSB:Line:2", false);
+        Subscription sLCx = createSubscription("s_l_cx", subscriptionsForStopPoint, null, null, "XXX", "NSB:Line:1", false);
+        Subscription sLxC = createSubscription("s_lx_c", subscriptionsForStopPoint, null, null, "BNR", "NSB:Line:2", false);
         createSubscription("notfound3", subscriptionsForStopPoint, "x1", "E1", "BNR", "NSB:Line:1", false);
         createSubscription("notfound4", subscriptionsForStopPoint, "R1", "x1", "BNR", "NSB:Line:1", false);
 
-        SubscriptionManager subscriptionManagerMock = mock(SubscriptionManager.class); //must be somewhat carefull so we don't spend to much time testing the mock...
-        when((subscriptionManagerMock.getSubscriptionsForStopPoint("NSR:Quay:E1", ET))).thenReturn(subscriptionsForStopPoint);
-        when((subscriptionManagerMock.getSubscriptionsForStopPoint("NSR:Quay:R1", ET))).thenReturn(subscriptionsForStopPoint);
-        when((subscriptionManagerMock.getSubscriptionsForLineRef("NSB:Line:1", ET))).thenReturn(new HashSet<>(Arrays.asList(s_l, s_l_c, s_l_cx)));
-        when((subscriptionManagerMock.getSubscriptionsForCodespace("BNR", ET))).thenReturn(new HashSet<>(Arrays.asList(s_l_c, s_c, s_lx_c)));
+        SubscriptionManager subscriptionManagerMock =
+                mock(SubscriptionManager.class); //must be somewhat carefull so we don't spend to much time testing the mock...
+        when(subscriptionManagerMock.getSubscriptionsForStopPoint("NSR:Quay:E1", ET)).thenReturn(subscriptionsForStopPoint);
+        when(subscriptionManagerMock.getSubscriptionsForStopPoint("NSR:Quay:R1", ET)).thenReturn(subscriptionsForStopPoint);
+        when(subscriptionManagerMock.getSubscriptionsForLineRef("NSB:Line:1", ET)).thenReturn(new HashSet<>(Arrays.asList(sL, sLC, sLCx)));
+        when(subscriptionManagerMock.getSubscriptionsForCodespace("BNR", ET)).thenReturn(new HashSet<>(Arrays.asList(sLC, sC, sLxC)));
 
         QuayAndStopPlaceMappingService mappingMock = mock(QuayAndStopPlaceMappingService.class);
         when(mappingMock.mapQuayToStopPlace("NSR:Quay:E1")).thenReturn("NSR:StopPlace:E1");
@@ -339,28 +377,26 @@ public class ETSubscriptionProcessorTest {
                 new SiriMarshaller(), mock(FileStorageService.class),
                 new MetricsService(), mappingMock);
 
-        ArgumentCaptor<HashSet> subscriptionsOnStopsCaptor= ArgumentCaptor.forClass(HashSet.class);
-        ArgumentCaptor<HashSet> subscriptionsOnLineOrVehicleJourneyCaptor= ArgumentCaptor.forClass(HashSet.class);
+        ArgumentCaptor<HashSet> subscriptionsOnStopsCaptor = ArgumentCaptor.forClass(HashSet.class);
+        ArgumentCaptor<HashSet> subscriptionsOnLineOrVehicleJourneyCaptor = ArgumentCaptor.forClass(HashSet.class);
         assertTrue(processor.processEstimatedVehicleJourney(journey, ZonedDateTime.now()));
         verify(subscriptionManagerMock).notifySubscriptionsOnStops(subscriptionsOnStopsCaptor.capture(), eq(journey), any());
         verify(subscriptionManagerMock).notifySubscriptionsWithFullMessage(subscriptionsOnLineOrVehicleJourneyCaptor.capture(), eq(journey), any());
         HashSet<Subscription> notifiedSubscriptionsOnStops = subscriptionsOnStopsCaptor.getValue();
         assertEquals(4, notifiedSubscriptionsOnStops.size());
-        assertTrue(notifiedSubscriptionsOnStops.contains(s_R1_E1));
-        assertTrue(notifiedSubscriptionsOnStops.contains(s_R1_E1_c));
-        assertTrue(notifiedSubscriptionsOnStops.contains(s_R1_E1_c_l));
-        assertTrue(notifiedSubscriptionsOnStops.contains(s_R1_E1_l));
+        assertTrue(notifiedSubscriptionsOnStops.contains(sR1E1));
+        assertTrue(notifiedSubscriptionsOnStops.contains(sR1E1C));
+        assertTrue(notifiedSubscriptionsOnStops.contains(sR1E1CL));
+        assertTrue(notifiedSubscriptionsOnStops.contains(sR1E1L));
         HashSet<Subscription> notifiedSubscriptionsWithFullMessage = subscriptionsOnLineOrVehicleJourneyCaptor.getValue();
         assertEquals(3, notifiedSubscriptionsWithFullMessage.size());
-        assertTrue(notifiedSubscriptionsWithFullMessage.contains(s_l_c));
-        assertTrue(notifiedSubscriptionsWithFullMessage.contains(s_l));
-        assertTrue(notifiedSubscriptionsWithFullMessage.contains(s_c));
+        assertTrue(notifiedSubscriptionsWithFullMessage.contains(sLC));
+        assertTrue(notifiedSubscriptionsWithFullMessage.contains(sL));
+        assertTrue(notifiedSubscriptionsWithFullMessage.contains(sC));
     }
 
-
-    private int subscriptionCounter = 0;
-
-    private Subscription createSubscription(String name, Set<Subscription> subscriptions, String from, String to, String codespace, String line, boolean subscribeToQuay) {
+    private Subscription createSubscription(String name, Set<Subscription> subscriptions,
+                                            String from, String to, String codespace, String line, boolean subscribeToQuay) {
         Subscription subscription = new Subscription();
         subscription.setName(name);
         subscription.setId(Integer.toString(subscriptionCounter++));
@@ -376,10 +412,10 @@ public class ETSubscriptionProcessorTest {
         if (to != null) {
             subscription.addToStopPoint(stopPrefix + to);
         }
-        if (line!= null) {
+        if (line != null) {
             subscription.addLineRef(line);
         }
-        if (codespace!= null) {
+        if (codespace != null) {
             subscription.addCodespace(codespace);
         }
         if (subscriptions != null) {
@@ -416,7 +452,8 @@ public class ETSubscriptionProcessorTest {
         addEstimatedCall(estimatedCalls, stopPointRef, time, false);
     }
 
-    private void addEstimatedCall(EstimatedVehicleJourney.EstimatedCalls estimatedCalls, String stopPointRef, ZonedDateTime time, boolean trackChange) {
+    private void addEstimatedCall(EstimatedVehicleJourney.EstimatedCalls estimatedCalls,
+                                  String stopPointRef, ZonedDateTime time, boolean trackChange) {
         EstimatedCall estimatedCall = new EstimatedCall();
         StopPointRef ref = new StopPointRef();
         String quay = "NSR:Quay:" + stopPointRef;
@@ -436,7 +473,7 @@ public class ETSubscriptionProcessorTest {
         QuayRefStructure expectedQuay = new QuayRefStructure();
         expectedQuay.setValue(quay);
         QuayRefStructure aimedQuay = new QuayRefStructure();
-        aimedQuay.setValue(trackChange ? quay+"aimed": quay);
+        aimedQuay.setValue(trackChange ? quay + "aimed" : quay);
         StopAssignmentStructure stopAssignment = new StopAssignmentStructure();
         stopAssignment.setExpectedQuayRef(expectedQuay);
         stopAssignment.setAimedQuayRef(aimedQuay);

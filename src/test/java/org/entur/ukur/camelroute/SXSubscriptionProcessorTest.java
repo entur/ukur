@@ -32,10 +32,22 @@ import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import uk.org.siri.siri20.*;
+import uk.org.siri.siri20.AffectedRouteStructure;
+import uk.org.siri.siri20.AffectedStopPointStructure;
+import uk.org.siri.siri20.AffectedVehicleJourneyStructure;
+import uk.org.siri.siri20.AffectsScopeStructure;
+import uk.org.siri.siri20.PtSituationElement;
+import uk.org.siri.siri20.StopPointRef;
+import uk.org.siri.siri20.VehicleJourneyRef;
 
 import java.io.Serializable;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
@@ -75,12 +87,13 @@ public class SXSubscriptionProcessorTest extends DatastoreTest {
         QuayAndStopPlaceMappingService quayAndStopPlaceMappingService = new QuayAndStopPlaceMappingService(mock(MetricsService.class));
         quayAndStopPlaceMappingService.updateStopsAndQuaysMap(stopPlacesAndQuays);
 
-        subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsServiceMock, new HashMap<>(), quayAndStopPlaceMappingService);
+        subscriptionManager =
+                new SubscriptionManager(dataStorageService, siriMarshaller, metricsServiceMock, new HashMap<>(), quayAndStopPlaceMappingService);
         processor = new SXSubscriptionProcessor(subscriptionManager, siriMarshaller, mock(FileStorageService.class), mock(MetricsService.class));
     }
 
     @Test
-    public void findAffectedSubscriptionOnStopsOnly()  {
+    public void findAffectedSubscriptionOnStopsOnly() {
         Subscription s1 = createSubscription("s2", "NSR:StopPlace:2", "NSR:StopPlace:3");
         s1.addFromStopPoint("NSR:StopPlace:22");
         s1.addFromStopPoint("NSR:StopPlace:222");
@@ -91,91 +104,103 @@ public class SXSubscriptionProcessorTest extends DatastoreTest {
         Subscription s0 = createSubscription("s0", "NSR:StopPlace:0", "NSR:StopPlace:2");
 
         //Only one in correct order
-        HashSet<Subscription> affectedSubscriptions = processor.findAffectedSubscriptions(createVehicleJourneys(asList("1", "2", "3", "4"), null, false));
+        HashSet<Subscription> affectedSubscriptions =
+                processor.findAffectedSubscriptions(createVehicleJourneys(asList("1", "2", "3", "4"), null, false));
         assertEquals(1, affectedSubscriptions.size());
         assertTrue(affectedSubscriptions.contains(s1));
 
         //None in the opposite order
-        affectedSubscriptions = processor.findAffectedSubscriptions(createVehicleJourneys(asList("4", "3", "2", "1"), null, false));
+        affectedSubscriptions =
+                processor.findAffectedSubscriptions(createVehicleJourneys(asList("4", "3", "2", "1"), null, false));
         assertTrue(affectedSubscriptions.isEmpty());
 
         //All when we don't know if all stops is present in route
-        assertPresent(asList(s1, s0), processor.findAffectedSubscriptions(createVehicleJourneys(Collections.singletonList("2"), null, true)));
+        assertPresent(asList(s1, s0),
+                processor.findAffectedSubscriptions(createVehicleJourneys(Collections.singletonList("2"), null, true)));
 
-        //TODO: Both affected when not all stops is present in route - should be only one but we have no way of telling as only affected stops are present in the sx message
-        assertPresent(asList(s1, s0), processor.findAffectedSubscriptions(createVehicleJourneys(Collections.singletonList("2"), "123", true)));
+        //TODO: Both affected when not all stops is present in route
+        // - should be only one but we have no way of telling as only affected stops are present in the sx message
+        assertPresent(asList(s1, s0),
+                processor.findAffectedSubscriptions(createVehicleJourneys(Collections.singletonList("2"), "123", true)));
     }
 
     @Test
-    public void one_affected_unsubscribed_stop_on_journey() throws Exception {
+    public void oneAffectedUnsubscribedStopOnJourney() throws Exception {
         createSubscription("test", "NSR:StopPlace:2", "NSR:StopPlace:3");
 
-        String SX_with_one_affected_stop_on_journey =
-                "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n" +
-                "<PtSituationElement xmlns=\"http://www.siri.org.uk/siri\" xmlns:ns2=\"http://www.ifopt.org.uk/acsb\" xmlns:ns4=\"http://datex2.eu/schema/2_0RC1/2_0\" xmlns:ns3=\"http://www.ifopt.org.uk/ifopt\">\n" +
-                "  <CreationTime>2018-01-26T11:36:29+01:00</CreationTime>\n" +
-                "  <ParticipantRef>NSB</ParticipantRef>\n" +
-                "  <SituationNumber>status-168101694</SituationNumber>\n" +
-                "  <Version>1</Version>\n" +
-                "  <Source>\n" +
-                "    <SourceType>web</SourceType>\n" +
-                "  </Source>\n" +
-                "  <Progress>published</Progress>\n" +
-                "  <ValidityPeriod>\n" +
-                "    <StartTime>2018-04-11T00:00:00+02:00</StartTime>\n" +
-                "    <EndTime>2018-04-12T04:35:00+02:00</EndTime>\n" +
-                "  </ValidityPeriod>\n" +
-                "  <UndefinedReason/>\n" +
-                "  <ReportType>incident</ReportType>\n" +
-                "  <Keywords/>\n" +
-                "  <Description xml:lang=\"NO\">Toget vil bytte togmateriell på Voss. Du må dessverre bytte tog på denne stasjonen. På strekningen Bergen-Voss gjelder ikke plassreservasjoner.</Description>\n" +
-                "  <Description xml:lang=\"EN\">You must change trains at Voss. We apologize for the inconvenience. No seat reservations Bergen-Voss.</Description>\n" +
-                "  <Affects>\n" +
-                "    <VehicleJourneys>\n" +
-                "      <AffectedVehicleJourney>\n" +
-                "        <VehicleJourneyRef>64</VehicleJourneyRef>\n" +
-                "        <Route>\n" +
-                "          <StopPoints>\n" +
-                "            <AffectedOnly>true</AffectedOnly>\n" +
-                "            <AffectedStopPoint>\n" +
-                "              <StopPointRef>NSR:StopPlace:440</StopPointRef>\n" +
-                "              <StopPointName>Voss</StopPointName>\n" +
-                "              <Extensions>\n" +
-                "                <BoardingRelevance xmlns:ifopt=\"http://www.ifopt.org.uk/ifopt\" xmlns:datex2=\"http://datex2.eu/schema/2_0RC1/2_0\" xmlns:acsb=\"http://www.ifopt.org.uk/acsb\" arrive=\"true\" depart=\"true\" pass=\"true\" transfer=\"true\"/>\n" +
-                "              </Extensions>\n" +
-                "            </AffectedStopPoint>\n" +
-                "          </StopPoints>\n" +
-                "        </Route>\n" +
-                "        <OriginAimedDepartureTime>2018-04-11T00:00:00+02:00</OriginAimedDepartureTime>\n" +
-                "      </AffectedVehicleJourney>\n" +
-                "    </VehicleJourneys>\n" +
-                "  </Affects>\n" +
-                "</PtSituationElement>\n";
-        PtSituationElement ptSituationElement = siriMarshaller.unmarshall(SX_with_one_affected_stop_on_journey, PtSituationElement.class);
+        String sxWithOneAffectedStopOnJourney =
+                "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n"
+                        + "<PtSituationElement xmlns=\"http://www.siri.org.uk/siri\" xmlns:ns2=\"http://www.ifopt.org.uk/acsb\" "
+                        + "xmlns:ns4=\"http://datex2.eu/schema/2_0RC1/2_0\" xmlns:ns3=\"http://www.ifopt.org.uk/ifopt\">\n"
+                        + "   <CreationTime>2018-01-26T11:36:2901:00</CreationTime>\n"
+                        + "   <ParticipantRef>NSB</ParticipantRef>\n"
+                        + "   <SituationNumber>status-168101694</SituationNumber>\n"
+                        + "   <Version>1</Version>\n"
+                        + "   <Source>\n"
+                        + "     <SourceType>web</SourceType>\n"
+                        + "   </Source>\n"
+                        + "   <Progress>published</Progress>\n"
+                        + "   <ValidityPeriod>\n"
+                        + "     <StartTime>2018-04-11T00:00:0002:00</StartTime>\n"
+                        + "     <EndTime>2018-04-12T04:35:0002:00</EndTime>\n"
+                        + "   </ValidityPeriod>\n"
+                        + "   <UndefinedReason/>\n"
+                        + "   <ReportType>incident</ReportType>\n"
+                        + "   <Keywords/>\n"
+                        + "   <Description xml:lang=\"NO\">Toget vil bytte togmateriell på Voss. Du må dessverre bytte tog på denne stasjonen."
+                        + " På strekningen Bergen-Voss gjelder ikke plassreservasjoner.</Description>\n"
+                        + "   <Description xml:lang=\"EN\">You must change trains at Voss. We apologize for the inconvenience. "
+                        + "No seat reservations Bergen-Voss.</Description>\n"
+                        + "   <Affects>\n"
+                        + "     <VehicleJourneys>\n"
+                        + "       <AffectedVehicleJourney>\n"
+                        + "         <VehicleJourneyRef>64</VehicleJourneyRef>\n"
+                        + "         <Route>\n"
+                        + "           <StopPoints>\n"
+                        + "             <AffectedOnly>true</AffectedOnly>\n"
+                        + "             <AffectedStopPoint>\n"
+                        + "               <StopPointRef>NSR:StopPlace:440</StopPointRef>\n"
+                        + "               <StopPointName>Voss</StopPointName>\n"
+                        + "               <Extensions>\n"
+                        + "                 <BoardingRelevance xmlns:ifopt=\"http://www.ifopt.org.uk/ifopt\" "
+                        + "xmlns:datex2=\"http://datex2.eu/schema/2_0RC1/2_0\" "
+                        + "xmlns:acsb=\"http://www.ifopt.org.uk/acsb\" arrive=\"true\" depart=\"true\" pass=\"true\" transfer=\"true\"/>\n"
+                        + "               </Extensions>\n"
+                        + "             </AffectedStopPoint>\n"
+                        + "           </StopPoints>\n"
+                        + "         </Route>\n"
+                        + "         <OriginAimedDepartureTime>2018-04-11T00:00:0002:00</OriginAimedDepartureTime>\n"
+                        + "       </AffectedVehicleJourney>\n"
+                        + "     </VehicleJourneys>\n"
+                        + "   </Affects>\n"
+                        + "</PtSituationElement>\n";
+        PtSituationElement ptSituationElement = siriMarshaller.unmarshall(sxWithOneAffectedStopOnJourney, PtSituationElement.class);
 
         assertNotNull(ptSituationElement);
         assertNotNull(ptSituationElement.getAffects());
 
         HashSet<String> affectedStopPointRefs = processor.findAffectedStopPlaceRefs(ptSituationElement.getAffects().getStopPlaces());
         assertEquals(0, affectedStopPointRefs.size());
-        HashSet<Subscription> affectedSubscriptions = processor.findAffectedSubscriptions(ptSituationElement.getAffects().getVehicleJourneys().getAffectedVehicleJourneies());
+        List<AffectedVehicleJourneyStructure> affectedVehicleJourneies1 =
+                ptSituationElement.getAffects().getVehicleJourneys().getAffectedVehicleJourneies();
+        HashSet<Subscription> affectedSubscriptions =
+                processor.findAffectedSubscriptions(affectedVehicleJourneies1);
         assertEquals(0, affectedSubscriptions.size());
         //modify affected journey so we have no route data
-        List<AffectedVehicleJourneyStructure> affectedVehicleJourneies = ptSituationElement.getAffects().getVehicleJourneys().getAffectedVehicleJourneies();
-        List<VehicleJourneyRef> vehicleJourneyReves = affectedVehicleJourneies.get(0).getVehicleJourneyReves();
+        List<VehicleJourneyRef> vehicleJourneyReves = affectedVehicleJourneies1.get(0).getVehicleJourneyReves();
         vehicleJourneyReves.clear();
         VehicleJourneyRef journeyRef = new VehicleJourneyRef();
         journeyRef.setValue("NoHit");
         vehicleJourneyReves.add(journeyRef);
-        affectedSubscriptions = processor.findAffectedSubscriptions(ptSituationElement.getAffects().getVehicleJourneys().getAffectedVehicleJourneies());
+        affectedSubscriptions = processor.findAffectedSubscriptions(affectedVehicleJourneies1);
         assertEquals(0, affectedSubscriptions.size());
     }
 
     @Test
     public void testSubscriptionsWithLineAndStops() {
         //These are supposed to be found
-        Subscription s_stops_line = createSubscription("from-to-line", "NSR:StopPlace:10", "NSR:StopPlace:20", null);
-        List<Subscription> expectedSubscriptions = Collections.singletonList(s_stops_line);
+        Subscription sStopsLine = createSubscription("from-to-line", "NSR:StopPlace:10", "NSR:StopPlace:20", null);
+        List<Subscription> expectedSubscriptions = Collections.singletonList(sStopsLine);
         //These are not supposed to be found as they have one or more conditions set that doesn't match:
         createSubscription("line", null, null, "line#1"); //TODO: Is not found as the SX message does not contain LineRef
         createSubscription("NOHIT3-from-to-line", "NSR:StopPlace:40", "NSR:StopPlace:30", "line#1");
@@ -235,13 +260,13 @@ public class SXSubscriptionProcessorTest extends DatastoreTest {
         }
         String errorMessage = "";
         if (expectedSubscriptions.size() != actualSubscriptions.size()) {
-            errorMessage = "Expected "+expectedSubscriptions.size()+" subscriptions, but found "+actualSubscriptions.size()+". ";
+            errorMessage = "Expected " + expectedSubscriptions.size() + " subscriptions, but found " + actualSubscriptions.size() + ". ";
         }
         if (!missing.isEmpty()) {
-            errorMessage += "Missing subscriptions: "+Arrays.toString(missing.stream().map(Subscription::getName).toArray())+". ";
+            errorMessage += "Missing subscriptions: " + Arrays.toString(missing.stream().map(Subscription::getName).toArray()) + ". ";
         }
         if (!toMany.isEmpty()) {
-            errorMessage += "Unexpected subscriptions: "+Arrays.toString(toMany.stream().map(Subscription::getName).toArray())+". ";
+            errorMessage += "Unexpected subscriptions: " + Arrays.toString(toMany.stream().map(Subscription::getName).toArray()) + ". ";
         }
         if (StringUtils.isNotBlank(errorMessage)) {
             fail(errorMessage);
@@ -254,7 +279,7 @@ public class SXSubscriptionProcessorTest extends DatastoreTest {
         return stop1;
     }
 
-        private StopPointRef createStopPointRef(String value) {
+    private StopPointRef createStopPointRef(String value) {
         StopPointRef stopPointRef = new StopPointRef();
         stopPointRef.setValue(value);
         return stopPointRef;
@@ -263,10 +288,22 @@ public class SXSubscriptionProcessorTest extends DatastoreTest {
     private Subscription createSubscription(String name, String fromStop, String toStop, String line) {
         Subscription s = new Subscription();
         s.setPushAddress("push");
-        if (name != null) s.setName(name);
-        if (fromStop != null) s.addFromStopPoint(fromStop);
-        if (toStop != null) s.addToStopPoint(toStop);
-        if (line != null) s.addLineRef(line);
+        if (name != null) {
+
+            s.setName(name);
+        }
+        if (fromStop != null) {
+
+            s.addFromStopPoint(fromStop);
+        }
+        if (toStop != null) {
+
+            s.addToStopPoint(toStop);
+        }
+        if (line != null) {
+
+            s.addLineRef(line);
+        }
         return subscriptionManager.addOrUpdate(s);
     }
 

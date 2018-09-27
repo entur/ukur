@@ -31,7 +31,16 @@ import org.hamcrest.CoreMatchers;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import uk.org.siri.siri20.*;
+import uk.org.siri.siri20.AffectedRouteStructure;
+import uk.org.siri.siri20.AffectedVehicleJourneyStructure;
+import uk.org.siri.siri20.EstimatedTimetableDeliveryStructure;
+import uk.org.siri.siri20.EstimatedVehicleJourney;
+import uk.org.siri.siri20.EstimatedVersionFrameStructure;
+import uk.org.siri.siri20.HeartbeatNotificationStructure;
+import uk.org.siri.siri20.OperatorRefStructure;
+import uk.org.siri.siri20.PtSituationElement;
+import uk.org.siri.siri20.Siri;
+import uk.org.siri.siri20.SubscriptionTerminatedNotificationStructure;
 
 import javax.xml.bind.JAXBException;
 import javax.xml.datatype.DatatypeFactory;
@@ -43,7 +52,14 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.findAll;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.verify;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.junit.Assert.*;
@@ -74,11 +90,15 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         QuayAndStopPlaceMappingService quayAndStopPlaceMappingService = new QuayAndStopPlaceMappingService(mock(MetricsService.class));
         quayAndStopPlaceMappingService.updateStopsAndQuaysMap(stopPlacesAndQuays);
 
-        subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsService, new HashMap<>(), quayAndStopPlaceMappingService);
+        subscriptionManager = new SubscriptionManager(dataStorageService,
+                siriMarshaller,
+                metricsService,
+                new HashMap<>(),
+                quayAndStopPlaceMappingService);
     }
 
     @Test
-    public void testETPushOk()  {
+    public void testETPushOk() {
 
         String url = "/push/ok/et";
         stubFor(post(urlEqualTo(url))
@@ -144,7 +164,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
 
 
     @Test
-    public void testETPushForget()  {
+    public void testETPushForget() {
 
         String url = "/push/forget/et";
         stubFor(post(urlEqualTo(url))
@@ -226,14 +246,15 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         subscriptionManager.notifySubscriptions(subscriptions, createPtSituationElement(), ZonedDateTime.now());
 
         waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(urlWithStop)));
-        PtSituationElement msgForSubsciptionWithStops = getPushedPtSituationElement(urlWithStop);
+        PtSituationElement msgForSubscriptionWithStops = getPushedPtSituationElement(urlWithStop);
         //For subscriptions with should all unsubscribed stops, and journeys with unsubscribed vehiclerefs og linerefs
-        assertNotNull(msgForSubsciptionWithStops.getAffects());
-        assertNotNull(msgForSubsciptionWithStops.getAffects().getVehicleJourneys());
-        List<AffectedVehicleJourneyStructure> affectedVehicleJourneies = msgForSubsciptionWithStops.getAffects().getVehicleJourneys().getAffectedVehicleJourneies();
-        assertNotNull(affectedVehicleJourneies);
-        assertEquals(2, affectedVehicleJourneies.size());
-        AffectedVehicleJourneyStructure affectedVehicleJourney = affectedVehicleJourneies.get(0);
+        assertNotNull(msgForSubscriptionWithStops.getAffects());
+        assertNotNull(msgForSubscriptionWithStops.getAffects().getVehicleJourneys());
+        List<AffectedVehicleJourneyStructure> affectedVehicleJourneys =
+                msgForSubscriptionWithStops.getAffects().getVehicleJourneys().getAffectedVehicleJourneies();
+        assertNotNull(affectedVehicleJourneys);
+        assertEquals(2, affectedVehicleJourneys.size());
+        AffectedVehicleJourneyStructure affectedVehicleJourney = affectedVehicleJourneys.get(0);
         assertEquals("NSB:Line:Line1", affectedVehicleJourney.getLineRef().getValue());
         AffectedRouteStructure.StopPoints stopPoints = affectedVehicleJourney.getRoutes().get(0).getStopPoints();
         assertEquals(2, stopPoints.getAffectedStopPointsAndLinkProjectionToNextStopPoints().size());
@@ -255,9 +276,10 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         //For subscriptions with should all unsubscribed stops, and journeys with unsubscribed vehiclerefs og linerefs
         assertNotNull(msgForSubsciptionWithStops.getAffects());
         assertNotNull(msgForSubsciptionWithStops.getAffects().getVehicleJourneys());
-        List<AffectedVehicleJourneyStructure> affectedVehicleJourneies = msgForSubsciptionWithStops.getAffects().getVehicleJourneys().getAffectedVehicleJourneies();
-        assertNotNull(affectedVehicleJourneies);
-        assertEquals(3, affectedVehicleJourneies.size());
+        List<AffectedVehicleJourneyStructure> affectedVehicleJourneys =
+                msgForSubsciptionWithStops.getAffects().getVehicleJourneys().getAffectedVehicleJourneies();
+        assertNotNull(affectedVehicleJourneys);
+        assertEquals(3, affectedVehicleJourneys.size());
     }
 
     @Test
@@ -275,21 +297,23 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
 
 
         waitAndVerifyAtLeast(1, postRequestedFor(urlEqualTo(urlWithoutStop)));
-        PtSituationElement msgForSubsciptionWithoutStops  = getPushedPtSituationElement(urlWithoutStop);
-        //For subscriptions without stops we remove all journeys not subscribed upon: vehicle(journey)ref og lineref<-added by us from live routes, not the producer
-        assertNotNull(msgForSubsciptionWithoutStops .getAffects());
-        assertNotNull(msgForSubsciptionWithoutStops .getAffects().getVehicleJourneys());
-        List<AffectedVehicleJourneyStructure> affectedJourneies = msgForSubsciptionWithoutStops .getAffects().getVehicleJourneys().getAffectedVehicleJourneies();
-        assertNotNull(affectedJourneies);
-        assertEquals(2, affectedJourneies.size());
+        PtSituationElement msgForSubsciptionWithoutStops = getPushedPtSituationElement(urlWithoutStop);
+        //For subscriptions without stops we remove all journeys not subscribed upon: vehicle(journey)ref and
+        // lineref<-added by us from live routes, not the producer
+        assertNotNull(msgForSubsciptionWithoutStops.getAffects());
+        assertNotNull(msgForSubsciptionWithoutStops.getAffects().getVehicleJourneys());
+        List<AffectedVehicleJourneyStructure> affectedJourneys =
+                msgForSubsciptionWithoutStops.getAffects().getVehicleJourneys().getAffectedVehicleJourneies();
+        assertNotNull(affectedJourneys);
+        assertEquals(2, affectedJourneys.size());
         AffectedVehicleJourneyStructure journey1234;
         AffectedVehicleJourneyStructure journey2222;
-        if ("1234".equals(affectedJourneies.get(0).getVehicleJourneyReves().get(0).getValue())) {
-            journey1234 = affectedJourneies.get(0);
-            journey2222 = affectedJourneies.get(1);
+        if ("1234".equals(affectedJourneys.get(0).getVehicleJourneyReves().get(0).getValue())) {
+            journey1234 = affectedJourneys.get(0);
+            journey2222 = affectedJourneys.get(1);
         } else {
-            journey2222 = affectedJourneies.get(0);
-            journey1234 = affectedJourneies.get(1);
+            journey2222 = affectedJourneys.get(0);
+            journey1234 = affectedJourneys.get(1);
         }
         assertEquals("NSB:Line:Line1", journey1234.getLineRef().getValue());
         assertEquals("1234", journey1234.getVehicleJourneyReves().get(0).getValue());
@@ -307,7 +331,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         ZonedDateTime start = ZonedDateTime.now();
         createStubAndSiriSubscription("s1", datatypeFactory.newDuration("PT1M"), start.plusHours(1));
         createStubAndSiriSubscription("s2", datatypeFactory.newDuration("PT2M"), null);
-        createStubAndSiriSubscription("s3", null ,null);
+        createStubAndSiriSubscription("s3", null, null);
         RequestPatternBuilder s1RequestPattern = postRequestedFor(urlEqualTo("/heartbeat/s1"));
         RequestPatternBuilder s2RequestPattern = postRequestedFor(urlEqualTo("/heartbeat/s2"));
         RequestPatternBuilder s3RequestPattern = postRequestedFor(urlEqualTo("/heartbeat/s3"));
@@ -354,15 +378,24 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         //after 1 hour s1 should be terminated, s2 should receieve a new heartbeat
         subscriptionManager.handleHeartbeatAndTermination(start.plusMinutes(61));
         waitNoActivePushThreads();
-        waitAndVerifyNotificationsInOrder(s1RequestPattern, HeartbeatNotificationStructure.class, HeartbeatNotificationStructure.class, SubscriptionTerminatedNotificationStructure.class);
+        waitAndVerifyNotificationsInOrder(s1RequestPattern,
+                HeartbeatNotificationStructure.class,
+                HeartbeatNotificationStructure.class,
+                SubscriptionTerminatedNotificationStructure.class);
         waitAndVerifyNotificationsInOrder(s2RequestPattern, HeartbeatNotificationStructure.class, HeartbeatNotificationStructure.class);
         expectReceived(0, s3RequestPattern);
 
         //after that s1 recieved no more, but s2 receives a heartbeat every 2 minutes
         subscriptionManager.handleHeartbeatAndTermination(start.plusMinutes(64));
         waitNoActivePushThreads();
-        waitAndVerifyNotificationsInOrder(s1RequestPattern, HeartbeatNotificationStructure.class, HeartbeatNotificationStructure.class, SubscriptionTerminatedNotificationStructure.class);
-        waitAndVerifyNotificationsInOrder(s2RequestPattern, HeartbeatNotificationStructure.class, HeartbeatNotificationStructure.class, HeartbeatNotificationStructure.class);
+        waitAndVerifyNotificationsInOrder(s1RequestPattern,
+                HeartbeatNotificationStructure.class,
+                HeartbeatNotificationStructure.class,
+                SubscriptionTerminatedNotificationStructure.class);
+        waitAndVerifyNotificationsInOrder(s2RequestPattern,
+                HeartbeatNotificationStructure.class,
+                HeartbeatNotificationStructure.class,
+                HeartbeatNotificationStructure.class);
         expectReceived(0, s3RequestPattern);
     }
 
@@ -376,7 +409,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
     }
 
     private void createStubAndSiriSubscription(String requestor, Duration heartbeatInterval, ZonedDateTime initialTerminationTime) {
-        String url = "/heartbeat/"+requestor;
+        String url = "/heartbeat/" + requestor;
         stubFor(post(urlEqualTo(url))
                 .withHeader("Content-Type", equalTo("application/xml"))
                 .willReturn(aResponse()));
@@ -400,89 +433,89 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
     }
 
     private PtSituationElement createPtSituationElement() throws JAXBException, XMLStreamException {
-        String xml ="<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n" +
-                "<PtSituationElement xmlns=\"http://www.siri.org.uk/siri\">\n" +
-                "  <CreationTime>2018-01-19T10:01:05+01:00</CreationTime>\n" +
-                "  <ParticipantRef>NSB</ParticipantRef>\n" +
-                "  <SituationNumber>status-167911766</SituationNumber>\n" +
-                "  <Version>1</Version>\n" +
-                "  <Source>\n" +
-                "    <SourceType>web</SourceType>\n" +
-                "  </Source>\n" +
-                "  <Progress>published</Progress>\n" +
-                "  <ValidityPeriod>\n" +
-                "    <StartTime>2018-01-19T00:00:00+01:00</StartTime>\n" +
-                "    <EndTime>2018-01-19T16:54:00+01:00</EndTime>\n" +
-                "  </ValidityPeriod>\n" +
-                "  <UndefinedReason/>\n" +
-                "  <ReportType>incident</ReportType>\n" +
-                "  <Keywords/>\n" +
-                "  <Description xml:lang=\"NO\">Toget er innstilt mellom Oslo S og Drammen. Vennligst benytt neste tog.</Description>\n" +
-                "  <Description xml:lang=\"EN\">The train is cancelled between Oslo S and Drammen. Passengers are requested to take the next train.</Description>\n" +
-                "  <Affects>\n" +
-                "    <VehicleJourneys>\n" +
-                "      <AffectedVehicleJourney>\n" +
-                "        <LineRef>NSB:Line:Line1</LineRef>\n" +
-                "        <VehicleJourneyRef>1234</VehicleJourneyRef>\n" +
-                "        <Route>\n" +
-                "          <StopPoints>\n" +
-                "            <AffectedOnly>true</AffectedOnly>\n" +
-                "            <AffectedStopPoint>\n" +
-                "              <StopPointRef>NSR:StopPlace:1</StopPointRef>\n" +
-                "              <StopPointName>Oslo S</StopPointName>\n" +
-                "            </AffectedStopPoint>\n" +
-                "            <AffectedStopPoint>\n" +
-                "              <StopPointRef>NSR:StopPlace:2</StopPointRef>\n" +
-                "              <StopPointName>Nationaltheatret</StopPointName>\n" +
-                "            </AffectedStopPoint>\n" +
-                "            <AffectedStopPoint>\n" +
-                "              <StopPointRef>NSR:StopPlace:3</StopPointRef>\n" +
-                "              <StopPointName>Skøyen</StopPointName>\n" +
-                "            </AffectedStopPoint>\n" +
-                "            <AffectedStopPoint>\n" +
-                "              <StopPointRef>NSR:StopPlace:4</StopPointRef>\n" +
-                "              <StopPointName>Lysaker</StopPointName>\n" +
-                "            </AffectedStopPoint>\n" +
-                "          </StopPoints>\n" +
-                "        </Route>\n" +
-                "      </AffectedVehicleJourney>\n" +
-                "      <AffectedVehicleJourney>\n" +
-                "        <LineRef>NSB:Line:Line1</LineRef>\n" +
-                "        <VehicleJourneyRef>2222</VehicleJourneyRef>\n" +
-                "        <Route>\n" +
-                "          <StopPoints>\n" +
-                "            <AffectedOnly>true</AffectedOnly>\n" +
-                "            <AffectedStopPoint>\n" +
-                "              <StopPointRef>NSR:StopPlace:1</StopPointRef>\n" +
-                "              <StopPointName>Oslo S</StopPointName>\n" +
-                "            </AffectedStopPoint>\n" +
-                "            <AffectedStopPoint>\n" +
-                "              <StopPointRef>NSR:StopPlace:2</StopPointRef>\n" +
-                "              <StopPointName>Nationaltheatret</StopPointName>\n" +
-                "            </AffectedStopPoint>\n" +
-                "            <AffectedStopPoint>\n" +
-                "              <StopPointRef>NSR:StopPlace:3</StopPointRef>\n" +
-                "              <StopPointName>Skøyen</StopPointName>\n" +
-                "            </AffectedStopPoint>\n" +
-                "          </StopPoints>\n" +
-                "        </Route>\n" +
-                "      </AffectedVehicleJourney>\n" +
-                "      <AffectedVehicleJourney>\n" +
-                "        <LineRef>NSB:Line:Line2</LineRef>\n" +
-                "        <VehicleJourneyRef>4444</VehicleJourneyRef>\n" +
-                "        <Route>\n" +
-                "          <StopPoints>\n" +
-                "            <AffectedOnly>true</AffectedOnly>\n" +
-                "            <AffectedStopPoint>\n" +
-                "              <StopPointRef>NSR:StopPlace:2</StopPointRef>\n" +
-                "              <StopPointName>Nationaltheatret</StopPointName>\n" +
-                "            </AffectedStopPoint>\n" +
-                "          </StopPoints>\n" +
-                "        </Route>\n" +
-                "      </AffectedVehicleJourney>\n" +
-                "    </VehicleJourneys>\n" +
-                "  </Affects>\n" +
-                "</PtSituationElement>";
+        String xml = "<?xml version=\"1.0\" encoding=\"UTF-8\" standalone=\"yes\"?>\n"
+                + "<PtSituationElement xmlns=\"http://www.siri.org.uk/siri\">\n"
+                + "   <CreationTime>2018-01-19T10:01:0501:00</CreationTime>\n"
+                + "   <ParticipantRef>NSB</ParticipantRef>\n"
+                + "   <SituationNumber>status-167911766</SituationNumber>\n"
+                + "   <Version>1</Version>\n"
+                + "   <Source>\n"
+                + "     <SourceType>web</SourceType>\n"
+                + "   </Source>\n"
+                + "   <Progress>published</Progress>\n"
+                + "   <ValidityPeriod>\n"
+                + "     <StartTime>2018-01-19T00:00:0001:00</StartTime>\n"
+                + "     <EndTime>2018-01-19T16:54:0001:00</EndTime>\n"
+                + "   </ValidityPeriod>\n"
+                + "   <UndefinedReason/>\n"
+                + "   <ReportType>incident</ReportType>\n"
+                + "   <Keywords/>\n"
+                + "   <Description xml:lang=\"NO\">Toget er innstilt mellom Oslo S og Drammen. Vennligst benytt neste tog.</Description>\n"
+                + "   <Description xml:lang=\"EN\">The train is cancelled between Oslo S and Drammen. Please take the next train.</Description>\n"
+                + "   <Affects>\n"
+                + "     <VehicleJourneys>\n"
+                + "       <AffectedVehicleJourney>\n"
+                + "         <LineRef>NSB:Line:Line1</LineRef>\n"
+                + "         <VehicleJourneyRef>1234</VehicleJourneyRef>\n"
+                + "         <Route>\n"
+                + "           <StopPoints>\n"
+                + "             <AffectedOnly>true</AffectedOnly>\n"
+                + "             <AffectedStopPoint>\n"
+                + "               <StopPointRef>NSR:StopPlace:1</StopPointRef>\n"
+                + "               <StopPointName>Oslo S</StopPointName>\n"
+                + "             </AffectedStopPoint>\n"
+                + "             <AffectedStopPoint>\n"
+                + "               <StopPointRef>NSR:StopPlace:2</StopPointRef>\n"
+                + "               <StopPointName>Nationaltheatret</StopPointName>\n"
+                + "             </AffectedStopPoint>\n"
+                + "             <AffectedStopPoint>\n"
+                + "               <StopPointRef>NSR:StopPlace:3</StopPointRef>\n"
+                + "               <StopPointName>Skøyen</StopPointName>\n"
+                + "             </AffectedStopPoint>\n"
+                + "             <AffectedStopPoint>\n"
+                + "               <StopPointRef>NSR:StopPlace:4</StopPointRef>\n"
+                + "               <StopPointName>Lysaker</StopPointName>\n"
+                + "             </AffectedStopPoint>\n"
+                + "           </StopPoints>\n"
+                + "         </Route>\n"
+                + "       </AffectedVehicleJourney>\n"
+                + "       <AffectedVehicleJourney>\n"
+                + "         <LineRef>NSB:Line:Line1</LineRef>\n"
+                + "         <VehicleJourneyRef>2222</VehicleJourneyRef>\n"
+                + "         <Route>\n"
+                + "           <StopPoints>\n"
+                + "             <AffectedOnly>true</AffectedOnly>\n"
+                + "             <AffectedStopPoint>\n"
+                + "               <StopPointRef>NSR:StopPlace:1</StopPointRef>\n"
+                + "               <StopPointName>Oslo S</StopPointName>\n"
+                + "             </AffectedStopPoint>\n"
+                + "             <AffectedStopPoint>\n"
+                + "               <StopPointRef>NSR:StopPlace:2</StopPointRef>\n"
+                + "               <StopPointName>Nationaltheatret</StopPointName>\n"
+                + "             </AffectedStopPoint>\n"
+                + "             <AffectedStopPoint>\n"
+                + "               <StopPointRef>NSR:StopPlace:3</StopPointRef>\n"
+                + "               <StopPointName>Skøyen</StopPointName>\n"
+                + "             </AffectedStopPoint>\n"
+                + "           </StopPoints>\n"
+                + "         </Route>\n"
+                + "       </AffectedVehicleJourney>\n"
+                + "       <AffectedVehicleJourney>\n"
+                + "         <LineRef>NSB:Line:Line2</LineRef>\n"
+                + "         <VehicleJourneyRef>4444</VehicleJourneyRef>\n"
+                + "         <Route>\n"
+                + "           <StopPoints>\n"
+                + "             <AffectedOnly>true</AffectedOnly>\n"
+                + "             <AffectedStopPoint>\n"
+                + "               <StopPointRef>NSR:StopPlace:2</StopPointRef>\n"
+                + "               <StopPointName>Nationaltheatret</StopPointName>\n"
+                + "             </AffectedStopPoint>\n"
+                + "           </StopPoints>\n"
+                + "         </Route>\n"
+                + "       </AffectedVehicleJourney>\n"
+                + "     </VehicleJourneys>\n"
+                + "   </Affects>\n"
+                + "</PtSituationElement>";
         return siriMarshaller.unmarshall(xml, PtSituationElement.class);
     }
 
@@ -492,12 +525,24 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
 
     private Subscription createSubscription(String pushAddress, String from, String to, String line, String codespace) {
         Subscription subscription = new Subscription();
-        if (from != null) subscription.addFromStopPoint(from);
-        if (to != null) subscription.addToStopPoint(to);
-        if (line != null) subscription.addLineRef(line);
-        if (codespace != null) subscription.addCodespace(codespace);
+        if (from != null) {
+
+            subscription.addFromStopPoint(from);
+        }
+        if (to != null) {
+
+            subscription.addToStopPoint(to);
+        }
+        if (line != null) {
+
+            subscription.addLineRef(line);
+        }
+        if (codespace != null) {
+
+            subscription.addCodespace(codespace);
+        }
         subscription.setName("Push over http test");
-        pushAddress = pushAddress.substring(0, pushAddress.length()-3); //last '/et' (or '/sx') is added by the subscription manager
+        pushAddress = pushAddress.substring(0, pushAddress.length() - 3); //last '/et' (or '/sx') is added by the subscription manager
         subscription.setPushAddress("http://localhost:" + wireMockRule.port() + pushAddress);
         return subscriptionManager.addOrUpdate(subscription);
     }
@@ -514,7 +559,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
                 return;
             }
         }
-        fail("Expected " + expected + " but found only " + actual+" before we timed out...");
+        fail("Expected " + expected + " but found only " + actual + " before we timed out...");
     }
 
     /**
@@ -533,7 +578,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
                 return;
             }
         }
-        fail("Expected " + expected + " but found only " + actual+" before we timed out...");
+        fail("Expected " + expected + " but found only " + actual + " before we timed out...");
     }
 
     private void waitAndVerifyNotificationsInOrder(RequestPatternBuilder requestPatternBuilder, Class... notifications) throws Exception {
@@ -550,7 +595,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
                 assertNotNull(siri.getSubscriptionTerminatedNotification());
                 assertNull(siri.getHeartbeatNotification());
             } else {
-                fail("Unhandled (in this test assertion at least) notification class: "+notification.getSimpleName());
+                fail("Unhandled (in this test assertion at least) notification class: " + notification.getSimpleName());
             }
         }
 
@@ -560,8 +605,11 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         List<LoggedRequest> all = findAll(requestPatternBuilder);
         if (expected != all.size()) {
             String url = requestPatternBuilder.build().getUrl();
-            StringBuilder sb = new StringBuilder("mock('"+url+"'): Expected "+expected+", but has received "+all.size());
-            if (all.size() > 0) sb.append(":\n");
+            StringBuilder sb = new StringBuilder("mock('" + url + "'): Expected " + expected + ", but has received " + all.size());
+            if (all.size() > 0) {
+
+                sb.append(":\n");
+            }
             for (LoggedRequest loggedRequest : all) {
                 sb.append("\n");
                 sb.append(prettyPrintSiri(loggedRequest.getBodyAsString()));
@@ -576,7 +624,6 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
             Siri siri = siriMarshaller.unmarshall(bodyAsString, Siri.class);
             return siriMarshaller.prettyPrintNoNamespaces(siri);
         } catch (Exception e) {
-            e.printStackTrace();
             return bodyAsString;
         }
     }

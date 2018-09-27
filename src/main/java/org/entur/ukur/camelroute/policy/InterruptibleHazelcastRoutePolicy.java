@@ -43,7 +43,7 @@ public class InterruptibleHazelcastRoutePolicy extends HazelcastRoutePolicy {
     }
 
     @Override
-    protected void doStart() throws Exception {
+    protected void doStart() {
         // validate
         StringHelper.notEmpty(getLockMapName(), "lockMapName", this);
         StringHelper.notEmpty(getLockKey(), "lockKey", this);
@@ -76,7 +76,7 @@ public class InterruptibleHazelcastRoutePolicy extends HazelcastRoutePolicy {
         }
     }
 
-    private Void acquireLeadership() throws Exception {
+    private Void acquireLeadership() {
 
         String lockKey = getLockKey();
 
