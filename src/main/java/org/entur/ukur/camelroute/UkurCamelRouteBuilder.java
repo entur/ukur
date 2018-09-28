@@ -124,6 +124,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
     public void configure() {
         onException(Exception.class)
                 .handled(true)
+                .log(LoggingLevel.WARN, "Caught ${exception}")
                 .transform().simple("${exception.message}");
 
         createWorkerRoutes(config.getTiamatStopPlaceQuaysURL());

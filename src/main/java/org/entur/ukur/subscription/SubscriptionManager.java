@@ -394,8 +394,8 @@ public class SubscriptionManager {
     }
 
     private void removeInvalidStopPointsFromSubscription(Subscription subscription) {
-        Set<String> fromStopPoints = subscription.getFromStopPoints();
-        Set<String> toStopPoints = subscription.getToStopPoints();
+        Set<String> fromStopPoints = new HashSet<>(subscription.getFromStopPoints());
+        Set<String> toStopPoints = new HashSet<>(subscription.getToStopPoints());
 
         for (String fromStopPoint : fromStopPoints) {
             if (!quayAndStopPlaceMappingService.isValidStopPlace(fromStopPoint) &&
