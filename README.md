@@ -1,4 +1,4 @@
-# Ukur
+# Ukur [![CircleCI](https://circleci.com/gh/entur/ukur/tree/master.svg?style=svg)](https://circleci.com/gh/entur/ukur/tree/master)
 Ukur detects and enable subscriptions for deviations in traffic based on real-time information from Anshar.
 The name Ukur follows the naming standard with names from Sumerian gods; Ukur is a god of the underworld (where 
 probably deviations also have their origin...).
