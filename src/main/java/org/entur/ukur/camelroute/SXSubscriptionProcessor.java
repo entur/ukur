@@ -30,12 +30,26 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
 import uk.org.ifopt.siri20.StopPlaceRef;
-import uk.org.siri.siri20.*;
+import uk.org.siri.siri20.AffectedLineStructure;
+import uk.org.siri.siri20.AffectedRouteStructure;
+import uk.org.siri.siri20.AffectedStopPlaceStructure;
+import uk.org.siri.siri20.AffectedStopPointStructure;
+import uk.org.siri.siri20.AffectedVehicleJourneyStructure;
+import uk.org.siri.siri20.AffectsScopeStructure;
+import uk.org.siri.siri20.HalfOpenTimestampOutputRangeStructure;
+import uk.org.siri.siri20.PtSituationElement;
+import uk.org.siri.siri20.ServiceDelivery;
+import uk.org.siri.siri20.Siri;
+import uk.org.siri.siri20.StopPointRef;
 
 import java.io.InputStream;
 import java.io.Serializable;
 import java.time.ZonedDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Set;
 
 import static org.entur.ukur.subscription.SubscriptionTypeEnum.SX;
 import static org.entur.ukur.xml.SiriObjectHelper.getStringValue;

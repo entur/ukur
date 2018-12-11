@@ -22,7 +22,11 @@ import org.apache.commons.lang3.StringUtils;
 import javax.xml.datatype.Duration;
 import java.io.Serializable;
 import java.time.ZonedDateTime;
-import java.util.*;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashSet;
+import java.util.Objects;
+import java.util.Set;
 
 public class Subscription implements Serializable {
 

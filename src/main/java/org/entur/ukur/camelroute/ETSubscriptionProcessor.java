@@ -31,11 +31,25 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import uk.org.siri.siri20.*;
+import uk.org.siri.siri20.ArrivalBoardingActivityEnumeration;
+import uk.org.siri.siri20.CallStatusEnumeration;
+import uk.org.siri.siri20.DepartureBoardingActivityEnumeration;
+import uk.org.siri.siri20.EstimatedCall;
+import uk.org.siri.siri20.EstimatedVehicleJourney;
+import uk.org.siri.siri20.RecordedCall;
+import uk.org.siri.siri20.ServiceDelivery;
+import uk.org.siri.siri20.ServiceFeatureRef;
+import uk.org.siri.siri20.Siri;
+import uk.org.siri.siri20.StopAssignmentStructure;
 
 import java.io.InputStream;
 import java.time.ZonedDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.entur.ukur.subscription.SubscriptionTypeEnum.ET;
