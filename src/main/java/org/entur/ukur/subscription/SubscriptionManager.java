@@ -587,7 +587,7 @@ public class SubscriptionManager {
             out.flush();
             out.close();
             int responseCode = connection.getResponseCode();
-            logger.trace("Receive {} on push to {} for subscription with id {}", responseCode, subscription.getPushAddress(), subscription.getId());
+            logger.info("Receive {} on push to {} for subscription {}", responseCode, pushAddress, subscription);
             return HttpStatus.valueOf(responseCode);
         } catch (Exception e) {
             logger.warn("Could not push to {} for subscription with id {}", subscription.getPushAddress(), subscription.getId(), e);
