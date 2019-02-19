@@ -502,15 +502,10 @@ public class SubscriptionManager {
                         logger.error("Called without proper type specified...");
                         return;
                 }
-                HttpStatus httpStatus = post(subscription, subscription.getPushAddress(), siri);
-                logger.info("Posted a {} notification for subscription with id={}, {} responded {}", type, subscription.getId(), subscription.getPushAddress(), httpStatus);
+                HttpStatus responseStatus = post(subscription, subscription.getPushAddress(), siri);
+                logger.info("Posted a {} notification for subscription with id={}, {} responded {}", type, subscription.getId(), subscription.getPushAddress(), responseStatus);
 
-                if (HttpStatus.RESET_CONTENT.equals(httpStatus) ||
-                    HttpStatus.INTERNAL_SERVER_ERROR.equals(httpStatus) ||
-                    HttpStatus.NOT_FOUND.equals(httpStatus)) {
-                    logger.info("Received {} on notification to {} - removing subscription with id {}", HttpStatus.RESET_CONTENT, subscription.getPushAddress(), subscription.getId());
-                    remove(subscription.getId());
-                }
+                handleResponse(responseStatus, subscription, subscription.getPushAddress());
 
             } catch (Exception e) {
                 logger.error("Got exception while pushing message", e);
@@ -555,27 +550,31 @@ public class SubscriptionManager {
                     }
                 }
                 HttpStatus responseStatus = post(subscription, pushAddress, pushMessage);
-                if (HttpStatus.RESET_CONTENT.equals(responseStatus)) {
-                    logger.info("Receive {} on push to {} and removes subscription with id {}", HttpStatus.RESET_CONTENT, pushAddress, subscription.getId());
-                    remove(subscription.getId());
-                } else if (HttpStatus.OK.equals(responseStatus)) {
-                    if (subscription.getFailedPushCounter() > 0) {
-                        subscription.resetFailedPushCounter();
-                        dataStorageService.updateSubscription(subscription);
-                    }
-                } else {
-                    logger.info("Unexpected response code on push '{}' - increase failed push counter for subscription wih id {}", responseStatus, subscription.getId());
-                    if (subscription.shouldRemove()) {
-                        logger.info("Removes subscription with id {} after {} failed push attempts where first error is seen {}", subscription.getId(), subscription.getFailedPushCounter(), subscription.getFirstErrorSeen() );
-                        remove(subscription.getId());
-                    } else {
-                        dataStorageService.updateSubscription(subscription);
-                    }
-                }
+                handleResponse(responseStatus, subscription, pushAddress);
             } catch (Exception e) {
                 logger.error("Got exception while pushing message", e);
             }
         });
+    }
+
+    private void handleResponse(HttpStatus responseStatus, Subscription subscription, String pushAddress) {
+        if (HttpStatus.RESET_CONTENT.equals(responseStatus)) {
+            logger.info("Receive {} on push to {} and removes subscription with id {}", HttpStatus.RESET_CONTENT, pushAddress, subscription.getId());
+            remove(subscription.getId());
+        } else if (HttpStatus.OK.equals(responseStatus)) {
+            if (subscription.getFailedPushCounter() > 0) {
+                subscription.resetFailedPushCounter();
+                dataStorageService.updateSubscription(subscription);
+            }
+        } else {
+            logger.info("Unexpected response code on push '{}' - increase failed push counter for subscription wih id {}", responseStatus, subscription.getId());
+            if (subscription.shouldRemove()) {
+                logger.info("Removing subscription with id {} after {} failed push attempts where first error was seen {}", subscription.getId(), subscription.getFailedPushCounter(), subscription.getFirstErrorSeen() );
+                remove(subscription.getId());
+            } else {
+                dataStorageService.updateSubscription(subscription);
+            }
+        }
     }
 
     private HttpStatus post(Subscription subscription, String pushAddress, Object pushMessage) {
