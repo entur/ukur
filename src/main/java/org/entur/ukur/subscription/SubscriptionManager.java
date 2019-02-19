@@ -504,6 +504,14 @@ public class SubscriptionManager {
                 }
                 HttpStatus httpStatus = post(subscription, subscription.getPushAddress(), siri);
                 logger.info("Posted a {} notification for subscription with id={}, {} responded {}", type, subscription.getId(), subscription.getPushAddress(), httpStatus);
+
+                if (HttpStatus.RESET_CONTENT.equals(httpStatus) ||
+                    HttpStatus.INTERNAL_SERVER_ERROR.equals(httpStatus) ||
+                    HttpStatus.NOT_FOUND.equals(httpStatus)) {
+                    logger.info("Receive {} on push to {} and removes subscription with id {}", HttpStatus.RESET_CONTENT, subscription.getPushAddress(), subscription.getId());
+                    remove(subscription.getId());
+                }
+
             } catch (Exception e) {
                 logger.error("Got exception while pushing message", e);
             }
