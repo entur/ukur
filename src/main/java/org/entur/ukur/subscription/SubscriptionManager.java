@@ -508,7 +508,7 @@ public class SubscriptionManager {
                 if (HttpStatus.RESET_CONTENT.equals(httpStatus) ||
                     HttpStatus.INTERNAL_SERVER_ERROR.equals(httpStatus) ||
                     HttpStatus.NOT_FOUND.equals(httpStatus)) {
-                    logger.info("Receive {} on push to {} and removes subscription with id {}", HttpStatus.RESET_CONTENT, subscription.getPushAddress(), subscription.getId());
+                    logger.info("Received {} on notification to {} - removing subscription with id {}", HttpStatus.RESET_CONTENT, subscription.getPushAddress(), subscription.getId());
                     remove(subscription.getId());
                 }
 
