@@ -29,25 +29,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
-import uk.org.siri.siri20.AffectedLineStructure;
-import uk.org.siri.siri20.AffectedRouteStructure;
-import uk.org.siri.siri20.AffectedStopPlaceStructure;
-import uk.org.siri.siri20.AffectedStopPointStructure;
-import uk.org.siri.siri20.AffectedVehicleJourneyStructure;
-import uk.org.siri.siri20.AffectsScopeStructure;
-import uk.org.siri.siri20.EstimatedCall;
-import uk.org.siri.siri20.EstimatedTimetableDeliveryStructure;
-import uk.org.siri.siri20.EstimatedVehicleJourney;
-import uk.org.siri.siri20.EstimatedVersionFrameStructure;
-import uk.org.siri.siri20.HeartbeatNotificationStructure;
-import uk.org.siri.siri20.PtSituationElement;
-import uk.org.siri.siri20.RecordedCall;
-import uk.org.siri.siri20.RequestorRef;
-import uk.org.siri.siri20.ServiceDelivery;
-import uk.org.siri.siri20.Siri;
-import uk.org.siri.siri20.SituationExchangeDeliveryStructure;
-import uk.org.siri.siri20.SubscriptionQualifierStructure;
-import uk.org.siri.siri20.SubscriptionTerminatedNotificationStructure;
+import uk.org.siri.siri20.*;
 
 import javax.xml.datatype.Duration;
 import java.io.DataOutputStream;
@@ -58,15 +40,7 @@ import java.net.InetAddress;
 import java.net.URL;
 import java.net.UnknownHostException;
 import java.time.ZonedDateTime;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.Date;
-import java.util.HashSet;
-import java.util.Iterator;
-import java.util.List;
-import java.util.Map;
-import java.util.Random;
-import java.util.Set;
+import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
 
@@ -578,10 +552,21 @@ public class SubscriptionManager {
     }
 
     private HttpStatus post(Subscription subscription, String pushAddress, Object pushMessage) {
+
+        // TODO: Add duplicates-check - "is the message identical to last sent message"
+        //       Duplicates-check must be skipped for HeartbeatNotifications
+
         Timer pushToHttp = metricsService.getTimer(MetricsService.TIMER_PUSH);
         Timer.Context context = pushToHttp.time();
         try {
             String payload = siriMarshaller.marshall(pushMessage);
+
+            if (pushMessage instanceof EstimatedVehicleJourney ||
+                    pushMessage instanceof PtSituationElement) {
+                // Excessive logging of payload
+                logger.info("Sending data: " + payload);
+            }
+
             byte[] bytes = payload.getBytes();
             URL url = new URL(pushAddress);
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
