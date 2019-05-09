@@ -561,8 +561,9 @@ public class SubscriptionManager {
         try {
             String payload = siriMarshaller.marshall(pushMessage);
 
-            if (pushMessage instanceof EstimatedVehicleJourney ||
-                    pushMessage instanceof PtSituationElement) {
+            if ( (pushMessage instanceof EstimatedVehicleJourney ||
+                    pushMessage instanceof PtSituationElement) ||
+                    (pushMessage instanceof Siri && ((Siri)pushMessage).getServiceDelivery() != null)) {
                 // Excessive logging of payload
                 logger.info("Sending data: " + payload);
             }
