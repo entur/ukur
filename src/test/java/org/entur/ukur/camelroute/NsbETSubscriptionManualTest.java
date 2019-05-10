@@ -133,30 +133,38 @@ public class NsbETSubscriptionManualTest extends DatastoreTest {
         askerTilOslo.addToStopPoint("NSR:Quay:565");
         askerTilOslo.addToStopPoint("NSR:Quay:570");
         askerTilOslo.addToStopPoint("NSR:Quay:571");
-        subscriptionManager.addOrUpdate(askerTilOslo);
+//        subscriptionManager.addOrUpdate(askerTilOslo);
 
         Subscription askerOslo1 = new Subscription();
         askerOslo1.setName("Asker-OsloS #1 (kun stopplace)");
         askerOslo1.setPushAddress(pushAddressBase + "/subscription2");
         askerOslo1.addFromStopPoint("NSR:StopPlace:418");
         askerOslo1.addToStopPoint("NSR:StopPlace:337");
-        subscriptionManager.addOrUpdate(askerOslo1);
+//        subscriptionManager.addOrUpdate(askerOslo1);
 
         Subscription lineL13 = new Subscription();
         lineL13.setName("Line L13");
         lineL13.setPushAddress(pushAddressBase + "/subscription3");
         lineL13.addLineRef("NSB:Line:L13");
-        subscriptionManager.addOrUpdate(lineL13);
+//        subscriptionManager.addOrUpdate(lineL13);
 
         Subscription codespaceABC = new Subscription();
         codespaceABC.setName("Non-existing codespace");
         codespaceABC.setPushAddress(pushAddressBase + "/subscription4");
         codespaceABC.addCodespace("ABC");
-        subscriptionManager.addOrUpdate(codespaceABC);
+//        subscriptionManager.addOrUpdate(codespaceABC);
 
-        assertEquals(4, subscriptionManager.listAll().size());
+        Subscription KOL_OSL = new Subscription();
+        KOL_OSL.setName("KOL_OSL");
+        KOL_OSL.setPushAddress(pushAddressBase + "/subscription4");
+        KOL_OSL.addFromStopPoint("NSR:StopPlace:572");
+        KOL_OSL.addToStopPoint("NSR:StopPlace:337");
+        KOL_OSL.addCodespace("BNR");
+        subscriptionManager.addOrUpdate(KOL_OSL);
 
-        List<Path> etMessages = Files.walk(Paths.get("/home/jon/Documents/Entur/sanntidsmelding_alle/raw"))
+        assertEquals(1  , subscriptionManager.listAll().size());
+
+        List<Path> etMessages = Files.walk(Paths.get("/Users/Lasse/Projects/SVV/reiseplanlegger/ukur/src/test/resources"))
                 .filter(Files::isRegularFile)
                 .filter(p -> p.toString().contains("ET"))
                 .collect(Collectors.toList());
@@ -172,12 +180,12 @@ public class NsbETSubscriptionManualTest extends DatastoreTest {
         long sleepStart = System.currentTimeMillis();
         int activePushThreads = subscriptionManager.getActivePushThreads();
         while (activePushThreads > 0) {
-            if (System.currentTimeMillis() - sleepStart > 10_000) fail("Seems like the push-threads never will finish...");
-            List<LoggedRequest> s1Requests = findAll(postRequestedFor(urlEqualTo("/subscription1/et")));
-            List<LoggedRequest> s2Requests = findAll(postRequestedFor(urlEqualTo("/subscription2/et")));
-            List<LoggedRequest> s3Requests = findAll(postRequestedFor(urlEqualTo("/subscription3/et")));
+//            if (System.currentTimeMillis() - sleepStart > 10_000) fail("Seems like the push-threads never will finish...");
+//            List<LoggedRequest> s1Requests = findAll(postRequestedFor(urlEqualTo("/subscription1/et")));
+//            List<LoggedRequest> s2Requests = findAll(postRequestedFor(urlEqualTo("/subscription2/et")));
+//            List<LoggedRequest> s3Requests = findAll(postRequestedFor(urlEqualTo("/subscription3/et")));
             List<LoggedRequest> s4Requests = findAll(postRequestedFor(urlEqualTo("/subscription4/et")));
-            logger.info("There are still {} active threads working on pushing messages - sleeps before checking received messages. Received push-messages: subscription1={}, subscription2={}, subscription3={}, subscription4={}", activePushThreads, s1Requests.size(), s2Requests.size(), s3Requests.size(), s4Requests.size());
+//            logger.info("There are still {} active threads working on pushing messages - sleeps before checking received messages. Received push-messages: subscription1={}, subscription2={}, subscription3={}, subscription4={}", activePushThreads, s1Requests.size(), s2Requests.size(), s3Requests.size(), s4Requests.size());
             Thread.sleep(1000);
             activePushThreads = subscriptionManager.getActivePushThreads();
         }
@@ -191,6 +199,7 @@ public class NsbETSubscriptionManualTest extends DatastoreTest {
         List<EstimatedVehicleJourney> s1ReceivedMessages = getEstimatedVehicleJourney("/subscription1/et");
         List<EstimatedVehicleJourney> s2ReceivedMessages = getEstimatedVehicleJourney("/subscription2/et");
         List<EstimatedVehicleJourney> s3ReceivedMessages = getEstimatedVehicleJourney("/subscription3/et");
+        List<EstimatedVehicleJourney> s4ReceivedMessages = getEstimatedVehicleJourney("/subscription4/et");
         logger.info("s1ReceivedMessages (Asker-OsloS stopplaces and quays) : {}", s1ReceivedMessages.size());
         logger.info("s2ReceivedMessages (Asker-OsloS only stopplaces)      : {}", s2ReceivedMessages.size());
         logger.info("s3ReceivedMessages (Line L13)                         : {}", s3ReceivedMessages.size());
@@ -202,6 +211,73 @@ public class NsbETSubscriptionManualTest extends DatastoreTest {
         assertTrue("Excpected the same messages received", s2_uniqueDatedVehicleJourneyRefs.containsAll(s1_uniqueDatedVehicleJourneyRefs));
 
         assertFalse("Expected messages regarding line L13", s3ReceivedMessages.isEmpty());
+
+        List<LoggedRequest> allUnmatchedRequests = wireMockRule.findAllUnmatchedRequests();
+        if (!allUnmatchedRequests.isEmpty()) {
+            for (LoggedRequest unmatchedRequest : allUnmatchedRequests) {
+                logger.warn("Unmatched Request: {}", unmatchedRequest.getUrl());
+            }
+            fail("Did not expect any unmatched requests - got "+allUnmatchedRequests.size());
+        }
+    }
+
+    @Test
+    @Ignore //So idea don't run it as part of package/folder tests
+    public void processETMessageWithStatusBoardingAlighting() throws Exception {
+
+        LoggerContext logCtx = (LoggerContext) LoggerFactory.getILoggerFactory();
+        logCtx.getLogger("org.entur").setLevel(Level.INFO); //pauses TRACE logging as we trace a lot during setup...
+
+        populateQuayAndStopPlaceMappingService("https://api-test.entur.org/stop_places/1.0/list/stop_place_quays/");
+
+        stubFor(post(urlMatching("/subscription.*/et"))
+                .withHeader("Content-Type", equalTo("application/xml"))
+                .willReturn(aResponse()));
+
+        String pushAddressBase = "http://localhost:" + wireMockRule.port();
+
+        Subscription KOL_OSL = new Subscription();
+        KOL_OSL.setName("KOL_OSL");
+        KOL_OSL.setPushAddress(pushAddressBase + "/subscription");
+        KOL_OSL.addFromStopPoint("NSR:StopPlace:572");
+        KOL_OSL.addToStopPoint("NSR:StopPlace:337");
+        KOL_OSL.addCodespace("BNR");
+        subscriptionManager.addOrUpdate(KOL_OSL);
+
+        assertEquals(1  , subscriptionManager.listAll().size());
+
+        List<Path> etMessages = Files.walk(Paths.get("src/test/resources/"))
+                .filter(Files::isRegularFile)
+                .filter(p -> p.toString().endsWith("ET_kol_osl.xml"))
+                .collect(Collectors.toList());
+        long start = System.currentTimeMillis();
+        for (int i = 0; i < etMessages.size(); i++) {
+            long deltaStart = System.currentTimeMillis();
+            ETSubscriptionProcessor.process(createExchangeMock(new FileInputStream(etMessages.get(i).toFile())));
+            logger.info("Processed message {}/{} in {} ms", (i+1), etMessages.size(), formatTimeSince(deltaStart));
+        }
+        logger.info("DONE!");
+        logger.info("Processed all {} messages in {} ms", etMessages.size(), formatTimeSince(start));
+
+        int activePushThreads = subscriptionManager.getActivePushThreads();
+        while (activePushThreads > 0) {
+//            if (System.currentTimeMillis() - sleepStart > 10_000) fail("Seems like the push-threads never will finish...");
+            List<LoggedRequest> sub = findAll(postRequestedFor(urlEqualTo("/subscription4/et")));
+            logger.info("There are still {} active threads working on pushing messages - sleeps before checking received messages. Received push-messages: subscription={}", activePushThreads, sub.size());
+            Thread.sleep(1000);
+            activePushThreads = subscriptionManager.getActivePushThreads();
+        }
+
+        logger.info("Finished processing {} ET messages and sent all pushmessages in {} ms", etMessages.size(), formatTimeSince(start));
+        logger.info("There was {} messages with deviations, and {} without - {} was skipped",
+                metricsService.getMeter(MetricsService.METER_ET_WITH_DEVIATIONS).getCount(),
+                metricsService.getMeter(MetricsService.METER_ET_WITHOUT_DEVIATIONS).getCount(),
+                metricsService.getMeter(MetricsService.METER_ET_IGNORED).getCount());
+
+        List<EstimatedVehicleJourney> receivedMessages = getEstimatedVehicleJourney("/subscription/et");
+        logger.info("ReceivedMessages )                         : {}", receivedMessages.size());
+
+        assertFalse("Expected message ", receivedMessages.isEmpty());
 
         List<LoggedRequest> allUnmatchedRequests = wireMockRule.findAllUnmatchedRequests();
         if (!allUnmatchedRequests.isEmpty()) {

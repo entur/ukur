@@ -31,25 +31,11 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import uk.org.siri.siri20.ArrivalBoardingActivityEnumeration;
-import uk.org.siri.siri20.CallStatusEnumeration;
-import uk.org.siri.siri20.DepartureBoardingActivityEnumeration;
-import uk.org.siri.siri20.EstimatedCall;
-import uk.org.siri.siri20.EstimatedVehicleJourney;
-import uk.org.siri.siri20.RecordedCall;
-import uk.org.siri.siri20.ServiceDelivery;
-import uk.org.siri.siri20.ServiceFeatureRef;
-import uk.org.siri.siri20.Siri;
-import uk.org.siri.siri20.StopAssignmentStructure;
+import uk.org.siri.siri20.*;
 
 import java.io.InputStream;
 import java.time.ZonedDateTime;
-import java.util.ArrayList;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static org.entur.ukur.subscription.SubscriptionTypeEnum.ET;
@@ -271,7 +257,19 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
         if (journey.getRecordedCalls() != null && journey.getRecordedCalls().getRecordedCalls() != null) {
             for (RecordedCall call : journey.getRecordedCalls().getRecordedCalls()) {
                 if (call.getStopPointRef() != null) {
-                    StopData data = new StopData(call.getAimedDepartureTime());
+
+                    /*
+                     * Cannot rely only on departure-time - subscription TO last stop must also be allowed.
+                     * Using aimedArrival when aimedDeparture is not set.
+                     */
+                    ZonedDateTime time;
+                    if (call.getAimedDepartureTime() != null) {
+                        time = call.getAimedDepartureTime();
+                    } else {
+                        time = call.getAimedArrivalTime();
+                    }
+
+                    StopData data = new StopData(time);
                     String stopPointRef = call.getStopPointRef().getValue();
                     stops.put(stopPointRef, data);
                 }
@@ -280,8 +278,21 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
         if (journey.getEstimatedCalls() != null && journey.getEstimatedCalls().getEstimatedCalls() != null) {
             for (EstimatedCall call : journey.getEstimatedCalls().getEstimatedCalls()) {
                 if (call.getStopPointRef() != null) {
-                    StopData data = new StopData(call.getAimedDepartureTime(),
-                            call.getArrivalBoardingActivity(), call.getDepartureBoardingActivity());
+
+                    /*
+                     * Cannot rely only on departure-time - subscription TO last stop must also be allowed.
+                     * Using aimedArrival when aimedDeparture is not set.
+                     */
+                    ZonedDateTime time;
+                    if (call.getAimedDepartureTime() != null) {
+                        time = call.getAimedDepartureTime();
+                    } else {
+                        time = call.getAimedArrivalTime();
+                    }
+
+                    StopData data = new StopData(time,
+                            call.getArrivalBoardingActivity(), call.getArrivalStatus(),
+                            call.getDepartureBoardingActivity(), call.getDepartureStatus());
                     String stopPointRef = call.getStopPointRef().getValue();
                     stops.put(stopPointRef, data);
                 }
@@ -370,17 +381,29 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
             if (stopData != null) {
                 switch (direction) {
                     case DIRECTION_FROM:
-                        DepartureBoardingActivityEnumeration depActivity = stopData.getDepartureBoardingActivity();
-                        if (depActivity != null && depActivity != DepartureBoardingActivityEnumeration.BOARDING) {
-                            logger.debug("skips FROM StopPoint as it is not boarding for departure");
-                            return null;
+                        CallStatusEnumeration departureStatus = stopData.getDepartureStatus();
+                        if (departureStatus != null && departureStatus != CallStatusEnumeration.CANCELLED) {
+
+                            //Departure has NOT been cancelled - check departure-activity
+
+                            DepartureBoardingActivityEnumeration depActivity = stopData.getDepartureBoardingActivity();
+                            if (depActivity != null && depActivity != DepartureBoardingActivityEnumeration.BOARDING) {
+                                logger.debug("skips FROM StopPoint as it is not boarding for departure");
+                                return null;
+                            }
                         }
                         break;
                     case DIRECTION_TO:
-                        ArrivalBoardingActivityEnumeration arrActivity = stopData.getArrivalBoardingActivity();
-                        if (arrActivity != null && arrActivity != ArrivalBoardingActivityEnumeration.ALIGHTING) {
-                            logger.debug("skips TO StopPoint as it is not alighting at arrival");
-                            return null;
+                        CallStatusEnumeration arrivalStatus = stopData.getArrivalStatus();
+                        if (arrivalStatus != null && arrivalStatus != CallStatusEnumeration.CANCELLED) {
+
+                            //Arrival has NOT been cancelled - check arrival-activity
+
+                            ArrivalBoardingActivityEnumeration arrActivity = stopData.getArrivalBoardingActivity();
+                            if (arrActivity != null && arrActivity != ArrivalBoardingActivityEnumeration.ALIGHTING) {
+                                logger.debug("skips TO StopPoint as it is not alighting at arrival");
+                                return null;
+                            }
                         }
                         break;
                 }
@@ -393,18 +416,24 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
     class StopData {
         private final ZonedDateTime aimedDepartureTime;
         private final ArrivalBoardingActivityEnumeration arrivalBoardingActivity;
+        private final CallStatusEnumeration arrivalStatus;
         private final DepartureBoardingActivityEnumeration departureBoardingActivity;
+        private final CallStatusEnumeration departureStatus;
 
         StopData(ZonedDateTime aimedDepartureTime) {
-            this(aimedDepartureTime, null, null);
+            this(aimedDepartureTime, null, null, null, null);
         }
 
         StopData(ZonedDateTime aimedDepartureTime,
-                        ArrivalBoardingActivityEnumeration arrivalBoardingActivity,
-                        DepartureBoardingActivityEnumeration departureBoardingActivity) {
+                 ArrivalBoardingActivityEnumeration arrivalBoardingActivity,
+                 CallStatusEnumeration arrivalStatus,
+                 DepartureBoardingActivityEnumeration departureBoardingActivity,
+                 CallStatusEnumeration departureStatus) {
             this.aimedDepartureTime = aimedDepartureTime;
             this.arrivalBoardingActivity = arrivalBoardingActivity;
+            this.arrivalStatus = arrivalStatus;
             this.departureBoardingActivity = departureBoardingActivity;
+            this.departureStatus = departureStatus;
         }
 
         ZonedDateTime getAimedDepartureTime() {
@@ -415,8 +444,16 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
             return arrivalBoardingActivity;
         }
 
+        public CallStatusEnumeration getArrivalStatus() {
+            return arrivalStatus;
+        }
+
         DepartureBoardingActivityEnumeration getDepartureBoardingActivity() {
             return departureBoardingActivity;
+        }
+
+        public CallStatusEnumeration getDepartureStatus() {
+            return departureStatus;
         }
     }
 
