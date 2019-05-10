@@ -388,7 +388,7 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
 
                             DepartureBoardingActivityEnumeration depActivity = stopData.getDepartureBoardingActivity();
                             if (depActivity != null && depActivity != DepartureBoardingActivityEnumeration.BOARDING) {
-                                logger.debug("skips FROM StopPoint as it is not boarding for departure");
+                                logger.debug("skips FROM StopPoint {} as it is not boarding for departure", fromStopPoint);
                                 return null;
                             }
                         }
@@ -401,7 +401,7 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
 
                             ArrivalBoardingActivityEnumeration arrActivity = stopData.getArrivalBoardingActivity();
                             if (arrActivity != null && arrActivity != ArrivalBoardingActivityEnumeration.ALIGHTING) {
-                                logger.debug("skips TO StopPoint as it is not alighting at arrival");
+                                logger.debug("skips TO StopPoint {} as it is not alighting at arrival", fromStopPoint);
                                 return null;
                             }
                         }
