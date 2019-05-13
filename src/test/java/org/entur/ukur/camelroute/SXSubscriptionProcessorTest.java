@@ -32,22 +32,10 @@ import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import uk.org.siri.siri20.AffectedRouteStructure;
-import uk.org.siri.siri20.AffectedStopPointStructure;
-import uk.org.siri.siri20.AffectedVehicleJourneyStructure;
-import uk.org.siri.siri20.AffectsScopeStructure;
-import uk.org.siri.siri20.PtSituationElement;
-import uk.org.siri.siri20.StopPointRef;
-import uk.org.siri.siri20.VehicleJourneyRef;
+import uk.org.siri.siri20.*;
 
 import java.io.Serializable;
-import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.Collection;
-import java.util.Collections;
-import java.util.HashMap;
-import java.util.HashSet;
-import java.util.List;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
@@ -88,7 +76,7 @@ public class SXSubscriptionProcessorTest extends DatastoreTest {
         quayAndStopPlaceMappingService.updateStopsAndQuaysMap(stopPlacesAndQuays);
 
         subscriptionManager =
-                new SubscriptionManager(dataStorageService, siriMarshaller, metricsServiceMock, new HashMap<>(), quayAndStopPlaceMappingService);
+                new SubscriptionManager(dataStorageService, siriMarshaller, metricsServiceMock, new HashMap<>(), new HashMap<>(), quayAndStopPlaceMappingService);
         processor = new SXSubscriptionProcessor(subscriptionManager, siriMarshaller, mock(FileStorageService.class), mock(MetricsService.class));
     }
 

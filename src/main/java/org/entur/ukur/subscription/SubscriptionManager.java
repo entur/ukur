@@ -31,14 +31,16 @@ import org.springframework.http.HttpStatus;
 import org.springframework.stereotype.Service;
 import uk.org.siri.siri20.*;
 
+import javax.xml.bind.DatatypeConverter;
 import javax.xml.datatype.Duration;
-import java.io.DataOutputStream;
-import java.io.Serializable;
+import java.io.*;
 import java.math.BigInteger;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URL;
 import java.net.UnknownHostException;
+import java.security.MessageDigest;
+import java.security.NoSuchAlgorithmException;
 import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.concurrent.Executors;
@@ -59,6 +61,7 @@ public class SubscriptionManager {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
     private ThreadPoolExecutor pushExecutor = (ThreadPoolExecutor) Executors.newFixedThreadPool(50);
     private Map<String, Long> subscriptionNextHeartbeat;
+    private Map<String, String> lastMessageChecksum;
     private ZonedDateTime nextTerminatedCheck = null;
 
     @Autowired
@@ -66,11 +69,13 @@ public class SubscriptionManager {
                                SiriMarshaller siriMarshaller,
                                MetricsService metricsService,
                                @Qualifier("heartbeats") Map<String, Long> subscriptionNextHeartbeat,
+                               @Qualifier("lastMessageChecksum") Map<String, String> lastMessageChecksum,
                                QuayAndStopPlaceMappingService quayAndStopPlaceMappingService) {
         this.dataStorageService = dataStorageService;
         this.siriMarshaller = siriMarshaller;
         this.metricsService = metricsService;
         this.subscriptionNextHeartbeat = subscriptionNextHeartbeat;
+        this.lastMessageChecksum = lastMessageChecksum;
         this.quayAndStopPlaceMappingService = quayAndStopPlaceMappingService;
         try {
             hostname = InetAddress.getLocalHost().getHostName();
@@ -416,6 +421,7 @@ public class SubscriptionManager {
         logger.info("Removes subscription with id {}", subscriptionId);
         dataStorageService.removeSubscription(subscriptionId);
         subscriptionNextHeartbeat.remove(subscriptionId);
+        lastMessageChecksum.remove(subscriptionId);
     }
 
     private Set<String> getAllStops(Subscription subscription) {
@@ -523,12 +529,55 @@ public class SubscriptionManager {
                         pushAddress += "/sx";
                     }
                 }
-                HttpStatus responseStatus = post(subscription, pushAddress, pushMessage);
-                handleResponse(responseStatus, subscription, pushAddress);
+
+                if (hasMessageBeenUpdated(subscription, pushMessage)) {
+
+                    HttpStatus responseStatus = post(subscription, pushAddress, pushMessage);
+                    handleResponse(responseStatus, subscription, pushAddress);
+                } else {
+                    logger.info("Ignoring push to {} since data has not changed since last push-attempt.", subscription);
+                }
             } catch (Exception e) {
                 logger.error("Got exception while pushing message", e);
             }
         });
+    }
+
+    /*
+     * @return true if the message sent is NOT equal to last sent message.
+     */
+    private boolean hasMessageBeenUpdated(Subscription subscription, Object pushMessage) {
+        boolean isEqualToLastMessage = false;
+        try {
+            String subscriptionId = subscription.getId();
+            String messageChecksum = getChecksum((Serializable) pushMessage);
+
+            if (lastMessageChecksum.containsKey(subscriptionId)) {
+                isEqualToLastMessage = messageChecksum.equals(lastMessageChecksum.get(subscriptionId));
+            }
+
+            lastMessageChecksum.put(subscriptionId, messageChecksum);
+
+        } catch (Exception e) {
+            //Ignore - will be flagged as updated message
+        }
+        return !isEqualToLastMessage;
+    }
+
+    private static String getChecksum(Serializable object) throws IOException, NoSuchAlgorithmException {
+        ByteArrayOutputStream baos = null;
+        ObjectOutputStream oos = null;
+        try {
+            baos = new ByteArrayOutputStream();
+            oos = new ObjectOutputStream(baos);
+            oos.writeObject(object);
+            MessageDigest md = MessageDigest.getInstance("MD5");
+            byte[] thedigest = md.digest(baos.toByteArray());
+            return DatatypeConverter.printHexBinary(thedigest);
+        } finally {
+            oos.close();
+            baos.close();
+        }
     }
 
     private void handleResponse(HttpStatus responseStatus, Subscription subscription, String pushAddress) {

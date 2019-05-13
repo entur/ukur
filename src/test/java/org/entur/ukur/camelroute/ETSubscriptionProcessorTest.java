@@ -25,17 +25,7 @@ import org.entur.ukur.subscription.SubscriptionManager;
 import org.entur.ukur.xml.SiriMarshaller;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
-import uk.org.siri.siri20.CallStatusEnumeration;
-import uk.org.siri.siri20.DatedVehicleJourneyRef;
-import uk.org.siri.siri20.EstimatedCall;
-import uk.org.siri.siri20.EstimatedVehicleJourney;
-import uk.org.siri.siri20.LineRef;
-import uk.org.siri.siri20.OperatorRefStructure;
-import uk.org.siri.siri20.QuayRefStructure;
-import uk.org.siri.siri20.RecordedCall;
-import uk.org.siri.siri20.StopAssignmentStructure;
-import uk.org.siri.siri20.StopPointRef;
-import uk.org.siri.siri20.VehicleRef;
+import uk.org.siri.siri20.*;
 
 import javax.xml.bind.JAXBException;
 import java.time.ZonedDateTime;
@@ -48,14 +38,8 @@ import java.util.Set;
 import static junit.framework.TestCase.assertTrue;
 import static org.entur.ukur.subscription.SubscriptionTypeEnum.ET;
 import static org.hamcrest.CoreMatchers.hasItem;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertThat;
-import static org.mockito.Mockito.any;
-import static org.mockito.Mockito.eq;
-import static org.mockito.Mockito.mock;
-import static org.mockito.Mockito.verify;
-import static org.mockito.Mockito.when;
+import static org.junit.Assert.*;
+import static org.mockito.Mockito.*;
 
 public class ETSubscriptionProcessorTest {
 
@@ -198,7 +182,7 @@ public class ETSubscriptionProcessorTest {
         HashSet<Subscription> subscriptionsNotified = new HashSet<>();
         QuayAndStopPlaceMappingService mappingMock = mock(QuayAndStopPlaceMappingService.class);
         SubscriptionManager subscriptionManager =
-                new SubscriptionManager(dataStorageMock, siriMarshaller, metricsService, new HashMap<>(), mappingMock) {
+                new SubscriptionManager(dataStorageMock, siriMarshaller, metricsService, new HashMap<>(), new HashMap<>(), mappingMock) {
                     @Override
                     public void notifySubscriptionsOnStops(HashSet<Subscription> subscriptions,
                                                            EstimatedVehicleJourney estimatedVehicleJourney, ZonedDateTime timestamp) {

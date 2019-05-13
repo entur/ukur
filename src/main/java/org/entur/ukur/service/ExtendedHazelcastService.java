@@ -15,11 +15,7 @@
 
 package org.entur.ukur.service;
 
-import com.hazelcast.core.Cluster;
-import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.core.IMap;
-import com.hazelcast.core.ITopic;
-import com.hazelcast.core.Member;
+import com.hazelcast.core.*;
 import org.entur.ukur.setup.UkurConfiguration;
 import org.rutebanken.hazelcasthelper.service.HazelCastService;
 import org.rutebanken.hazelcasthelper.service.KubernetesService;
@@ -29,11 +25,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.context.annotation.Bean;
 import org.springframework.stereotype.Service;
 
-import java.util.ArrayList;
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
 import static com.hazelcast.core.LifecycleEvent.LifecycleState.SHUTTING_DOWN;
@@ -56,6 +48,11 @@ public class ExtendedHazelcastService extends HazelCastService {
     @Bean
     public Map<String, Long> heartbeats() {
         return hazelcast.getMap("ukur.heartbeats");
+    }
+
+    @Bean
+    public Map<String, String> lastMessageChecksum() {
+        return hazelcast.getMap("ukur.messageChecksum");
     }
 
     @Bean

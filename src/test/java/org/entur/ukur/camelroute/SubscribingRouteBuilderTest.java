@@ -170,6 +170,62 @@ public class SubscribingRouteBuilderTest extends AbstractJUnit4SpringContextTest
         assertEquals(1, osloAskerMessages.size()); //TODO: Correct - But pure luck as there are no way of detecting the direction as only affected stops are in the sx message
     }
 
+
+    @Test
+    public void testDuplicatePushOnSXNotSent() throws Exception {
+        assertEquals(0, metricsService.getMeter("message.received.PtSituationElement").getCount());
+        assertEquals(0, metricsService.getTimer(MetricsService.TIMER_SX_PROCESS).getCount());
+        assertEquals(0, metricsService.getMeter("message.received.EstimatedVehicleJourney").getCount());
+        assertEquals(0, metricsService.getTimer(MetricsService.TIMER_ET_PROCESS).getCount());
+        assertEquals(0, metricsService.getTimer(MetricsService.TIMER_PUSH).getCount());
+
+        logger.info("Adds quays and stopplace maps");
+        HashMap<String, Collection<String>> stopPlacesAndQuays = new HashMap<>();
+        stopPlacesAndQuays.put("NSR:StopPlace:337", Sets.newHashSet("NSR:Quay:553"));
+        stopPlacesAndQuays.put("NSR:StopPlace:418", Sets.newHashSet("NSR:Quay:696"));
+        quayAndStopPlaceMappingService.updateStopsAndQuaysMap(stopPlacesAndQuays);
+
+        stubFor(post(urlMatching("/push.*/sx"))
+                .withHeader("Content-Type", equalTo("application/xml"))
+                .willReturn(aResponse()));
+
+        String osloAskerUrl = "/push1/sx";
+        Subscription osloAsker = createSubscription(osloAskerUrl, "NSR:StopPlace:337", "NSR:StopPlace:418", null, "Oslo-Asker");
+        logger.info("TestControl: Created subscription from OsloS to Asker with id = {}", osloAsker.getId());
+
+        logger.info("TestControl: Sends SX messages that will trigger notifications");
+        postFile("/sx-vehiclejourneyref2123-pretty.xml", "sx");
+        waitUntil(MetricsService.TIMER_SX_PROCESS, 1);
+        waitUntil(MetricsService.TIMER_PUSH, 1);
+        Thread.sleep(100); //Sleeps a little longer to detect if we send an unwanted push message
+
+        logger.info("TestControl: Asserts expected results");
+        assertEquals(1, metricsService.getMeter("message.received.PtSituationElement").getCount());
+        assertEquals(1, metricsService.getTimer(MetricsService.TIMER_SX_PROCESS).getCount());
+        assertEquals(1, metricsService.getTimer(MetricsService.TIMER_PUSH).getCount());
+        List<PtSituationElement> osloAskerMessages = getReceivedMessages(osloAskerUrl);
+
+        logger.info("TestControl: received {} messages for subscription from Oslo to Asker", osloAskerMessages.size());
+        assertEquals(1, osloAskerMessages.size());
+
+
+
+        logger.info("TestControl: Sends SX duplicates that will NOT trigger notifications");
+        postFile("/sx-vehiclejourneyref2123-pretty.xml", "sx");
+        waitUntil(MetricsService.TIMER_SX_PROCESS, 2);
+        Thread.sleep(100); //Sleeps a little longer to detect if we send an unwanted push message
+
+        logger.info("TestControl: Asserts expected results");
+        assertEquals(2, metricsService.getMeter("message.received.PtSituationElement").getCount());
+        assertEquals(2, metricsService.getTimer(MetricsService.TIMER_SX_PROCESS).getCount()); // SX has been processed
+        assertEquals(1, metricsService.getTimer(MetricsService.TIMER_PUSH).getCount()); //SX has NOT been sent
+
+        osloAskerMessages = getReceivedMessages(osloAskerUrl);
+
+        logger.info("TestControl: received {} messages for subscription from Oslo to Asker", osloAskerMessages.size());
+        assertEquals(1, osloAskerMessages.size());
+    }
+
     @Test
     public void testRuterSX() throws Exception {
         assertEquals(0, metricsService.getMeter("message.received.PtSituationElement").getCount());
@@ -304,7 +360,7 @@ public class SubscribingRouteBuilderTest extends AbstractJUnit4SpringContextTest
         //things are asynchronous: wait until expected conditions are met (or time out)
         long start = System.currentTimeMillis();
         while (metricsService.getTimer(timer).getCount() < expectedCount) {
-            if ((System.currentTimeMillis() - start) > 5000) {
+            if ((System.currentTimeMillis() - start) > 15000) {
                 fail("This takes to long...");
             }
             Thread.sleep(10);

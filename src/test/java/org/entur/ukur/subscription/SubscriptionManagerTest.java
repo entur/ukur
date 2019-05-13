@@ -28,7 +28,8 @@ import java.util.Set;
 
 import static org.entur.ukur.subscription.SubscriptionTypeEnum.ET;
 import static org.hamcrest.CoreMatchers.hasItem;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -39,7 +40,7 @@ public class SubscriptionManagerTest {
         DataStorageService storageMock = mock(DataStorageService.class);
         QuayAndStopPlaceMappingService mappingMock = mock(QuayAndStopPlaceMappingService.class);
         SubscriptionManager subscriptionManager = new SubscriptionManager(storageMock,
-                new SiriMarshaller(), new MetricsService(), new HashMap<>(), mappingMock);
+                new SiriMarshaller(), new MetricsService(), new HashMap<>(), new HashMap<>(), mappingMock);
 
         when(mappingMock.mapQuayToStopPlace("NSR:Quay:1")).thenReturn("NSR:StopPlace:1");
         Subscription s1 = new Subscription();

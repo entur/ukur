@@ -31,16 +31,7 @@ import org.hamcrest.CoreMatchers;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import uk.org.siri.siri20.AffectedRouteStructure;
-import uk.org.siri.siri20.AffectedVehicleJourneyStructure;
-import uk.org.siri.siri20.EstimatedTimetableDeliveryStructure;
-import uk.org.siri.siri20.EstimatedVehicleJourney;
-import uk.org.siri.siri20.EstimatedVersionFrameStructure;
-import uk.org.siri.siri20.HeartbeatNotificationStructure;
-import uk.org.siri.siri20.OperatorRefStructure;
-import uk.org.siri.siri20.PtSituationElement;
-import uk.org.siri.siri20.Siri;
-import uk.org.siri.siri20.SubscriptionTerminatedNotificationStructure;
+import uk.org.siri.siri20.*;
 
 import javax.xml.bind.JAXBException;
 import javax.xml.datatype.DatatypeFactory;
@@ -52,14 +43,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
-import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
-import static com.github.tomakehurst.wiremock.client.WireMock.findAll;
-import static com.github.tomakehurst.wiremock.client.WireMock.post;
-import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
-import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
-import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
-import static com.github.tomakehurst.wiremock.client.WireMock.verify;
+import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
 import static org.hamcrest.CoreMatchers.hasItem;
 import static org.junit.Assert.*;
@@ -93,6 +77,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         subscriptionManager = new SubscriptionManager(dataStorageService,
                 siriMarshaller,
                 metricsService,
+                new HashMap<>(),
                 new HashMap<>(),
                 quayAndStopPlaceMappingService);
     }
