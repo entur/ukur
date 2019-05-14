@@ -194,36 +194,90 @@ public class SubscribingRouteBuilderTest extends AbstractJUnit4SpringContextTest
         logger.info("TestControl: Created subscription from OsloS to Asker with id = {}", osloAsker.getId());
 
         logger.info("TestControl: Sends SX messages that will trigger notifications");
+
+        // Send SX-message 1
         postFile("/sx-vehiclejourneyref2123-pretty.xml", "sx");
         waitUntil(MetricsService.TIMER_SX_PROCESS, 1);
         waitUntil(MetricsService.TIMER_PUSH, 1);
         Thread.sleep(100); //Sleeps a little longer to detect if we send an unwanted push message
 
         logger.info("TestControl: Asserts expected results");
-        assertEquals(1, metricsService.getMeter("message.received.PtSituationElement").getCount());
-        assertEquals(1, metricsService.getTimer(MetricsService.TIMER_SX_PROCESS).getCount());
-        assertEquals(1, metricsService.getTimer(MetricsService.TIMER_PUSH).getCount());
+        int expectedReceivedMessage = 1;
+        int expectedProcessedMessage = 1;
+        int expectedPushedMessage = 1;
+
+        assertEquals(expectedReceivedMessage, metricsService.getMeter("message.received.PtSituationElement").getCount());
+        assertEquals(expectedProcessedMessage, metricsService.getTimer(MetricsService.TIMER_SX_PROCESS).getCount());
+        assertEquals(expectedPushedMessage, metricsService.getTimer(MetricsService.TIMER_PUSH).getCount());
         List<PtSituationElement> osloAskerMessages = getReceivedMessages(osloAskerUrl);
 
         logger.info("TestControl: received {} messages for subscription from Oslo to Asker", osloAskerMessages.size());
-        assertEquals(1, osloAskerMessages.size());
+        assertEquals(expectedPushedMessage, osloAskerMessages.size());
 
-
-
-        logger.info("TestControl: Sends SX duplicates that will NOT trigger notifications");
+        // Send SX-message 1 again - should be ignored
+        logger.info("TestControl: Sends duplicates that will NOT trigger notifications");
         postFile("/sx-vehiclejourneyref2123-pretty.xml", "sx");
         waitUntil(MetricsService.TIMER_SX_PROCESS, 2);
         Thread.sleep(100); //Sleeps a little longer to detect if we send an unwanted push message
 
+        expectedReceivedMessage  = expectedReceivedMessage+1;  // Receiving 1 more message
+        expectedProcessedMessage = expectedProcessedMessage+1; // Processing 1 more message
+        expectedPushedMessage    = expectedPushedMessage;      // NOT pushing message - as it is a duplicate
+
         logger.info("TestControl: Asserts expected results");
-        assertEquals(2, metricsService.getMeter("message.received.PtSituationElement").getCount());
-        assertEquals(2, metricsService.getTimer(MetricsService.TIMER_SX_PROCESS).getCount()); // SX has been processed
-        assertEquals(1, metricsService.getTimer(MetricsService.TIMER_PUSH).getCount()); //SX has NOT been sent
+        assertEquals(expectedReceivedMessage  , metricsService.getMeter("message.received.PtSituationElement").getCount());
+        assertEquals(expectedProcessedMessage , metricsService.getTimer(MetricsService.TIMER_SX_PROCESS).getCount()); // SX has been processed
+        assertEquals(expectedPushedMessage    , metricsService.getTimer(MetricsService.TIMER_PUSH).getCount()); //SX has NOT been sent
 
         osloAskerMessages = getReceivedMessages(osloAskerUrl);
 
         logger.info("TestControl: received {} messages for subscription from Oslo to Asker", osloAskerMessages.size());
-        assertEquals(1, osloAskerMessages.size());
+        assertEquals(expectedPushedMessage, osloAskerMessages.size());
+
+
+        // Send SX-message 2
+        logger.info("TestControl: Sends SX that WILL trigger notifications");
+        postFile("/sx-vehiclejourneyref2123-pretty-2.xml", "sx");
+        waitUntil(MetricsService.TIMER_SX_PROCESS, 1);
+        waitUntil(MetricsService.TIMER_PUSH, 1);
+        Thread.sleep(100); //Sleeps a little longer to detect if we send an unwanted push message
+
+
+        expectedReceivedMessage  = expectedReceivedMessage+1;  // Receiving 1 more message
+        expectedProcessedMessage = expectedProcessedMessage+1; // Processing 1 more message
+        expectedPushedMessage    = expectedPushedMessage + 1;  // Pushing 1 more message - NOT a duplicate
+
+
+        logger.info("TestControl: Asserts expected results");
+        assertEquals(expectedReceivedMessage , metricsService.getMeter("message.received.PtSituationElement").getCount());
+        assertEquals(expectedProcessedMessage, metricsService.getTimer(MetricsService.TIMER_SX_PROCESS).getCount());
+        assertEquals(expectedPushedMessage   , metricsService.getTimer(MetricsService.TIMER_PUSH).getCount());
+        osloAskerMessages = getReceivedMessages(osloAskerUrl);
+
+        logger.info("TestControl: received {} messages for subscription from Oslo to Asker", osloAskerMessages.size());
+        assertEquals(expectedPushedMessage, osloAskerMessages.size());
+
+
+
+        // Send SX-message 1 yet again - should be ignored, again
+        logger.info("TestControl: Sends SX duplicates yet againg that will NOT trigger notifications");
+        postFile("/sx-vehiclejourneyref2123-pretty.xml", "sx");
+        waitUntil(MetricsService.TIMER_SX_PROCESS, 2);
+        Thread.sleep(100); //Sleeps a little longer to detect if we send an unwanted push message
+
+        expectedReceivedMessage  = expectedReceivedMessage+1;  // Receiving 1 more message
+        expectedProcessedMessage = expectedProcessedMessage+1; // Processing 1 more message
+        expectedPushedMessage    = expectedPushedMessage;  // NOT pushing message - as it is a duplicate of first message
+
+        logger.info("TestControl: Asserts expected results");
+        assertEquals(expectedReceivedMessage , metricsService.getMeter("message.received.PtSituationElement").getCount());
+        assertEquals(expectedProcessedMessage, metricsService.getTimer(MetricsService.TIMER_SX_PROCESS).getCount()); // SX has been processed
+        assertEquals(expectedPushedMessage   , metricsService.getTimer(MetricsService.TIMER_PUSH).getCount()); //SX has NOT been sent
+
+        osloAskerMessages = getReceivedMessages(osloAskerUrl);
+
+        logger.info("TestControl: received {} messages for subscription from Oslo to Asker", osloAskerMessages.size());
+        assertEquals(expectedPushedMessage, osloAskerMessages.size());
     }
 
     @Test

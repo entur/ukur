@@ -17,6 +17,7 @@ package org.entur.ukur.service;
 
 import com.hazelcast.core.*;
 import org.entur.ukur.setup.UkurConfiguration;
+import org.entur.ukur.subscription.MessageIdentifierKey;
 import org.rutebanken.hazelcasthelper.service.HazelCastService;
 import org.rutebanken.hazelcasthelper.service.KubernetesService;
 import org.slf4j.Logger;
@@ -51,7 +52,7 @@ public class ExtendedHazelcastService extends HazelCastService {
     }
 
     @Bean
-    public Map<String, String> lastMessageChecksum() {
+    public IMap<MessageIdentifierKey, String> lastMessageChecksum() {
         return hazelcast.getMap("ukur.messageChecksum");
     }
 

@@ -45,6 +45,7 @@ import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ThreadPoolExecutor;
+import java.util.stream.Collectors;
 
 import static org.entur.ukur.service.MetricsService.GAUGE_PUSH_QUEUE;
 import static org.entur.ukur.subscription.SiriXMLSubscriptionHandler.SIRI_VERSION;
@@ -61,7 +62,7 @@ public class SubscriptionManager {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
     private ThreadPoolExecutor pushExecutor = (ThreadPoolExecutor) Executors.newFixedThreadPool(50);
     private Map<String, Long> subscriptionNextHeartbeat;
-    private Map<String, String> lastMessageChecksum;
+    private Map<MessageIdentifierKey, String> lastMessageChecksum;
     private ZonedDateTime nextTerminatedCheck = null;
 
     @Autowired
@@ -69,7 +70,7 @@ public class SubscriptionManager {
                                SiriMarshaller siriMarshaller,
                                MetricsService metricsService,
                                @Qualifier("heartbeats") Map<String, Long> subscriptionNextHeartbeat,
-                               @Qualifier("lastMessageChecksum") Map<String, String> lastMessageChecksum,
+                               @Qualifier("lastMessageChecksum") Map<MessageIdentifierKey, String> lastMessageChecksum,
                                QuayAndStopPlaceMappingService quayAndStopPlaceMappingService) {
         this.dataStorageService = dataStorageService;
         this.siriMarshaller = siriMarshaller;
@@ -421,7 +422,11 @@ public class SubscriptionManager {
         logger.info("Removes subscription with id {}", subscriptionId);
         dataStorageService.removeSubscription(subscriptionId);
         subscriptionNextHeartbeat.remove(subscriptionId);
-        lastMessageChecksum.remove(subscriptionId);
+
+        List<MessageIdentifierKey> messageKeysForSubscription = lastMessageChecksum.keySet().stream().filter(key -> key.subscriptionId.equals(subscriptionId)).collect(Collectors.toList());
+        for (MessageIdentifierKey keyToRemove : messageKeysForSubscription) {
+            lastMessageChecksum.remove(keyToRemove);
+        }
     }
 
     private Set<String> getAllStops(Subscription subscription) {
@@ -497,6 +502,9 @@ public class SubscriptionManager {
         pushExecutor.execute(() -> {
             try {
                 String pushAddress = subscription.getPushAddress();
+
+                String messageIdentifier = null;
+
                 final Object pushMessage;
                 if (subscription.isUseSiriSubscriptionModel()) {
                     Siri siri = new Siri();
@@ -530,12 +538,22 @@ public class SubscriptionManager {
                     }
                 }
 
-                if (hasMessageBeenUpdated(subscription, pushMessage)) {
+                if (siriElement instanceof EstimatedVehicleJourney) {
+                    if (((EstimatedVehicleJourney) siriElement).getDatedVehicleJourneyRef() != null) {
+                        messageIdentifier = ((EstimatedVehicleJourney) siriElement).getDatedVehicleJourneyRef().getValue();
+                    }
+                } else if (siriElement instanceof PtSituationElement) {
+                    if (((PtSituationElement) siriElement).getSituationNumber() != null) {
+                        messageIdentifier = ((PtSituationElement) siriElement).getSituationNumber().getValue();
+                    }
+                }
+
+                if (hasMessageBeenUpdated(subscription, messageIdentifier, pushMessage)) {
 
                     HttpStatus responseStatus = post(subscription, pushAddress, pushMessage);
                     handleResponse(responseStatus, subscription, pushAddress);
                 } else {
-                    logger.info("Ignoring push to {} since data has not changed since last push-attempt.", subscription);
+                    logger.info("Ignoring push to {} since data for key [{}] has not changed since last push-attempt.", subscription, messageIdentifier);
                 }
             } catch (Exception e) {
                 logger.error("Got exception while pushing message", e);
@@ -546,17 +564,20 @@ public class SubscriptionManager {
     /*
      * @return true if the message sent is NOT equal to last sent message.
      */
-    private boolean hasMessageBeenUpdated(Subscription subscription, Object pushMessage) {
+    private boolean hasMessageBeenUpdated(Subscription subscription, String messageIdentifier, Object pushMessage) {
         boolean isEqualToLastMessage = false;
         try {
             String subscriptionId = subscription.getId();
+
+            MessageIdentifierKey msgId = new MessageIdentifierKey(subscriptionId, messageIdentifier);
+
             String messageChecksum = getChecksum((Serializable) pushMessage);
 
-            if (lastMessageChecksum.containsKey(subscriptionId)) {
-                isEqualToLastMessage = messageChecksum.equals(lastMessageChecksum.get(subscriptionId));
+            if (lastMessageChecksum.containsKey(msgId)) {
+                isEqualToLastMessage = messageChecksum.equals(lastMessageChecksum.get(msgId));
             }
 
-            lastMessageChecksum.put(subscriptionId, messageChecksum);
+            lastMessageChecksum.put(msgId, messageChecksum);
 
         } catch (Exception e) {
             //Ignore - will be flagged as updated message
@@ -591,6 +612,10 @@ public class SubscriptionManager {
             }
         } else {
             logger.info("Unexpected response code on push '{}' - increase failed push counter for subscription wih id {}", responseStatus, subscription.getId());
+
+            // Last request failed - remove checksum for last send-attempt to retry
+            lastMessageChecksum.remove(subscription.getId());
+
             if (subscription.shouldRemove()) {
                 logger.info("Removing subscription with id {} after {} failed push attempts where first error was seen {}", subscription.getId(), subscription.getFailedPushCounter(), subscription.getFirstErrorSeen() );
                 remove(subscription.getId());
@@ -601,10 +626,6 @@ public class SubscriptionManager {
     }
 
     private HttpStatus post(Subscription subscription, String pushAddress, Object pushMessage) {
-
-        // TODO: Add duplicates-check - "is the message identical to last sent message"
-        //       Duplicates-check must be skipped for HeartbeatNotifications
-
         Timer pushToHttp = metricsService.getTimer(MetricsService.TIMER_PUSH);
         Timer.Context context = pushToHttp.time();
         try {
@@ -644,3 +665,4 @@ public class SubscriptionManager {
         subscriptionTerminated
     }
 }
+
