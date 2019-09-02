@@ -34,7 +34,7 @@
         <fabric8.dockerUser>carbon-1287/</fabric8.dockerUser>
         <docker.image>eu.gcr.io/${fabric8.dockerUser}${project.artifactId}:${project.version}</docker.image>
         <docker.cleanup>none</docker.cleanup>
-        <activemq.version>5.15.8</activemq.version>
+        <activemq.version>5.15.10</activemq.version>
         <metrics-version>4.0.3</metrics-version>
         <camel.version>2.22.1</camel.version>
         <hazelcast.version>3.11</hazelcast.version>
