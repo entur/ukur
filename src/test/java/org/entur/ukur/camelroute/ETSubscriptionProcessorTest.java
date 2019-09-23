@@ -28,6 +28,9 @@ import org.mockito.ArgumentCaptor;
 import uk.org.siri.siri20.*;
 
 import javax.xml.bind.JAXBException;
+import javax.xml.datatype.DatatypeConfigurationException;
+import javax.xml.datatype.DatatypeFactory;
+import javax.xml.datatype.Duration;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
@@ -35,6 +38,7 @@ import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Set;
 
+import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertTrue;
 import static org.entur.ukur.subscription.SubscriptionTypeEnum.ET;
 import static org.hamcrest.CoreMatchers.hasItem;
@@ -89,7 +93,10 @@ public class ETSubscriptionProcessorTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    public void processEstimatedVehicleJourney() throws JAXBException {
+    public void processEstimatedVehicleJourney() throws JAXBException, DatatypeConfigurationException {
+        DatatypeFactory datatypeFactory = DatatypeFactory.newInstance();
+        final Duration maxDelay_sR1E1 = datatypeFactory.newDuration("PT30M");
+        final Duration maxDelay_sR1E1C = datatypeFactory.newDuration("PT4M");
 
         EstimatedVehicleJourney.RecordedCalls recordedCalls = new EstimatedVehicleJourney.RecordedCalls();
         addRecordedCall(recordedCalls, "R1", ZonedDateTime.now().minus(2, ChronoUnit.HOURS));
@@ -111,9 +118,9 @@ public class ETSubscriptionProcessorTest {
         Set<Subscription> subscriptionsForStopPoint = new HashSet<>();
         //Expects these to be found:
         Subscription sR1E1 =
-                createSubscription("s_R1_E1", subscriptionsForStopPoint, "R1", "E1", null, null, false);
+                createSubscription("s_R1_E1", subscriptionsForStopPoint, "R1", "E1", null, null, false, maxDelay_sR1E1);
         Subscription sR1E1C = createSubscription("s_R1_E1_c", subscriptionsForStopPoint,
-                "R1", "E1", "BNR", null, false);
+                "R1", "E1", "BNR", null, false, maxDelay_sR1E1C);
         Subscription sR1E1CL = createSubscription("s_R1_E1_c_l", subscriptionsForStopPoint,
                 "R1", "E1", "BNR", "NSB:Line:1", false);
         Subscription sR1E1L = createSubscription("s_R1_E1_l", subscriptionsForStopPoint, "R1", "E1",
@@ -158,9 +165,9 @@ public class ETSubscriptionProcessorTest {
         verify(subscriptionManagerMock).notifySubscriptionsOnStops(subscriptionsOnStopsCaptor.capture(), eq(journey), any());
         verify(subscriptionManagerMock).notifySubscriptionsWithFullMessage(subscriptionsOnLineOrVehicleJourneyCaptor.capture(), eq(journey), any());
         HashSet<Subscription> notifiedSubscriptionsOnStops = subscriptionsOnStopsCaptor.getValue();
-        assertEquals(4, notifiedSubscriptionsOnStops.size());
-        assertTrue(notifiedSubscriptionsOnStops.contains(sR1E1));
-        assertTrue(notifiedSubscriptionsOnStops.contains(sR1E1C));
+        assertEquals(3, notifiedSubscriptionsOnStops.size());
+        assertFalse(notifiedSubscriptionsOnStops.contains(sR1E1));              //Since maxDelay is 30 minutes
+        assertTrue(notifiedSubscriptionsOnStops.contains(sR1E1C));             //Since maxDelay is 4 minutes
         assertTrue(notifiedSubscriptionsOnStops.contains(sR1E1CL));
         assertTrue(notifiedSubscriptionsOnStops.contains(sR1E1L));
         HashSet<Subscription> notifiedSubscriptionsWithFullMessage = subscriptionsOnLineOrVehicleJourneyCaptor.getValue();
@@ -347,7 +354,7 @@ public class ETSubscriptionProcessorTest {
         createSubscription("notfound4", subscriptionsForStopPoint, "R1", "x1", "BNR", "NSB:Line:1", false);
 
         SubscriptionManager subscriptionManagerMock =
-                mock(SubscriptionManager.class); //must be somewhat carefull so we don't spend to much time testing the mock...
+                mock(SubscriptionManager.class); //must be somewhat careful so we don't spend to much time testing the mock...
         when(subscriptionManagerMock.getSubscriptionsForStopPoint("NSR:Quay:E1", ET)).thenReturn(subscriptionsForStopPoint);
         when(subscriptionManagerMock.getSubscriptionsForStopPoint("NSR:Quay:R1", ET)).thenReturn(subscriptionsForStopPoint);
         when(subscriptionManagerMock.getSubscriptionsForLineRef("NSB:Line:1", ET)).thenReturn(new HashSet<>(Arrays.asList(sL, sLC, sLCx)));
@@ -380,7 +387,9 @@ public class ETSubscriptionProcessorTest {
     }
 
     private Subscription createSubscription(String name, Set<Subscription> subscriptions,
-                                            String from, String to, String codespace, String line, boolean subscribeToQuay) {
+                                            String from, String to, String codespace, String line,
+                                            boolean subscribeToQuay, Duration maxDelay) {
+
         Subscription subscription = new Subscription();
         subscription.setName(name);
         subscription.setId(Integer.toString(subscriptionCounter++));
@@ -405,7 +414,16 @@ public class ETSubscriptionProcessorTest {
         if (subscriptions != null) {
             subscriptions.add(subscription);
         }
+        if (maxDelay != null) {
+            subscription.setMaxArrivalDelay(maxDelay);
+        }
         return subscription;
+    }
+
+    private Subscription createSubscription(String name, Set<Subscription> subscriptions,
+                                            String from, String to, String codespace, String line,
+                                            boolean subscribeToQuay) {
+        return createSubscription(name, subscriptions,from,to,codespace,line,subscribeToQuay,null);
     }
 
     private Subscription createSubscription(String name, String from, String to, boolean createQuay) {

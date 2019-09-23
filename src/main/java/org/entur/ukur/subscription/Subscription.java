@@ -48,6 +48,7 @@ public class Subscription implements Serializable {
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
     private ZonedDateTime initialTerminationTime;
     private Duration heartbeatInterval;
+    private Duration maxArrivalDelay;
 
     static String getName(String requestorRef, String subscriptionIdentifier) {
         return SIRI_NAME_PREFIX+"-REF("+requestorRef+")-ID("+subscriptionIdentifier+")";
@@ -266,5 +267,13 @@ public class Subscription implements Serializable {
 
     public Duration getHeartbeatInterval() {
         return heartbeatInterval;
+    }
+
+    public Duration getMaxArrivalDelay() {
+        return maxArrivalDelay;
+    }
+
+    public void setMaxArrivalDelay(Duration maxArrivalDelay) {
+        this.maxArrivalDelay = maxArrivalDelay;
     }
 }

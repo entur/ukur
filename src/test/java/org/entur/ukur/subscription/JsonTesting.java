@@ -47,6 +47,7 @@ public class JsonTesting {
         subscription.addToStopPoint("NRS:StopPlace:2");
         subscription.setPushAddress("http://localhost:888/blabla");
         subscription.setHeartbeatInterval(datatypeFactory.newDuration("PT15M"));
+        subscription.setMaxArrivalDelay(datatypeFactory.newDuration("PT30M"));
         subscription.setInitialTerminationTime(ZonedDateTime.now().plusWeeks(1));
 
         ObjectMapper mapper = new ObjectMapper();
@@ -58,8 +59,11 @@ public class JsonTesting {
         Subscription readSubscription = mapper.readValue(json, Subscription.class);
         assertEquals(subscription.getPushAddress(), readSubscription.getPushAddress());
         assertEquals(subscription.getHeartbeatInterval(), readSubscription.getHeartbeatInterval());
-        assertTrue(subscription.getInitialTerminationTime().isEqual(readSubscription.getInitialTerminationTime()));
+        var expectedInitialTerminationTime = subscription.getInitialTerminationTime().withNano(0);
+        var actualInitialTerminationTime = readSubscription.getInitialTerminationTime().withNano(0);
+        assertTrue(expectedInitialTerminationTime.isEqual(actualInitialTerminationTime));
         assertEquals(subscription.getType(), readSubscription.getType());
+       assertEquals(subscription.getMaxArrivalDelay(),readSubscription.getMaxArrivalDelay());
     }
 
     @Test
@@ -104,7 +108,8 @@ public class JsonTesting {
                 "\"type\" : \"SX\",\n" +
                 "\"useSiriSubscriptionModel\" : \"true\",\n" +
                 "\"initialTerminationTime\" : \"2018-08-16T12:49:18.105+0200\"," +
-                "\"heartbeatInterval\" : \"PT15M\"\n" +
+                "\"heartbeatInterval\" : \"PT15M\",\n" +
+                "\"maxDelay\" : \"PT30M\"\n" +
                 "}";
         Subscription subscription = mapper.readValue(json, Subscription.class);
         assertNotNull(subscription);
@@ -117,5 +122,6 @@ public class JsonTesting {
         assertNotNull(subscription.getInitialTerminationTime());
         DatatypeFactory datatypeFactory = DatatypeFactory.newInstance();
         assertEquals(datatypeFactory.newDuration("PT15M"), subscription.getHeartbeatInterval());
+        assertEquals(datatypeFactory.newDuration("PT30M"), subscription.getMaxArrivalDelay());
     }
 }
