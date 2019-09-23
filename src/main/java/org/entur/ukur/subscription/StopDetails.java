@@ -15,11 +15,14 @@
 
 package org.entur.ukur.subscription;
 
+import java.time.Duration;
+
 public class StopDetails {
     private final String stopPointRef;
     private boolean cancelledOrTrackChange = false;
     private boolean delayedDeparture = false;
     private boolean delayedArrival = false;
+    private Duration delayedArrivalDuration = null;
 
     public StopDetails(String stopPointRef) {
         this.stopPointRef = stopPointRef;
@@ -31,10 +34,11 @@ public class StopDetails {
         return stopDetails;
     }
 
-    public static StopDetails delayed(String stopPointRef, boolean delayedDeparture, boolean delayedArrival) {
+    public static StopDetails delayed(String stopPointRef, boolean delayedDeparture, boolean delayedArrival, Duration delayedArrivalDuration) {
         StopDetails stopDetails = new StopDetails(stopPointRef);
         stopDetails.delayedDeparture = delayedDeparture;
         stopDetails.delayedArrival= delayedArrival;
+        stopDetails.delayedArrivalDuration = delayedArrivalDuration;
         return stopDetails;
     }
 
@@ -52,5 +56,9 @@ public class StopDetails {
 
     public boolean isDelayedArrival() {
         return delayedArrival;
+    }
+
+    public Duration getDelayedArrivalDuration() {
+        return delayedArrivalDuration;
     }
 }

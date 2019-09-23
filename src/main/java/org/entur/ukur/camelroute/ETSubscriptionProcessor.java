@@ -34,6 +34,8 @@ import org.springframework.stereotype.Service;
 import uk.org.siri.siri20.*;
 
 import java.io.InputStream;
+import java.time.Duration;
+import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.util.*;
 import java.util.stream.Collectors;
@@ -132,9 +134,13 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
             String codespace = estimatedVehicleJourney.getDataSource();
             HashSet<Subscription> subscriptionsToNoNotify = new HashSet<>();
             for (StopDetailsAndSubscriptions stopDetailsAndSubscriptions : affectedSubscriptions) {
+                Duration delayedArrival = stopDetailsAndSubscriptions.getStopDetails().getDelayedArrivalDuration();
                 HashSet<Subscription> subscriptions = stopDetailsAndSubscriptions.getSubscriptions();
                 subscriptions.removeIf(s -> notIncluded(lineRef, s.getLineRefs()));
                 subscriptions.removeIf(s -> notIncluded(codespace, s.getCodespaces()));
+                if (delayedArrival != null) {
+                    subscriptions.removeIf(s -> delayedLessThan(delayedArrival, s.getMaxArrivalDelay()));
+                }
                 StopDetails stop = stopDetailsAndSubscriptions.getStopDetails();
                 logger.debug(" - For stopPlace {} there are {} affected subscriptions ", stop.getStopPointRef(), subscriptions.size());
                 subscriptionsToNoNotify.addAll(subscriptions); //accumulates subscriptions as these are normally found twice (from and to)
@@ -151,9 +157,20 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
             }
         } finally {
             long nanos = time.stop();
-            logger.debug("Done processing EstimatedVehicleJourney after {} ms", nanos/1000000);
+            logger.debug("Done processing EstimatedVehicleJourney after {} ms", nanos / 1000000);
         }
         return true;
+    }
+
+    private boolean delayedLessThan(Duration delayedArrival, javax.xml.datatype.Duration maxDelay) {
+        if (maxDelay == null) {
+            return false;
+        } else {
+            var dateNow = Date.from(Instant.now());
+            var maxDelayTimeInMillis = maxDelay.getTimeInMillis(dateNow);
+            var delayedArrivalInMillis = delayedArrival.toMillis();
+            return delayedArrivalInMillis <= maxDelayTimeInMillis;
+        }
     }
 
     private boolean shouldIgnoreJourney(EstimatedVehicleJourney estimatedVehicleJourney) {
@@ -199,7 +216,7 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
                 Set<Subscription> subs = subscriptionManager.getSubscriptionsForStopPoint(stopPoint, ET);
                 for (Subscription sub : subs) {
                     if (validDirection(sub, stops)) {
-                        if ( deviation.isCancelledOrTrackChange() || subscripbedStopDelayed(sub, stopPoint, deviation) ) {
+                        if (deviation.isCancelledOrTrackChange() || subscripbedStopDelayed(sub, stopPoint, deviation)) {
                             subscriptions.add(sub);
                         }
                     }
@@ -230,8 +247,8 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
     }
 
     private boolean subscripbedStopDelayed(Subscription sub, String stopPoint, StopDetails deviation) {
-        if ( (sub.getFromStopPoints().contains(stopPoint) && deviation.isDelayedDeparture()) ||
-                (sub.getToStopPoints().contains(stopPoint) && deviation.isDelayedArrival()) ) {
+        if ((sub.getFromStopPoints().contains(stopPoint) && deviation.isDelayedDeparture()) ||
+                (sub.getToStopPoints().contains(stopPoint) && deviation.isDelayedArrival())) {
             return true;
         }
 
@@ -323,8 +340,9 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
                 } else {
                     boolean delayedDeparture = call.getDepartureStatus() == CallStatusEnumeration.DELAYED || isDelayed(call.getAimedDepartureTime(), call.getExpectedDepartureTime());
                     boolean delayedArrival = call.getArrivalStatus() == CallStatusEnumeration.DELAYED || isDelayed(call.getAimedArrivalTime(), call.getExpectedArrivalTime());
+                    final Duration delayedArrivalDuration = getDelayedArrivalDuration(call.getAimedArrivalTime(), call.getExpectedArrivalTime());
                     if (delayedArrival || delayedDeparture) {
-                        deviations.add(StopDetails.delayed(getStringValue(call.getStopPointRef()), delayedDeparture, delayedArrival));
+                        deviations.add(StopDetails.delayed(getStringValue(call.getStopPointRef()), delayedDeparture, delayedArrival, delayedArrivalDuration));
                     }
                 }
             }
@@ -368,10 +386,18 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
         }
     }
 
-    private boolean isDelayed(ZonedDateTime aimed, ZonedDateTime expected) {
+    private Duration getDelayedArrivalDuration(ZonedDateTime aimed, ZonedDateTime expected) {
         if (aimed != null && expected != null) {
-            return expected.isAfter(aimed);
+            final var isAfter = expected.isAfter(aimed);
+            if (isAfter) {
+                return Duration.between(aimed, expected);
+            }
+            return null;
         }
+        return null;
+    }
+
+    private boolean isDelayed(ZonedDateTime aimed, ZonedDateTime expected) {
         return false;
     }
 

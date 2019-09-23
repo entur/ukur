@@ -273,6 +273,9 @@ public class DataStorageService implements MessageListener<String> {
         if (s.getHeartbeatInterval() != null) {
             builder.set("heartbeatInterval", StringValue.of(s.getHeartbeatInterval().toString()));
         }
+        if (s.getMaxArrivalDelay() != null) {
+            builder.set("maxArrivalDelay", StringValue.of(s.getMaxArrivalDelay().toString()));
+        }
         if (s.getInitialTerminationTime() != null) {
             Date date = Date.from(s.getInitialTerminationTime().toInstant());
             builder.set("initialTerminationTime", Timestamp.of(date));
@@ -318,6 +321,10 @@ public class DataStorageService implements MessageListener<String> {
         if (entity.contains("heartbeatInterval")) {
             String heartbeatInterval = entity.getString("heartbeatInterval");
             subscription.setHeartbeatInterval(toDuration(heartbeatInterval));
+        }
+        if (entity.contains("maxArrivalDelay")){
+            String maxArrivalDelay = entity.getString("maxArrivalDelay");
+            subscription.setMaxArrivalDelay(toDuration(maxArrivalDelay));
         }
         if (entity.contains("initialTerminationTime")) {
             Timestamp initialTerminationTime = entity.getTimestamp("initialTerminationTime");
