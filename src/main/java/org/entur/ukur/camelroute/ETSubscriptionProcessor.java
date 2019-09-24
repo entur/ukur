@@ -21,6 +21,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.entur.ukur.service.FileStorageService;
 import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.service.QuayAndStopPlaceMappingService;
+import org.entur.ukur.subscription.DeviationType;
 import org.entur.ukur.subscription.StopDetails;
 import org.entur.ukur.subscription.StopDetailsAndSubscriptions;
 import org.entur.ukur.subscription.Subscription;
@@ -134,15 +135,17 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
             String codespace = estimatedVehicleJourney.getDataSource();
             HashSet<Subscription> subscriptionsToNoNotify = new HashSet<>();
             for (StopDetailsAndSubscriptions stopDetailsAndSubscriptions : affectedSubscriptions) {
-                Duration delayedArrival = stopDetailsAndSubscriptions.getStopDetails().getDelayedArrivalDuration();
+                StopDetails stopDetails = stopDetailsAndSubscriptions.getStopDetails();
+                Duration delayedArrival = stopDetails.getDelayedArrivalDuration();
+
                 HashSet<Subscription> subscriptions = stopDetailsAndSubscriptions.getSubscriptions();
                 subscriptions.removeIf(s -> notIncluded(lineRef, s.getLineRefs()));
                 subscriptions.removeIf(s -> notIncluded(codespace, s.getCodespaces()));
                 if (delayedArrival != null) {
                     subscriptions.removeIf(s -> delayedLessThan(delayedArrival, s.getMaxArrivalDelay()));
                 }
-                StopDetails stop = stopDetailsAndSubscriptions.getStopDetails();
-                logger.debug(" - For stopPlace {} there are {} affected subscriptions ", stop.getStopPointRef(), subscriptions.size());
+                subscriptions.removeIf(s -> deviationTypeFilter(s.getDeviationType(),stopDetails.getDeviationTypes()));
+                logger.debug(" - For stopPlace {} there are {} affected subscriptions ", stopDetails.getStopPointRef(), subscriptions.size());
                 subscriptionsToNoNotify.addAll(subscriptions); //accumulates subscriptions as these are normally found twice (from and to)
             }
             subscriptionManager.notifySubscriptionsOnStops(subscriptionsToNoNotify, estimatedVehicleJourney, timestamp);
@@ -160,6 +163,11 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
             logger.debug("Done processing EstimatedVehicleJourney after {} ms", nanos / 1000000);
         }
         return true;
+    }
+
+    private boolean deviationTypeFilter(DeviationType subscriptionDeviationType, Set<DeviationType> stopDetailsDeviationTypes) {
+        return !subscriptionDeviationType.equals(DeviationType.ALL) && !stopDetailsDeviationTypes.contains(subscriptionDeviationType);
+
     }
 
     private boolean delayedLessThan(Duration delayedArrival, javax.xml.datatype.Duration maxDelay) {
@@ -216,7 +224,7 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
                 Set<Subscription> subs = subscriptionManager.getSubscriptionsForStopPoint(stopPoint, ET);
                 for (Subscription sub : subs) {
                     if (validDirection(sub, stops)) {
-                        if (deviation.isCancelledOrTrackChange() || subscripbedStopDelayed(sub, stopPoint, deviation)) {
+                        if (!deviation.getDeviationTypes().isEmpty() || subscribedStopDelayed(sub, stopPoint, deviation)) {
                             subscriptions.add(sub);
                         }
                     }
@@ -246,7 +254,7 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
         return affectedSubscriptions;
     }
 
-    private boolean subscripbedStopDelayed(Subscription sub, String stopPoint, StopDetails deviation) {
+    private boolean subscribedStopDelayed(Subscription sub, String stopPoint, StopDetails deviation) {
         if ((sub.getFromStopPoints().contains(stopPoint) && deviation.isDelayedDeparture()) ||
                 (sub.getToStopPoints().contains(stopPoint) && deviation.isDelayedArrival())) {
             return true;
@@ -335,8 +343,10 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
         List<StopDetails> deviations = new ArrayList<>();
         for (EstimatedCall call : estimatedCalls.getEstimatedCalls()) {
             if (futureEstimatedCall(call)) {
-                if (cancelledJourney || Boolean.TRUE.equals(call.isCancellation()) || isTrackChange(call)) {
-                    deviations.add(StopDetails.cancelledOrTrackChange(getStringValue(call.getStopPointRef())));
+                if (cancelledJourney || Boolean.TRUE.equals(call.isCancellation())) {
+                    deviations.add(StopDetails.cancelled(getStringValue(call.getStopPointRef())));
+                } else if (isTrackChange(call)) {
+                    deviations.add(StopDetails.trackChange(getStringValue(call.getStopPointRef())));
                 } else {
                     boolean delayedDeparture = call.getDepartureStatus() == CallStatusEnumeration.DELAYED || isDelayed(call.getAimedDepartureTime(), call.getExpectedDepartureTime());
                     boolean delayedArrival = call.getArrivalStatus() == CallStatusEnumeration.DELAYED || isDelayed(call.getAimedArrivalTime(), call.getExpectedArrivalTime());

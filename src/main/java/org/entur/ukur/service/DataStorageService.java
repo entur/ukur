@@ -30,6 +30,7 @@ import com.hazelcast.core.ITopic;
 import com.hazelcast.core.Message;
 import com.hazelcast.core.MessageListener;
 import org.apache.commons.lang3.StringUtils;
+import org.entur.ukur.subscription.DeviationType;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionTypeEnum;
 import org.slf4j.Logger;
@@ -289,6 +290,7 @@ public class DataStorageService implements MessageListener<String> {
         appendStringValueList(builder, "lineRefs", s.getLineRefs());
         appendStringValueList(builder, "codespaces", s.getCodespaces());
         appendStringValueList(builder, "types", toNameList(s.getType()));
+        appendStringValueList(builder, "deviationTypes", toNameList(s.getDeviationType()));
 
         return builder.build();
     }
@@ -312,6 +314,10 @@ public class DataStorageService implements MessageListener<String> {
         subscription.setLineRefs(convertValueListToStrings(entity, "lineRefs"));
         subscription.setCodespaces(convertValueListToStrings(entity, "codespaces"));
         subscription.setType(toTypeEnum(convertValueListToStrings(entity, "types")));
+
+        if (entity.contains("deviationType")) {
+            subscription.setDeviationType(toDeviationTypeEnum(convertValueListToStrings(entity,"deviationType")));
+        }
         if (entity.contains("siriSubscriptionModel")) {
             subscription.setUseSiriSubscriptionModel(entity.getBoolean("siriSubscriptionModel"));
         }
@@ -357,6 +363,16 @@ public class DataStorageService implements MessageListener<String> {
         return SubscriptionTypeEnum.valueOf(types.iterator().next());
     }
 
+    private DeviationType toDeviationTypeEnum(Set<String> deviationType) {
+        if (deviationType.isEmpty() || deviationType.contains(DeviationType.ALL.name())) {
+            return DeviationType.ALL;
+        }
+        if (deviationType.size() > 1) {
+            logger.warn("There is a Subscription entity with more than one value in 'deviationType' without ALL (we just pick one). Values: {}", deviationType.toArray());
+        }
+        return DeviationType.valueOf(deviationType.iterator().next());
+    }
+
     /**
      * Since Datastore does not support OR in queries, we store all values in a list. And since we also store ALL,
      * we are able to update subscriptions as we add more types.
@@ -366,6 +382,13 @@ public class DataStorageService implements MessageListener<String> {
             return Arrays.stream(SubscriptionTypeEnum.values()).map(Enum::name).collect(Collectors.toList());
         } else {
             return Collections.singletonList(type.name());
+        }
+    }
+    private Collection<String> toNameList(DeviationType deviationType) {
+        if (deviationType == null || deviationType == DeviationType.ALL) {
+            return Arrays.stream(DeviationType.values()).map(Enum::name).collect(Collectors.toList());
+        } else {
+            return Collections.singletonList(deviationType.name());
         }
     }
 

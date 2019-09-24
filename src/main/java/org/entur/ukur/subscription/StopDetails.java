@@ -16,10 +16,12 @@
 package org.entur.ukur.subscription;
 
 import java.time.Duration;
+import java.util.HashSet;
+import java.util.Set;
 
 public class StopDetails {
     private final String stopPointRef;
-    private boolean cancelledOrTrackChange = false;
+    private Set<DeviationType> deviationTypes = new HashSet<>();
     private boolean delayedDeparture = false;
     private boolean delayedArrival = false;
     private Duration delayedArrivalDuration = null;
@@ -28,9 +30,15 @@ public class StopDetails {
         this.stopPointRef = stopPointRef;
     }
 
-    public static StopDetails cancelledOrTrackChange(String stopPointRef) {
+    public static StopDetails cancelled(String stopPointRef) {
         StopDetails stopDetails = new StopDetails(stopPointRef);
-        stopDetails.cancelledOrTrackChange = true;
+        stopDetails.deviationTypes.add(DeviationType.CANCELED);
+        return stopDetails;
+    }
+
+    public static StopDetails trackChange(String stopPointRef) {
+        StopDetails stopDetails = new StopDetails(stopPointRef);
+        stopDetails.deviationTypes.add(DeviationType.TRACK_CHANGE);
         return stopDetails;
     }
 
@@ -39,6 +47,7 @@ public class StopDetails {
         stopDetails.delayedDeparture = delayedDeparture;
         stopDetails.delayedArrival= delayedArrival;
         stopDetails.delayedArrivalDuration = delayedArrivalDuration;
+        stopDetails.deviationTypes.add(DeviationType.DELAYED);
         return stopDetails;
     }
 
@@ -46,8 +55,8 @@ public class StopDetails {
         return stopPointRef;
     }
 
-    public boolean isCancelledOrTrackChange() {
-        return cancelledOrTrackChange;
+    public Set<DeviationType> getDeviationTypes() {
+        return deviationTypes;
     }
 
     public boolean isDelayedDeparture() {
