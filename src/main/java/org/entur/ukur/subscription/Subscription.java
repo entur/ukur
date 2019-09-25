@@ -49,6 +49,7 @@ public class Subscription implements Serializable {
     private ZonedDateTime initialTerminationTime;
     private Duration heartbeatInterval;
     private Duration maxArrivalDelay;
+    private DeviationType deviationType = DeviationType.ALL;
 
     static String getName(String requestorRef, String subscriptionIdentifier) {
         return SIRI_NAME_PREFIX+"-REF("+requestorRef+")-ID("+subscriptionIdentifier+")";
@@ -164,6 +165,20 @@ public class Subscription implements Serializable {
             type = SubscriptionTypeEnum.ALL;
         }
         this.type = type;
+    }
+
+    public DeviationType getDeviationType() {
+        if (deviationType == null) {
+            deviationType = DeviationType.ALL;
+        }
+        return deviationType;
+    }
+
+    public void setDeviationType(DeviationType deviationType) {
+        if (deviationType == null) {
+            deviationType = DeviationType.ALL;
+        }
+        this.deviationType = deviationType;
     }
 
     public boolean isPushAllData() {

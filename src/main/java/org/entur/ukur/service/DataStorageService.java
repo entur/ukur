@@ -30,6 +30,7 @@ import com.hazelcast.core.ITopic;
 import com.hazelcast.core.Message;
 import com.hazelcast.core.MessageListener;
 import org.apache.commons.lang3.StringUtils;
+import org.entur.ukur.subscription.DeviationType;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionTypeEnum;
 import org.slf4j.Logger;
@@ -284,12 +285,15 @@ public class DataStorageService implements MessageListener<String> {
             Date date = Date.from(s.getFirstErrorSeen().toInstant());
             builder.set("firstErrorSeen", Timestamp.of(date));
         }
+
+        if (s.getDeviationType() != null) {
+            builder.set("deviationType", StringValue.of(s.getDeviationType().toString()));
+        }
         appendStringValueList(builder, "fromStopPlaces", s.getFromStopPoints());
         appendStringValueList(builder, "toStopPlaces", s.getToStopPoints());
         appendStringValueList(builder, "lineRefs", s.getLineRefs());
         appendStringValueList(builder, "codespaces", s.getCodespaces());
         appendStringValueList(builder, "types", toNameList(s.getType()));
-
         return builder.build();
     }
 
@@ -312,6 +316,10 @@ public class DataStorageService implements MessageListener<String> {
         subscription.setLineRefs(convertValueListToStrings(entity, "lineRefs"));
         subscription.setCodespaces(convertValueListToStrings(entity, "codespaces"));
         subscription.setType(toTypeEnum(convertValueListToStrings(entity, "types")));
+
+        if (entity.contains("deviationType")) {
+            subscription.setDeviationType(DeviationType.valueOf(entity.getString("deviationType")));
+        }
         if (entity.contains("siriSubscriptionModel")) {
             subscription.setUseSiriSubscriptionModel(entity.getBoolean("siriSubscriptionModel"));
         }

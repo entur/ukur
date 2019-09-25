@@ -20,6 +20,7 @@ import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.FileStorageService;
 import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.service.QuayAndStopPlaceMappingService;
+import org.entur.ukur.subscription.DeviationType;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionManager;
 import org.entur.ukur.xml.SiriMarshaller;
@@ -339,9 +340,9 @@ public class ETSubscriptionProcessorTest {
         Set<Subscription> subscriptionsForStopPoint = new HashSet<>();
         //Expects these to be found:
         Subscription sR1E1 = createSubscription("s_R1_E1", subscriptionsForStopPoint, "R1", "E1", null, null, false);
-        Subscription sR1E1C = createSubscription("s_R1_E1_c", subscriptionsForStopPoint, "R1", "E1", "BNR", null, false);
-        Subscription sR1E1CL = createSubscription("s_R1_E1_c_l", subscriptionsForStopPoint, "R1", "E1", "BNR", "NSB:Line:1", false);
-        Subscription sR1E1L = createSubscription("s_R1_E1_l", subscriptionsForStopPoint, "R1", "E1", null, "NSB:Line:1", false);
+        Subscription sR1E1C = createSubscription("s_R1_E1_c", subscriptionsForStopPoint, "R1", "E1", "BNR", null, false, null, DeviationType.CANCELED);
+        Subscription sR1E1CL = createSubscription("s_R1_E1_c_l", subscriptionsForStopPoint, "R1", "E1", "BNR", "NSB:Line:1", false,null, DeviationType.TRACK_CHANGE);
+        Subscription sR1E1L = createSubscription("s_R1_E1_l", subscriptionsForStopPoint, "R1", "E1", null, "NSB:Line:1", false, null, DeviationType.DELAYED);
         Subscription sLC = createSubscription("s_l_c", subscriptionsForStopPoint, null, null, "BNR", "NSB:Line:1", false);
         Subscription sL = createSubscription("s_l", subscriptionsForStopPoint, null, null, null, "NSB:Line:1", false);
         Subscription sC = createSubscription("s_c", subscriptionsForStopPoint, null, null, "BNR", null, false);
@@ -374,11 +375,11 @@ public class ETSubscriptionProcessorTest {
         verify(subscriptionManagerMock).notifySubscriptionsOnStops(subscriptionsOnStopsCaptor.capture(), eq(journey), any());
         verify(subscriptionManagerMock).notifySubscriptionsWithFullMessage(subscriptionsOnLineOrVehicleJourneyCaptor.capture(), eq(journey), any());
         HashSet<Subscription> notifiedSubscriptionsOnStops = subscriptionsOnStopsCaptor.getValue();
-        assertEquals(4, notifiedSubscriptionsOnStops.size());
+        assertEquals(2, notifiedSubscriptionsOnStops.size());
         assertTrue(notifiedSubscriptionsOnStops.contains(sR1E1));
-        assertTrue(notifiedSubscriptionsOnStops.contains(sR1E1C));
+        assertFalse(notifiedSubscriptionsOnStops.contains(sR1E1C)); // Deviation Type is Canceled
         assertTrue(notifiedSubscriptionsOnStops.contains(sR1E1CL));
-        assertTrue(notifiedSubscriptionsOnStops.contains(sR1E1L));
+        assertFalse(notifiedSubscriptionsOnStops.contains(sR1E1L)); // Deviation Type is Delayed
         HashSet<Subscription> notifiedSubscriptionsWithFullMessage = subscriptionsOnLineOrVehicleJourneyCaptor.getValue();
         assertEquals(3, notifiedSubscriptionsWithFullMessage.size());
         assertTrue(notifiedSubscriptionsWithFullMessage.contains(sLC));
@@ -386,9 +387,15 @@ public class ETSubscriptionProcessorTest {
         assertTrue(notifiedSubscriptionsWithFullMessage.contains(sC));
     }
 
-    private Subscription createSubscription(String name, Set<Subscription> subscriptions,
-                                            String from, String to, String codespace, String line,
-                                            boolean subscribeToQuay, Duration maxDelay) {
+    private Subscription createSubscription(String name,
+                                            Set<Subscription> subscriptions,
+                                            String from,
+                                            String to,
+                                            String codespace,
+                                            String line,
+                                            boolean subscribeToQuay,
+                                            Duration maxDelay,
+                                            DeviationType deviationType) {
 
         Subscription subscription = new Subscription();
         subscription.setName(name);
@@ -417,6 +424,7 @@ public class ETSubscriptionProcessorTest {
         if (maxDelay != null) {
             subscription.setMaxArrivalDelay(maxDelay);
         }
+        subscription.setDeviationType(deviationType);
         return subscription;
     }
 
@@ -424,6 +432,11 @@ public class ETSubscriptionProcessorTest {
                                             String from, String to, String codespace, String line,
                                             boolean subscribeToQuay) {
         return createSubscription(name, subscriptions,from,to,codespace,line,subscribeToQuay,null);
+    }
+    private Subscription createSubscription(String name, Set<Subscription> subscriptions,
+                                            String from, String to, String codespace, String line,
+                                            boolean subscribeToQuay, Duration maxDelay) {
+        return createSubscription(name, subscriptions,from,to,codespace,line,subscribeToQuay,maxDelay,null);
     }
 
     private Subscription createSubscription(String name, String from, String to, boolean createQuay) {
