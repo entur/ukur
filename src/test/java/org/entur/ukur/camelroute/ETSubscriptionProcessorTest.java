@@ -96,8 +96,8 @@ public class ETSubscriptionProcessorTest {
     @Test
     public void processEstimatedVehicleJourney() throws JAXBException, DatatypeConfigurationException {
         DatatypeFactory datatypeFactory = DatatypeFactory.newInstance();
-        final Duration maxDelay_sR1E1 = datatypeFactory.newDuration("PT30M");
-        final Duration maxDelay_sR1E1C = datatypeFactory.newDuration("PT4M");
+        final Duration minimumDelay_sR1E1 = datatypeFactory.newDuration("PT30M");
+        final Duration minimumDelay_sR1E1C = datatypeFactory.newDuration("PT4M");
 
         EstimatedVehicleJourney.RecordedCalls recordedCalls = new EstimatedVehicleJourney.RecordedCalls();
         addRecordedCall(recordedCalls, "R1", ZonedDateTime.now().minus(2, ChronoUnit.HOURS));
@@ -119,9 +119,9 @@ public class ETSubscriptionProcessorTest {
         Set<Subscription> subscriptionsForStopPoint = new HashSet<>();
         //Expects these to be found:
         Subscription sR1E1 =
-                createSubscription("s_R1_E1", subscriptionsForStopPoint, "R1", "E1", null, null, false, maxDelay_sR1E1);
+                createSubscription("s_R1_E1", subscriptionsForStopPoint, "R1", "E1", null, null, false, minimumDelay_sR1E1);
         Subscription sR1E1C = createSubscription("s_R1_E1_c", subscriptionsForStopPoint,
-                "R1", "E1", "BNR", null, false, maxDelay_sR1E1C);
+                "R1", "E1", "BNR", null, false, minimumDelay_sR1E1C);
         Subscription sR1E1CL = createSubscription("s_R1_E1_c_l", subscriptionsForStopPoint,
                 "R1", "E1", "BNR", "NSB:Line:1", false);
         Subscription sR1E1L = createSubscription("s_R1_E1_l", subscriptionsForStopPoint, "R1", "E1",
@@ -167,8 +167,8 @@ public class ETSubscriptionProcessorTest {
         verify(subscriptionManagerMock).notifySubscriptionsWithFullMessage(subscriptionsOnLineOrVehicleJourneyCaptor.capture(), eq(journey), any());
         HashSet<Subscription> notifiedSubscriptionsOnStops = subscriptionsOnStopsCaptor.getValue();
         assertEquals(3, notifiedSubscriptionsOnStops.size());
-        assertFalse(notifiedSubscriptionsOnStops.contains(sR1E1));              //Since maxDelay is 30 minutes
-        assertTrue(notifiedSubscriptionsOnStops.contains(sR1E1C));             //Since maxDelay is 4 minutes
+        assertFalse(notifiedSubscriptionsOnStops.contains(sR1E1));              //Since minimumDelay is 30 minutes
+        assertTrue(notifiedSubscriptionsOnStops.contains(sR1E1C));             //Since minimumDelay is 4 minutes
         assertTrue(notifiedSubscriptionsOnStops.contains(sR1E1CL));
         assertTrue(notifiedSubscriptionsOnStops.contains(sR1E1L));
         HashSet<Subscription> notifiedSubscriptionsWithFullMessage = subscriptionsOnLineOrVehicleJourneyCaptor.getValue();
@@ -394,7 +394,7 @@ public class ETSubscriptionProcessorTest {
                                             String codespace,
                                             String line,
                                             boolean subscribeToQuay,
-                                            Duration maxDelay,
+                                            Duration minimumDelay,
                                             DeviationType deviationType) {
 
         Subscription subscription = new Subscription();
@@ -421,8 +421,8 @@ public class ETSubscriptionProcessorTest {
         if (subscriptions != null) {
             subscriptions.add(subscription);
         }
-        if (maxDelay != null) {
-            subscription.setMaxArrivalDelay(maxDelay);
+        if (minimumDelay != null) {
+            subscription.setMinimumDelay(minimumDelay);
         }
         subscription.setDeviationType(deviationType);
         return subscription;
@@ -435,8 +435,8 @@ public class ETSubscriptionProcessorTest {
     }
     private Subscription createSubscription(String name, Set<Subscription> subscriptions,
                                             String from, String to, String codespace, String line,
-                                            boolean subscribeToQuay, Duration maxDelay) {
-        return createSubscription(name, subscriptions,from,to,codespace,line,subscribeToQuay,maxDelay,null);
+                                            boolean subscribeToQuay, Duration minimumDelay) {
+        return createSubscription(name, subscriptions,from,to,codespace,line,subscribeToQuay,minimumDelay,null);
     }
 
     private Subscription createSubscription(String name, String from, String to, boolean createQuay) {

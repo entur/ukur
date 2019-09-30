@@ -48,7 +48,7 @@ public class Subscription implements Serializable {
     @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
     private ZonedDateTime initialTerminationTime;
     private Duration heartbeatInterval;
-    private Duration maxArrivalDelay;
+    private Duration minimumDelay;
     private DeviationType deviationType = DeviationType.ALL;
 
     static String getName(String requestorRef, String subscriptionIdentifier) {
@@ -284,11 +284,11 @@ public class Subscription implements Serializable {
         return heartbeatInterval;
     }
 
-    public Duration getMaxArrivalDelay() {
-        return maxArrivalDelay;
+    public Duration getMinimumDelay() {
+        return minimumDelay;
     }
 
-    public void setMaxArrivalDelay(Duration maxArrivalDelay) {
-        this.maxArrivalDelay = maxArrivalDelay;
+    public void setMinimumDelay(Duration minimumDelay) {
+        this.minimumDelay = minimumDelay;
     }
 }

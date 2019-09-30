@@ -136,13 +136,13 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
             HashSet<Subscription> subscriptionsToNoNotify = new HashSet<>();
             for (StopDetailsAndSubscriptions stopDetailsAndSubscriptions : affectedSubscriptions) {
                 StopDetails stopDetails = stopDetailsAndSubscriptions.getStopDetails();
-                Duration delayedArrival = stopDetails.getDelayedArrivalDuration();
+                Duration delayDuration = stopDetails.getDelayDuration();
 
                 HashSet<Subscription> subscriptions = stopDetailsAndSubscriptions.getSubscriptions();
                 subscriptions.removeIf(s -> notIncluded(lineRef, s.getLineRefs()));
                 subscriptions.removeIf(s -> notIncluded(codespace, s.getCodespaces()));
-                if (delayedArrival != null) {
-                    subscriptions.removeIf(s -> delayedLessThan(delayedArrival, s.getMaxArrivalDelay()));
+                if (delayDuration != null) {
+                    subscriptions.removeIf(s -> delayedLessThan(delayDuration, s.getMinimumDelay()));
                 }
                 subscriptions.removeIf(s -> deviationTypeFilter(s.getDeviationType(),stopDetails.getDeviationTypes()));
                 logger.debug(" - For stopPlace {} there are {} affected subscriptions ", stopDetails.getStopPointRef(), subscriptions.size());
@@ -170,14 +170,14 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
 
     }
 
-    private boolean delayedLessThan(Duration delayedArrival, javax.xml.datatype.Duration maxDelay) {
-        if (maxDelay == null) {
+    private boolean delayedLessThan(Duration delayDuration, javax.xml.datatype.Duration minimumDelay) {
+        if (minimumDelay == null) {
             return false;
         } else {
             var dateNow = Date.from(Instant.now());
-            var maxDelayTimeInMillis = maxDelay.getTimeInMillis(dateNow);
-            var delayedArrivalInMillis = delayedArrival.toMillis();
-            return delayedArrivalInMillis <= maxDelayTimeInMillis;
+            var minimumDelayTimeInMillis = minimumDelay.getTimeInMillis(dateNow);
+            var delayedArrivalInMillis = delayDuration.toMillis();
+            return delayedArrivalInMillis <= minimumDelayTimeInMillis;
         }
     }
 

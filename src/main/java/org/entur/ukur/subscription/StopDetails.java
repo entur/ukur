@@ -24,7 +24,7 @@ public class StopDetails {
     private Set<DeviationType> deviationTypes = new HashSet<>();
     private boolean delayedDeparture = false;
     private boolean delayedArrival = false;
-    private Duration delayedArrivalDuration = null;
+    private Duration delayDuration = null;
 
     public StopDetails(String stopPointRef) {
         this.stopPointRef = stopPointRef;
@@ -42,11 +42,11 @@ public class StopDetails {
         return stopDetails;
     }
 
-    public static StopDetails delayed(String stopPointRef, boolean delayedDeparture, boolean delayedArrival, Duration delayedArrivalDuration) {
+    public static StopDetails delayed(String stopPointRef, boolean delayedDeparture, boolean delayedArrival, Duration delayedDuration) {
         StopDetails stopDetails = new StopDetails(stopPointRef);
         stopDetails.delayedDeparture = delayedDeparture;
         stopDetails.delayedArrival= delayedArrival;
-        stopDetails.delayedArrivalDuration = delayedArrivalDuration;
+        stopDetails.delayDuration = delayedDuration;
         stopDetails.deviationTypes.add(DeviationType.DELAYED);
         return stopDetails;
     }
@@ -67,7 +67,7 @@ public class StopDetails {
         return delayedArrival;
     }
 
-    public Duration getDelayedArrivalDuration() {
-        return delayedArrivalDuration;
+    public Duration getDelayDuration() {
+        return delayDuration;
     }
 }

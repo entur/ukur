@@ -47,7 +47,7 @@ public class JsonTesting {
         subscription.addToStopPoint("NRS:StopPlace:2");
         subscription.setPushAddress("http://localhost:888/blabla");
         subscription.setHeartbeatInterval(datatypeFactory.newDuration("PT15M"));
-        subscription.setMaxArrivalDelay(datatypeFactory.newDuration("PT30M"));
+        subscription.setMinimumDelay(datatypeFactory.newDuration("PT30M"));
         subscription.setInitialTerminationTime(ZonedDateTime.now().plusWeeks(1));
 
         ObjectMapper mapper = new ObjectMapper();
@@ -63,7 +63,7 @@ public class JsonTesting {
         var actualInitialTerminationTime = readSubscription.getInitialTerminationTime().withNano(0);
         assertTrue(expectedInitialTerminationTime.isEqual(actualInitialTerminationTime));
         assertEquals(subscription.getType(), readSubscription.getType());
-       assertEquals(subscription.getMaxArrivalDelay(),readSubscription.getMaxArrivalDelay());
+        assertEquals(subscription.getMinimumDelay(),readSubscription.getMinimumDelay());
     }
 
     @Test
@@ -109,7 +109,7 @@ public class JsonTesting {
                 "\"useSiriSubscriptionModel\" : \"true\",\n" +
                 "\"initialTerminationTime\" : \"2018-08-16T12:49:18.105+0200\"," +
                 "\"heartbeatInterval\" : \"PT15M\",\n" +
-                "\"maxDelay\" : \"PT30M\"\n" +
+                "\"minimumDelay\" : \"PT30M\"\n" +
                 "}";
         Subscription subscription = mapper.readValue(json, Subscription.class);
         assertNotNull(subscription);
@@ -122,6 +122,6 @@ public class JsonTesting {
         assertNotNull(subscription.getInitialTerminationTime());
         DatatypeFactory datatypeFactory = DatatypeFactory.newInstance();
         assertEquals(datatypeFactory.newDuration("PT15M"), subscription.getHeartbeatInterval());
-        assertEquals(datatypeFactory.newDuration("PT30M"), subscription.getMaxArrivalDelay());
+        assertEquals(datatypeFactory.newDuration("PT30M"), subscription.getMinimumDelay());
     }
 }
