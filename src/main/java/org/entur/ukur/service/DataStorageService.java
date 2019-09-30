@@ -275,7 +275,7 @@ public class DataStorageService implements MessageListener<String> {
             builder.set("heartbeatInterval", StringValue.of(s.getHeartbeatInterval().toString()));
         }
         if (s.getMinimumDelay() != null) {
-            builder.set("maxArrivalDelay", StringValue.of(s.getMinimumDelay().toString()));
+            builder.set("minimumDelay", StringValue.of(s.getMinimumDelay().toString()));
         }
         if (s.getInitialTerminationTime() != null) {
             Date date = Date.from(s.getInitialTerminationTime().toInstant());
