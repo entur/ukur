@@ -22,12 +22,16 @@ to stops and/or lines and/or codespaces. It is optional to specify:
 - heartbeatInterval: period for heartbeats according to the Duration format from the W3C XML Schema 1.0 at 
   which heartbeats (empty Siri/HeartbeatNotification xml messages) should be sent to the push address, default 
   is null (no heartbeats). The intervall is handled approximately, and notifications can come several seconds 
-  later than what is specified (depending of how often we configure Ukur to handle heartbeats)...
+  later than what is specified (depending of how often we configure Ukur to handle heartbeats)
+- deviationType: ALL(default), DELAYED,TRACK_CHANGE,CANCELED
+- minimumDelay: Send push message if arrival or departure is delayed more minimum delay.
+ Period for minimum delay according to the Duration format from the W3C XML Schema 1.0, default is null (send all delayed messages)
 ```json
 {
    "name" : "Test subscription",
    "pushAddress": "https://myserver/push",
    "type": "ALL",
+   "deviationType": "DELAYED",
    "fromStopPoints" : [ "NSR:Quay:551", "NSR:Quay:553", "NSR:Quay:550" ],
    "toStopPoints" : [ "NSR:Quay:695", "NSR:Quay:696" ],
    "lineRefs" : ["NSB:Line:L14", "NSB:Line:R11"],
@@ -35,6 +39,7 @@ to stops and/or lines and/or codespaces. It is optional to specify:
    "useSiriSubscriptionModel" : false,
    "initialTerminationTime" : "9999-01-01T00:00:00+01:00",
    "heartbeatInterval" : "PT15M",
+   "minimumDelay" : "PT15M",
    "pushAllData" : false
  }
  ```   
