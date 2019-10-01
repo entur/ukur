@@ -30,10 +30,6 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <docker.maven.plugin.version>0.21.0</docker.maven.plugin.version>
         <spring.version>2.1.1.RELEASE</spring.version>
-        <docker.from>eu.gcr.io/entur-system-1287/openjdk11-base-image</docker.from>
-        <fabric8.dockerUser>entur-system-1287/</fabric8.dockerUser>
-        <docker.image>eu.gcr.io/${fabric8.dockerUser}${project.artifactId}:${project.version}</docker.image>
-        <docker.cleanup>none</docker.cleanup>
         <activemq.version>5.15.8</activemq.version>
         <metrics-version>4.0.3</metrics-version>
         <camel.version>2.22.1</camel.version>
@@ -275,8 +271,6 @@
         </dependency>
 
     </dependencies>
-
-
     <build>
         <plugins>
             <plugin>
@@ -300,7 +294,6 @@
                     </excludes>
                 </configuration>
             </plugin>
-
             <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
@@ -313,50 +306,7 @@
                     </execution>
                 </executions>
             </plugin>
-
-            <plugin>
-                <groupId>io.fabric8</groupId>
-                <artifactId>docker-maven-plugin</artifactId>
-                <version>${docker.maven.plugin.version}</version>
-                <configuration>
-                    <autoPull>always</autoPull>
-                    <images>
-                        <image>
-                            <name>${docker.image}</name>
-                            <build>
-                                <from>${docker.from}</from>
-                                <cleanup>${docker.cleanup}</cleanup>
-                                <assembly>
-                                    <basedir>/deployments</basedir>
-                                    <descriptorRef>artifact</descriptorRef>
-                                </assembly>
-                                <env>
-                                    <JAVA_APP_JAR>${project.build.finalName}.jar</JAVA_APP_JAR>
-                                </env>
-                            </build>
-                        </image>
-                    </images>
-                </configuration>
-            </plugin>
-
-            <plugin>
-                <groupId>org.owasp</groupId>
-                <artifactId>dependency-check-maven</artifactId>
-                <version>3.2.1</version>
-            </plugin>
         </plugins>
     </build>
 
-    <profiles>
-        <profile>
-            <id>rutebanken</id>
-            <properties>
-                <fabric8.imagePullPolicySnapshot>Always</fabric8.imagePullPolicySnapshot>
-                <fabric8.recreate>true</fabric8.recreate>
-            </properties>
-            <build>
-                <defaultGoal>clean install docker:build docker:push</defaultGoal>
-            </build>
-        </profile>
-    </profiles>
 </project>
