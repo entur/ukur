@@ -18,6 +18,7 @@ package org.entur.ukur.subscription;
 import com.codahale.metrics.Timer;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.entur.ukur.camelroute.InvalidSubscriptionIdException;
 import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.service.QuayAndStopPlaceMappingService;
@@ -389,7 +390,7 @@ public class SubscriptionManager {
             if ( dataStorageService.updateSubscription(subscription)) {
                 logger.info("Updated subscription with id {} successfully", subscription.getId());
             } else {
-                throw new IllegalArgumentException("Could not update subscription");
+                throw new InvalidSubscriptionIdException("Could not update subscription");
             }
             return subscription;
         } else {

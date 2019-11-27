@@ -145,6 +145,12 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .log(LoggingLevel.WARN, "Caught ${exception}")
                 .transform().simple("${exception.message}");
 
+        onException(InvalidSubscriptionIdException.class)
+                .handled(true)
+                // use HTTP status 400 when input data is invalid
+                .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(400))
+                .setBody(constant(""));
+
         createWorkerRoutes(config.getTiamatStopPlaceQuaysURL());
         createRestRoutes(config.getRestPort(), config.isEtEnabled(), config.isSxEnabled(), config.useAnsharSubscription());
         createQuartzRoutes(config.getHeartbeatCheckInterval(), config.isTiamatStopPlaceQuaysEnabled(), config.getTiamatStopPlaceQuaysInterval());
