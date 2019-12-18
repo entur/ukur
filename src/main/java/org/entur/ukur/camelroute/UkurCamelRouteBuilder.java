@@ -259,9 +259,9 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
 
         from("direct:scrape")
                 .routeId("Prometheus scrape")
-                .to("bean:prometheusMeterRegistry?method=scrape")
-                .setHeader(Exchange.HTTP_RESPONSE_CODE, constant("200"))
-                .setHeader(Exchange.CONTENT_TYPE, constant(ContentType.APPLICATION_JSON));
+                .bean(prometheusMeterRegistry, "scrape")
+                .setHeader(Exchange.CONTENT_TYPE, constant(ContentType.TEXT_PLAIN))
+                .setHeader(Exchange.HTTP_RESPONSE_CODE, constant("200"));
 
         from("direct:ready")
                 .routeId("Ready checker")
