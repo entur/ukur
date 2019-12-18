@@ -21,6 +21,7 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hazelcast.core.IMap;
+import io.micrometer.prometheus.PrometheusMeterRegistry;
 import org.apache.camel.Exchange;
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.Message;
@@ -37,6 +38,7 @@ import org.apache.camel.spi.RouteContext;
 import org.apache.camel.spi.RoutePolicy;
 import org.apache.camel.spring.SpringRouteBuilder;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.entity.ContentType;
 import org.entur.ukur.camelroute.policy.InterruptibleHazelcastRoutePolicy;
 import org.entur.ukur.camelroute.status.RouteStatus;
 import org.entur.ukur.service.MetricsService;
@@ -115,6 +117,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
     private final SXSubscriptionProcessor SXSubscriptionProcessor;
     private final IMap<String, String> sharedProperties;
     private final MetricsService metricsService;
+    private final PrometheusMeterRegistry prometheusMeterRegistry;
     private final String nodeStarted;
     private final TiamatStopPlaceQuaysProcessor tiamatStopPlaceQuaysProcessor;
     private final Namespaces siriNamespace = new Namespaces("s", "http://www.siri.org.uk/siri");
@@ -127,13 +130,14 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                                  SXSubscriptionProcessor SXSubscriptionProcessor,
                                  TiamatStopPlaceQuaysProcessor tiamatStopPlaceQuaysProcessor,
                                  @Qualifier("sharedProperties") IMap<String, String> sharedProperties,
-                                 MetricsService metricsService) {
+                                 MetricsService metricsService, PrometheusMeterRegistry prometheusMeterRegistry) {
         this.config = config;
         this.ETSubscriptionProcessor = ETSubscriptionProcessor;
         this.SXSubscriptionProcessor = SXSubscriptionProcessor;
         this.tiamatStopPlaceQuaysProcessor = tiamatStopPlaceQuaysProcessor;
         this.sharedProperties = sharedProperties;
         this.metricsService = metricsService;
+        this.prometheusMeterRegistry = prometheusMeterRegistry;
         nodeStarted = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
         siriNamespace.add("ns2", "http://www.ifopt.org.uk/acsb");
     }
@@ -240,7 +244,8 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .get("/subscriptions/reload").to("bean:subscriptionManager?method=reloadSubscriptionCache")
                 .get("/routes").to("direct:routeStatus")
                 .get("/live").to("direct:OK")
-                .get("/ready").to("direct:ready");
+                .get("/ready").to("direct:ready")
+                .get("/scrape").to("direct:scrape");
 
         rest("/external/subscription")
                 .bindingMode(RestBindingMode.json)
@@ -251,6 +256,12 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .bindingMode(RestBindingMode.xml)
                 .post().type(Siri.class).outType(Siri.class).to("bean:siriXMLSubscriptionHandler?method=handle(${body}, null)")
                 .post("{codespace}").type(Siri.class).outType(Siri.class).to("bean:siriXMLSubscriptionHandler?method=handle(${body}, ${header.codespace})");
+
+        from("direct:scrape")
+                .routeId("Prometheus scrape")
+                .to("bean:prometheusMeterRegistry?method=scrape")
+                .setHeader(Exchange.HTTP_RESPONSE_CODE, constant("200"))
+                .setHeader(Exchange.CONTENT_TYPE, constant(ContentType.APPLICATION_JSON));
 
         from("direct:ready")
                 .routeId("Ready checker")

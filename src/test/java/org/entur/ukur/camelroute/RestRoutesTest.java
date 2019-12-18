@@ -58,6 +58,7 @@ public class RestRoutesTest extends AbstractJUnit4SpringContextTests {
         assert200Response(baseUrl + "/health/subscriptions");
         assert200Response(baseUrl + "/health/subscriptions/reload");
         assert200Response(baseUrl + "/health/routes");
+        assert200Response(baseUrl + "/health/scrape");
     }
 
     private void assert200Response(String path)  {
