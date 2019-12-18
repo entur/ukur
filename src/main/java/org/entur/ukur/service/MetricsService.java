@@ -24,8 +24,6 @@ import com.codahale.metrics.SlidingTimeWindowArrayReservoir;
 import com.codahale.metrics.Timer;
 import com.codahale.metrics.graphite.Graphite;
 import com.codahale.metrics.graphite.GraphiteReporter;
-import com.google.common.base.Strings;
-import com.google.common.collect.Sets;
 import org.apache.camel.component.metrics.MetricsComponent;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
@@ -39,25 +37,11 @@ import org.springframework.stereotype.Service;
 import javax.annotation.PostConstruct;
 import javax.annotation.PreDestroy;
 import java.io.IOException;
-import java.net.InetSocketAddress;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
 import java.util.SortedMap;
 import java.util.concurrent.TimeUnit;
-
-import static com.codahale.metrics.MetricAttribute.M15_RATE;
-import static com.codahale.metrics.MetricAttribute.M1_RATE;
-import static com.codahale.metrics.MetricAttribute.M5_RATE;
-import static com.codahale.metrics.MetricAttribute.MAX;
-import static com.codahale.metrics.MetricAttribute.MEAN;
-import static com.codahale.metrics.MetricAttribute.MIN;
-import static com.codahale.metrics.MetricAttribute.P50;
-import static com.codahale.metrics.MetricAttribute.P75;
-import static com.codahale.metrics.MetricAttribute.P98;
-import static com.codahale.metrics.MetricAttribute.P99;
-import static com.codahale.metrics.MetricAttribute.P999;
-import static com.codahale.metrics.MetricAttribute.STDDEV;
 
 @SuppressWarnings("WeakerAccess")
 @Service
@@ -96,7 +80,9 @@ public class MetricsService {
     public MetricsService(@Value("${ukur.graphite.host:}") String graphiteHost,
                           @Value("${ukur.graphite.port:2003}") int graphitePort,
                           ExtendedHazelcastService hazelcastService) {
+        graphiteEnabled = false;
 
+       /*
         String nodename;
         if (hazelcastService != null) {
             nodename = hazelcastService.getMyNodeName();
@@ -122,6 +108,7 @@ public class MetricsService {
                     .disabledMetricAttributes(Sets.newHashSet(MAX, MEAN, MIN, STDDEV, P50, P75, P98, P99, P999, M1_RATE, M5_RATE, M15_RATE))
                     .build(graphite);
         }
+        */
     }
 
     @PostConstruct
