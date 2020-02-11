@@ -1,0 +1,17 @@
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    {{- include "common.labels" . | indent 4 }}
+  name: {{ template "ukur.name" . }}
+  namespace: {{ .Release.Namespace }}
+spec:
+  ports:
+    - name: http
+      port: {{ .Values.service.http.externalPort }}
+      protocol: TCP
+      targetPort: {{ .Values.service.http.internalPort }}
+  selector:
+    app: {{ template "ukur.name" . }}
+  sessionAffinity: None
+  type: ClusterIP
