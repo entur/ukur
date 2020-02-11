@@ -32,6 +32,6 @@ chart: {{ .Chart.Name }}-{{ .Chart.Version | replace "+" "_" }}
 release: {{ .Release.Name }}
 team: ror
 slack: talk-ror
-type: realtime deviations
+type: realtime-deviations
 namespace: {{ .Release.Namespace }}
 {{- end }}
