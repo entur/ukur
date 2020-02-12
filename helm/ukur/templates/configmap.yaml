@@ -4,7 +4,7 @@ data:
         rutebanken.kubernetes.namespace={{.Values.env }}
         ukur.camel.tiamat.stop_place_quays.url=http4://tiamat.default/services/stop_places/list/stop_place_quays/
         spring.activemq.pooled=true
-        ukur.camel.anshar.receiver.baseurl=http4://ukur.{{.Values.env }}/internal/
+        ukur.camel.anshar.receiver.baseurl=http://ukur.{{.Values.env }}/internal/
         ukur.camel.anshar.subscription=true
         spring.activemq.user=admin
         ukur.camel.anshar.url=http://anshar.default/anshar
