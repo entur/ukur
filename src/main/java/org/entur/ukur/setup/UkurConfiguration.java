@@ -40,37 +40,37 @@ public class UkurConfiguration {
     @Value("${rutebanken.hazelcast.management.url:}")
     private String hazelcastManagementUrl;
 
-    @Value("${ukur.camel.anshar.url}")
+    @Value("${ukur.camel.anshar.url:http4://anshar/anshar}")
     private String ansharURL;
 
     @Value("${ukur.camel.anshar.subscriptionPostfix:/subscribe}")
     private String ansharSubscriptionPostfix;
 
-    @Value("${ukur.camel.anshar.receiver.baseurl}")
+    @Value("${ukur.camel.anshar.receiver.baseurl:http4://ukur/internal/}")
     private String ownSubscriptionURL;
 
-    @Value("${ukur.camel.anshar.et.enabled}")
+    @Value("${ukur.camel.anshar.et.enabled:true}")
     private boolean etEnabled;
 
-    @Value("${ukur.camel.anshar.sx.enabled}")
+    @Value("${ukur.camel.anshar.sx.enabled:true}")
     private boolean sxEnabled;
 
     @Value("${ukur.camel.anshar.subscription:false}")
     private boolean useAnsharSubscription;
 
-    @Value("${ukur.camel.rest.port}")
+    @Value("${ukur.camel.rest.port:8080}")
     private int restPort;
 
-    @Value("${ukur.camel.polling.interval}")
+    @Value("${ukur.camel.polling.interval:60000}")
     private int pollingInterval;
 
-    @Value("${ukur.camel.tiamat.stop_place_quays.url}")
+    @Value("${ukur.camel.tiamat.stop_place_quays.url:http4://tiamat/services/stop_places/list/stop_place_quays/}")
     private String tiamatStopPlaceQuaysURL;
 
-    @Value("${ukur.camel.tiamat.stop_place_quays.interval}")
+    @Value("${ukur.camel.tiamat.stop_place_quays.interval:3600000}")
     private int tiamatStopPlaceQuaysInterval;
 
-    @Value("${ukur.camel.tiamat.stop_place_quays.enabled}")
+    @Value("${ukur.camel.tiamat.stop_place_quays.enabled:true}")
     private boolean tiamatStopPlaceQuaysEnabled;
 
     @Value("${ukur.camel.anshar.subscription.checking:true}")

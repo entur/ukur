@@ -44,7 +44,7 @@ public class FileStorageService {
 
     @Autowired
     public FileStorageService(SiriMarshaller siriMarshaller,
-                              @Value("${ukur.storage.folder}")String parentFolder ) {
+                              @Value("${ukur.storage.folder:target/storage}")String parentFolder ) {
         this.siriMarshaller = siriMarshaller;
         folder = new File(parentFolder);
         //noinspection ResultOfMethodCallIgnored
