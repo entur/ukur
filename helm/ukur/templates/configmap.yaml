@@ -7,7 +7,7 @@ data:
         ukur.camel.anshar.receiver.baseurl=http4://ukur.{{.Values.env }}/internal/
         ukur.camel.anshar.subscription=true
         spring.activemq.user=admin
-        ukur.camel.anshar.url=http4://anshar.defualt/anshar
+        ukur.camel.anshar.url=http4://anshar.default/anshar
         ukur.datastore.useDatastore=true
         spring.activemq.broker-url=tcp://activemq.default:61616
         # Temporary setting until bug in KeycloakWebSecurityConfigurerAdapter is fixed
