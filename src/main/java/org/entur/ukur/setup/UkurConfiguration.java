@@ -40,13 +40,13 @@ public class UkurConfiguration {
     @Value("${rutebanken.hazelcast.management.url:}")
     private String hazelcastManagementUrl;
 
-    @Value("${ukur.camel.anshar.url:http4://anshar/anshar}")
+    @Value("${ukur.camel.anshar.url:http://anshar/anshar}")
     private String ansharURL;
 
     @Value("${ukur.camel.anshar.subscriptionPostfix:/subscribe}")
     private String ansharSubscriptionPostfix;
 
-    @Value("${ukur.camel.anshar.receiver.baseurl:http4://ukur/internal/}")
+    @Value("${ukur.camel.anshar.receiver.baseurl:http://ukur/internal/}")
     private String ownSubscriptionURL;
 
     @Value("${ukur.camel.anshar.et.enabled:true}")
