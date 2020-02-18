@@ -21,7 +21,6 @@ import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.hazelcast.core.IMap;
-import io.micrometer.prometheus.PrometheusMeterRegistry;
 import org.apache.camel.Exchange;
 import org.apache.camel.LoggingLevel;
 import org.apache.camel.Message;
@@ -42,6 +41,7 @@ import org.apache.http.entity.ContentType;
 import org.entur.ukur.camelroute.policy.InterruptibleHazelcastRoutePolicy;
 import org.entur.ukur.camelroute.status.RouteStatus;
 import org.entur.ukur.service.MetricsService;
+import org.entur.ukur.service.PrometheusMetricsService;
 import org.entur.ukur.setup.UkurConfiguration;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.xml.SiriMarshaller;
@@ -117,7 +117,9 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
     private final SXSubscriptionProcessor SXSubscriptionProcessor;
     private final IMap<String, String> sharedProperties;
     private final MetricsService metricsService;
-    private final PrometheusMeterRegistry prometheusMeterRegistry;
+
+    private final PrometheusMetricsService prometheusMeterRegistry;
+
     private final String nodeStarted;
     private final TiamatStopPlaceQuaysProcessor tiamatStopPlaceQuaysProcessor;
     private final Namespaces siriNamespace = new Namespaces("s", "http://www.siri.org.uk/siri");
@@ -130,7 +132,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                                  SXSubscriptionProcessor SXSubscriptionProcessor,
                                  TiamatStopPlaceQuaysProcessor tiamatStopPlaceQuaysProcessor,
                                  @Qualifier("sharedProperties") IMap<String, String> sharedProperties,
-                                 MetricsService metricsService, PrometheusMeterRegistry prometheusMeterRegistry) {
+                                 MetricsService metricsService, PrometheusMetricsService prometheusMeterRegistry) {
         this.config = config;
         this.ETSubscriptionProcessor = ETSubscriptionProcessor;
         this.SXSubscriptionProcessor = SXSubscriptionProcessor;

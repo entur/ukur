@@ -71,6 +71,9 @@ public class MetricsService {
     private GraphiteReporter reporter;
     private Graphite graphite;
 
+    @Autowired
+    PrometheusMetricsService prometheusMetricsService;
+
     public MetricsService() {
         this(null, -1, null);
         logger.warn("Test-only constructor called");
@@ -142,12 +145,14 @@ public class MetricsService {
     public void registerReceivedSubscribedMessage(String type) {
         String counterName = "message.subs-received." + type;
         metrics.meter(counterName).mark();
+        prometheusMetricsService.registerIncomingSubscribedData(type, 1);
     }
 
     @SuppressWarnings("unused") //Used directly from Camel route
     public void registerSentMessage(String messagetype) {
         String counterName = "message.sent." + messagetype;
         metrics.meter(counterName).mark();
+        prometheusMetricsService.registerOutboundData(messagetype, 1);
     }
 
     public void registerMessageDelay(String name, ZonedDateTime timestamp) {
@@ -173,6 +178,7 @@ public class MetricsService {
     public void registerReceivedMessage(Class messageClass) {
         String counterName = "message.received." + messageClass.getSimpleName();
         metrics.meter(counterName).mark();
+        prometheusMetricsService.registerIncomingData(messageClass.getSimpleName(), 1);
     }
 
     public Timer getTimer(String name) {
