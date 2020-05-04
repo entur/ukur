@@ -22,6 +22,7 @@ data:
         ukur.camel.pubsub.et=entur-google-pubsub://localhost.ukur.estimated_timetables
         ukur.camel.pubsub.sx=entur-google-pubsub://localhost.ukur.situation_exchange
         spring.cloud.gcp.pubsub.project-id={{ .Values.configmap.pubsub.project_id }}
+        spring.cloud.gcp.pubsub.credentials.location={{ .Values.configmap.pubsub.credentials.path }}
 kind: ConfigMap
 metadata:
   name: {{ template "ukur.name" . }}-config

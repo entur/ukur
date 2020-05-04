@@ -16,6 +16,11 @@ resources:
   memRequest: 10000Mi
   xmx: 9000m
 
+configmap:
+  pubsub:
+    credentials:
+      path: file:///etc/ukur-secret/ukur-service-account.json
+
 service:
   http:
     externalPort: 80
