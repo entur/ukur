@@ -1,1 +1,5 @@
 env: production
+
+configmap:
+  pubsub:
+    project_id: neon-1287

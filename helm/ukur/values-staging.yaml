@@ -1,4 +1,6 @@
 env: staging
 
-
+configmap:
+  pubsub:
+    project_id: radon-1287
 
