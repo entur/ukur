@@ -179,15 +179,15 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
 
     private void createWorkerRoutes(String tiamatStopPlaceQuaysURL) {
 
-        from("activemq:queue:" + UkurConfiguration.ET_QUEUE)
-                .routeId("ET ActiveMQ Listener")
+        from(config.getEtPubsubQueue())
+                .routeId("ET pubsub Listener")
                 .log(LoggingLevel.DEBUG, "About to handle ET message from queue")
                 .process(ETSubscriptionProcessor)
                 .log(LoggingLevel.DEBUG, "Done handling ET message from queue")
                 .end();
 
-        from("activemq:queue:" + UkurConfiguration.SX_QUEUE)
-                .routeId("SX ActiveMQ Listener")
+        from(config.getSxPubsubQueue())
+                .routeId("SX pubsub Listener")
                 .log(LoggingLevel.DEBUG, "About to handle SX message from queue")
                 .process(SXSubscriptionProcessor)
                 .log(LoggingLevel.DEBUG, "Done handling SX message from queue")
@@ -209,20 +209,6 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .to("metrics:timer:" + MetricsService.TIMER_TIAMAT + "?action=stop")
                 .end();
 
-        //If messages time out, they end up on the dead letter queue - this routes removes them and logs error
-        from("activemq:queue:" + UkurConfiguration.ET_DLQ)
-                .routeId("ET DLQ ActiveMQ Listener")
-                .log(LoggingLevel.ERROR, "Received and removed a message from the ET DLQ")
-                .to("metrics:meter:"+MetricsService.METER_ET_DLQ)
-                .end();
-        from("activemq:queue:" + UkurConfiguration.SX_DLQ)
-                .routeId("SX DLQ ActiveMQ Listener")
-                .log(LoggingLevel.ERROR, "Received and removed a message from the SX DLQ")
-                .to("metrics:meter:"+MetricsService.METER_SX_DLQ)
-                .end();
-        //this registers the dlq meters so we can see they have value=0 before anything ends up on the DLQ (which it really shouldn't...)
-        metricsService.getMeter(MetricsService.METER_ET_DLQ);
-        metricsService.getMeter(MetricsService.METER_SX_DLQ);
     }
 
     private void createRestRoutes(int jettyPort, boolean etEnabled, boolean sxEnabled, boolean createSubscriptionReceievers) {
@@ -359,7 +345,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .to("xslt:xsl/prepareSiriSplit.xsl")
                 .split(siriNamespace.xpath("//s:Siri"))
                 .bean(metricsService, "registerSentMessage('PtSituationElement')")
-                .to("activemq:queue:" + UkurConfiguration.SX_QUEUE);
+                .to(config.getSxPubsubQueue());
 
         from("direct:processEstimatedVehicleJourneys")
                 .routeId("processEstimatedVehicleJourneys")
@@ -378,7 +364,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .to("xslt:xsl/prepareSiriSplit.xsl")
                 .split(siriNamespace.xpath("//s:Siri"))
                 .bean(metricsService, "registerSentMessage('EstimatedVehicleJourney')")
-                .to("activemq:queue:" + UkurConfiguration.ET_QUEUE);
+                .to(config.getEtPubsubQueue());
     }
 
     private void configureAnsharSubscriptionRoutes(boolean etEnabled, boolean sxEnabled, boolean createSubscription, String requestorId) {

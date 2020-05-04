@@ -141,9 +141,9 @@
             <artifactId>camel-swagger-java</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.apache.activemq</groupId>
-            <artifactId>activemq-camel</artifactId>
-            <version>${activemq.version}</version>
+            <groupId>org.entur.helpers</groupId>
+            <artifactId>camel-entur-google-pubsub</artifactId>
+            <version>0.0.8-SNAPSHOT</version>
         </dependency>
         <dependency>
             <groupId>org.apache.camel</groupId>
@@ -181,6 +181,12 @@
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
             <version>27.0-jre</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.google.api</groupId>
+                    <artifactId>gax</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <dependency>
@@ -241,7 +247,13 @@
         <dependency>
             <groupId>com.google.cloud</groupId>
             <artifactId>google-cloud-datastore</artifactId>
-            <version>1.44.0</version>
+            <version>1.90.0</version>
+            <exclusions>
+                <exclusion>
+                    <groupId>com.google.api</groupId>
+                    <artifactId>gax</artifactId>
+                </exclusion>
+            </exclusions>
         </dependency>
 
         <!-- testing -->
@@ -294,7 +306,7 @@
                 <configuration>
                     <source>11</source>
                     <target>11</target>
-                    <forceJavacCompilerUse>true</forceJavacCompilerUse> t
+                    <forceJavacCompilerUse>true</forceJavacCompilerUse>
                 </configuration>
             </plugin>
             <plugin>

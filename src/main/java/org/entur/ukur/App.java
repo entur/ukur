@@ -15,10 +15,13 @@
 
 package org.entur.ukur;
 
+import org.entur.pubsub.camel.config.GooglePubSubCamelComponentConfig;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
+import org.springframework.context.annotation.Import;
 
 @SpringBootApplication
+@Import(GooglePubSubCamelComponentConfig.class)
 public class App {
 
     public static void main(String[] args) {

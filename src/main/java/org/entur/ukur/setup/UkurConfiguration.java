@@ -23,10 +23,6 @@ public class UkurConfiguration {
 
 
     private static final String QUEUE_PREFIX = "ukur";
-    public static final String ET_QUEUE = QUEUE_PREFIX + ".et?timeToLive=900000&disableReplyTo=true&concurrentConsumers=3"; //15 minutes time to live
-    public static final String SX_QUEUE = QUEUE_PREFIX + ".sx?timeToLive=1800000&disableReplyTo=true&concurrentConsumers=3"; //30 minutes time to live
-    public static final String ET_DLQ = "DLQ."+QUEUE_PREFIX+".et";
-    public static final String SX_DLQ = "DLQ."+QUEUE_PREFIX+".sx";
 
     @Value("${rutebanken.kubernetes.url:}")
     private String kubernetesUrl;
@@ -78,6 +74,20 @@ public class UkurConfiguration {
 
     @Value("${ukur.camel.subscription-heartbeat-check.interval:10000}")
     private int heartbeatCheckInterval;
+
+    @Value("${ukur.camel.pubsub.et}")
+    private String etPubsubQueue;
+
+    @Value("${ukur.camel.pubsub.sx}")
+    private String sxPubsubQueue;
+
+    public String getEtPubsubQueue() {
+        return etPubsubQueue;
+    }
+
+    public String getSxPubsubQueue() {
+        return sxPubsubQueue;
+    }
 
     public String getHazelcastManagementUrl() {
         return hazelcastManagementUrl;
