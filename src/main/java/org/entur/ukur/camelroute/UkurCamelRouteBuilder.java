@@ -343,8 +343,6 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .setHeader("responseTimestamp", responseTimestampExpression)
                 .bean(metricsService, "registerMessageDelay("+MetricsService.HISTOGRAM_RECEIVED_DELAY +", ${header.responseTimestamp} )")
                 .to("xslt:xsl/prepareSiriSplit.xsl")
-                .split(siriNamespace.xpath("//s:Siri"))
-                .bean(metricsService, "registerSentMessage('PtSituationElement')")
                 .to(config.getSxPubsubQueue());
 
         from("direct:processEstimatedVehicleJourneys")
@@ -362,8 +360,6 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .setHeader("responseTimestamp", responseTimestampExpression)
                 .bean(metricsService, "registerMessageDelay("+MetricsService.HISTOGRAM_RECEIVED_DELAY +", ${header.responseTimestamp} )")
                 .to("xslt:xsl/prepareSiriSplit.xsl")
-                .split(siriNamespace.xpath("//s:Siri"))
-                .bean(metricsService, "registerSentMessage('EstimatedVehicleJourney')")
                 .to(config.getEtPubsubQueue());
     }
 
