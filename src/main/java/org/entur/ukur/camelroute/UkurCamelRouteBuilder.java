@@ -44,6 +44,7 @@ import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.service.PrometheusMetricsService;
 import org.entur.ukur.setup.UkurConfiguration;
 import org.entur.ukur.subscription.Subscription;
+import org.entur.ukur.xml.KryoSerializer;
 import org.entur.ukur.xml.SiriMarshaller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -85,6 +86,7 @@ import java.util.List;
 import java.util.Map;
 import java.util.UUID;
 
+import static org.apache.camel.Exchange.CONTENT_LENGTH;
 import static org.entur.ukur.camelroute.policy.SingletonRoutePolicyFactory.SINGLETON_ROUTE_DEFINITION_GROUP_NAME;
 import static org.entur.ukur.subscription.SiriXMLSubscriptionHandler.SIRI_VERSION;
 
@@ -125,6 +127,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
     private final Namespaces siriNamespace = new Namespaces("s", "http://www.siri.org.uk/siri");
     private final int HEARTBEAT_INTERVAL_MS = 60_000;
     private final int SUBSCRIPTION_DURATION_MIN = 60;
+    private final KryoSerializer kryoSerializer = new KryoSerializer();
 
     @Autowired
     public UkurCamelRouteBuilder(UkurConfiguration config,
@@ -157,6 +160,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(400))
                 .setBody(constant(""));
 
+        createJaxbProcessingRoutes();
         createWorkerRoutes(config.getTiamatStopPlaceQuaysURL());
         createRestRoutes(config.getRestPort(), config.isEtEnabled(), config.isSxEnabled(), config.useAnsharSubscription());
         createQuartzRoutes(config.getHeartbeatCheckInterval(), config.isTiamatStopPlaceQuaysEnabled(), config.getTiamatStopPlaceQuaysInterval());
@@ -177,11 +181,32 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
         }
     }
 
+    private void createJaxbProcessingRoutes() {
+
+
+
+        from("direct:compress.jaxb")
+                .setBody(body().convertToString())
+                .bean(kryoSerializer, "write")
+        ;
+
+        from("direct:decompress.jaxb")
+                .bean(kryoSerializer, "read")
+                .process(p -> {
+                    final String body = p.getIn().getBody(String.class);
+                    p.getOut().setBody(body);
+                    p.getOut().setHeaders(p.getIn().getHeaders());
+                    p.getOut().setHeader(CONTENT_LENGTH, body.getBytes().length);
+                })
+        ;
+    }
+
     private void createWorkerRoutes(String tiamatStopPlaceQuaysURL) {
 
         from(config.getEtPubsubQueue())
                 .routeId("ET pubsub Listener")
                 .log(LoggingLevel.DEBUG, "About to handle ET message from queue")
+                .to("direct:decompress.jaxb")
                 .process(ETSubscriptionProcessor)
                 .log(LoggingLevel.DEBUG, "Done handling ET message from queue")
                 .end();
@@ -189,6 +214,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
         from(config.getSxPubsubQueue())
                 .routeId("SX pubsub Listener")
                 .log(LoggingLevel.DEBUG, "About to handle SX message from queue")
+                .to("direct:decompress.jaxb")
                 .process(SXSubscriptionProcessor)
                 .log(LoggingLevel.DEBUG, "Done handling SX message from queue")
                 .end();
@@ -342,7 +368,10 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 })
                 .setHeader("responseTimestamp", responseTimestampExpression)
                 .bean(metricsService, "registerMessageDelay("+MetricsService.HISTOGRAM_RECEIVED_DELAY +", ${header.responseTimestamp} )")
-                .to("xslt:xsl/prepareSiriSplit.xsl")
+                .to("xslt:xsl/prepareSiriSplit.xsl?output=string")
+                .split(siriNamespace.xpath("//s:Siri"))
+                .bean(metricsService, "registerSentMessage('PtSituationElement')")
+                .to("direct:compress.jaxb")
                 .to(config.getSxPubsubQueue());
 
         from("direct:processEstimatedVehicleJourneys")
@@ -359,7 +388,10 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 })
                 .setHeader("responseTimestamp", responseTimestampExpression)
                 .bean(metricsService, "registerMessageDelay("+MetricsService.HISTOGRAM_RECEIVED_DELAY +", ${header.responseTimestamp} )")
-                .to("xslt:xsl/prepareSiriSplit.xsl")
+                .to("xslt:xsl/prepareSiriSplit.xsl?output=string")
+                .split(siriNamespace.xpath("//s:Siri"))
+                .bean(metricsService, "registerSentMessage('EstimatedVehicleJourney')")
+                .to("direct:compress.jaxb")
                 .to(config.getEtPubsubQueue());
     }
 
