@@ -19,8 +19,9 @@ data:
         management.endpoints.prometheus.enabled=true
         management.metrics.endpoint.export.prometheus.enabled=true
         debug=false
-        ukur.camel.pubsub.et=entur-google-pubsub://protobuf.estimated_timetables
-        ukur.camel.pubsub.sx=entur-google-pubsub://protobuf.situation_exchange
+        entur.pubsub.subscriber.autocreate=false
+        ukur.camel.pubsub.et=entur-google-pubsub://ukur.protobuf.estimated_timetables
+        ukur.camel.pubsub.sx=entur-google-pubsub://ukur.protobuf.situation_exchange
         spring.cloud.gcp.pubsub.project-id={{ .Values.configmap.pubsub.project_id }}
         spring.cloud.gcp.pubsub.credentials.location={{ .Values.configmap.pubsub.credentials.path }}
 kind: ConfigMap
