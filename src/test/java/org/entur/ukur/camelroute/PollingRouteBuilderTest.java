@@ -20,6 +20,7 @@ import org.apache.camel.ProducerTemplate;
 import org.apache.commons.io.IOUtils;
 import org.entur.ukur.App;
 import org.entur.ukur.service.MetricsService;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -41,6 +42,7 @@ import static org.junit.Assert.fail;
 @AutoConfigureWireMock(port = 0)
 @TestPropertySource("classpath:application-polling.properties")
 @DirtiesContext
+@Ignore
 public class PollingRouteBuilderTest extends AbstractJUnit4SpringContextTests {
 
     @Autowired

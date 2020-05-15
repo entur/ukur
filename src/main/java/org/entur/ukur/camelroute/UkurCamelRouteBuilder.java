@@ -38,6 +38,7 @@ import org.apache.camel.spi.RoutePolicy;
 import org.apache.camel.spring.SpringRouteBuilder;
 import org.apache.commons.lang3.StringUtils;
 import org.apache.http.entity.ContentType;
+import org.entur.protobuf.mapper.SiriMapper;
 import org.entur.ukur.camelroute.policy.InterruptibleHazelcastRoutePolicy;
 import org.entur.ukur.camelroute.status.RouteStatus;
 import org.entur.ukur.service.MetricsService;
@@ -172,12 +173,12 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
         logger.debug("Uses requestorId: '{}' - proposed value was {}", requestorId, proposedValue);
         if (config.useAnsharSubscription()) {
             logger.info("Configures camel routes for subscribing to Anshar");
-            configureAnsharSubscriptionRoutes(config.isEtEnabled(), config.isSxEnabled(), config.isSubscriptionCheckingEnabled(),  requestorId);
+            //configureAnsharSubscriptionRoutes(config.isEtEnabled(), config.isSxEnabled(), config.isSubscriptionCheckingEnabled(),  requestorId);
         } else {
             logger.info("Configures camel routes for polling Anshar");
             String siriETurl = config.getAnsharETCamelUrl(requestorId);
             String siriSXurl = config.getAnsharSXCamelUrl(requestorId);
-            createAnsharPollingRoutes(config.isEtEnabled(), config.isSxEnabled(), config.getPollingInterval(), siriETurl, siriSXurl);
+            //createAnsharPollingRoutes(config.isEtEnabled(), config.isSxEnabled(), config.getPollingInterval(), siriETurl, siriSXurl);
         }
     }
 
@@ -199,6 +200,19 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                     p.getOut().setHeader(CONTENT_LENGTH, body.getBytes().length);
                 })
         ;
+
+        from("direct:map.protobuf.to.jaxb")
+                .process(p -> {
+                    p.getOut().setBody(p.getIn().getBody(byte[].class));
+                    p.getOut().setHeaders(p.getIn().getHeaders());
+                })
+                .bean(SiriMapper.class, "mapToJaxb")
+                .process(p -> {
+                    final Siri body = p.getIn().getBody(Siri.class);
+                    p.getOut().setBody(body);
+                    p.getOut().setHeaders(p.getIn().getHeaders());
+                })
+        ;
     }
 
     private void createWorkerRoutes(String tiamatStopPlaceQuaysURL) {
@@ -206,7 +220,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
         from(config.getEtPubsubQueue())
                 .routeId("ET pubsub Listener")
                 .log(LoggingLevel.DEBUG, "About to handle ET message from queue")
-                .to("direct:decompress.jaxb")
+                .to("direct:map.protobuf.to.jaxb")
                 .process(ETSubscriptionProcessor)
                 .log(LoggingLevel.DEBUG, "Done handling ET message from queue")
                 .end();
@@ -214,7 +228,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
         from(config.getSxPubsubQueue())
                 .routeId("SX pubsub Listener")
                 .log(LoggingLevel.DEBUG, "About to handle SX message from queue")
-                .to("direct:decompress.jaxb")
+                .to("direct:map.protobuf.to.jaxb")
                 .process(SXSubscriptionProcessor)
                 .log(LoggingLevel.DEBUG, "Done handling SX message from queue")
                 .end();
@@ -354,6 +368,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
 
         XPathExpression responseTimestampExpression = siriNamespace.xpath("/s:Siri/s:ServiceDelivery/s:ResponseTimestamp/text()", String.class);
 
+        /*
         from("direct:processPtSituationElements")
                 .routeId("processPtSituationElements")
                 .process(exchange -> {
@@ -393,6 +408,8 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .bean(metricsService, "registerSentMessage('EstimatedVehicleJourney')")
                 .to("direct:compress.jaxb")
                 .to(config.getEtPubsubQueue());
+
+         */
     }
 
     private void configureAnsharSubscriptionRoutes(boolean etEnabled, boolean sxEnabled, boolean createSubscription, String requestorId) {

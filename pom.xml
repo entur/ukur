@@ -178,6 +178,12 @@
         </dependency>
 
         <dependency>
+            <groupId>org.entur</groupId>
+            <artifactId>siri-protobuf-mapper</artifactId>
+            <version>0.4.1</version>
+        </dependency>
+
+        <dependency>
             <groupId>org.apache.commons</groupId>
             <artifactId>commons-lang3</artifactId>
             <version>3.8</version>

@@ -27,6 +27,7 @@ import org.entur.ukur.service.QuayAndStopPlaceMappingService;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.xml.SiriMarshaller;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.slf4j.Logger;
@@ -62,6 +63,7 @@ import static org.junit.Assert.*;
 @AutoConfigureWireMock(port = 0)
 @TestPropertySource("classpath:application-subscribing.properties")
 @DirtiesContext
+@Ignore
 public class SubscribingRouteBuilderTest extends AbstractJUnit4SpringContextTests {
 
 
