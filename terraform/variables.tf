@@ -29,7 +29,7 @@ variable "inbound_anshar_et_pubsub_topic" {
 
 variable "inbound_anshar_et_pubsub_subscription" {
   description = "Subscription name for inbound anshar et messages"
-  default = "ukur.protobuf.estimated_timetables"
+  default = "ukur.protobuf.estimated_timetables.subscription"
 }
 
 variable "inbound_anshar_et_subscription_role" {
@@ -44,7 +44,7 @@ variable "inbound_anshar_sx_pubsub_topic" {
 
 variable "inbound_anshar_sx_pubsub_subscription" {
   description = "Subscription name for inbound anshar sx messages"
-  default = "ukur.protobuf.situation_exchange"
+  default = "ukur.protobuf.situation_exchange.subscription"
 }
 
 variable "inbound_anshar_sx_subscription_role" {
