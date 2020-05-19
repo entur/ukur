@@ -36,3 +36,18 @@ variable "inbound_anshar_et_subscription_role" {
   description = "IAM role for inboud anshar et subscription"
   default = "roles/reader"
 }
+
+variable "inbound_anshar_sx_pubsub_topic" {
+  description = "Topic to consume sx messages from anshar"
+  default = "protobuf.situation_exchange"
+}
+
+variable "inbound_anshar_sx_pubsub_subscription" {
+  description = "Subscription name for inbound anshar sx messages"
+  default = "ukur.protobuf.situation_exchange"
+}
+
+variable "inbound_anshar_sx_subscription_role" {
+  description = "IAM role for inbound anshar sx subscription"
+  default = "roles/reader"
+}
