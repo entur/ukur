@@ -60,7 +60,6 @@ public class PrometheusMetricsService extends PrometheusMeterRegistry {
 
     @Override
     public String scrape() {
-        logger.debug("prometheus scrape called");
         update();
         return super.scrape();
     }
@@ -108,6 +107,8 @@ public class PrometheusMetricsService extends PrometheusMeterRegistry {
     }
 
     public void totalSubscriptions(String subscriberHost, BigInteger count) {
-        super.gauge(DATA_SUBSCRIPTION_TOTAL_GAUGE_NAME, Collections.singletonList( new ImmutableTag("subscriber", subscriberHost)), count);
+        if (count.intValue() > 0) {
+            super.gauge(DATA_SUBSCRIPTION_TOTAL_GAUGE_NAME, Collections.singletonList(new ImmutableTag("subscriber", subscriberHost)), count);
+        }
     }
 }
