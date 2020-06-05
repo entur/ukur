@@ -22,7 +22,6 @@ import com.google.cloud.datastore.testing.LocalDatastoreHelper;
 import com.hazelcast.core.ITopic;
 import org.apache.commons.lang3.StringUtils;
 import org.entur.ukur.service.DataStorageService;
-import org.entur.ukur.service.MetricsService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;

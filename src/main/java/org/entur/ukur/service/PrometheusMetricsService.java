@@ -60,6 +60,7 @@ public class PrometheusMetricsService extends PrometheusMeterRegistry {
 
     @Override
     public String scrape() {
+        logger.debug("prometheus scrape called");
         update();
         return super.scrape();
     }
