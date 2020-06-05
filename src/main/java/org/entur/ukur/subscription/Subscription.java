@@ -21,6 +21,8 @@ import org.apache.commons.lang3.StringUtils;
 
 import javax.xml.datatype.Duration;
 import java.io.Serializable;
+import java.net.MalformedURLException;
+import java.net.URL;
 import java.time.ZonedDateTime;
 import java.util.Collection;
 import java.util.Collections;
@@ -34,6 +36,7 @@ public class Subscription implements Serializable {
     private String id;
     private String name;
     private String pushAddress;
+    private URL pushAddressURL;
     private Boolean pushAllData = false;
     private HashSet<String> fromStopPoints = new HashSet<>();
     private HashSet<String> toStopPoints = new HashSet<>();
@@ -149,8 +152,17 @@ public class Subscription implements Serializable {
         return pushAddress;
     }
 
+    public String getPushHost() {
+        return pushAddressURL != null ? pushAddressURL.getHost() : null;
+    }
+
     public void setPushAddress(String pushAddress) {
         this.pushAddress = pushAddress;
+        try {
+            this.pushAddressURL = new URL(pushAddress);
+        } catch (MalformedURLException e) {
+            e.printStackTrace();
+        }
     }
 
     public SubscriptionTypeEnum getType() {

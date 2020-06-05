@@ -21,6 +21,7 @@ import org.apache.commons.lang3.StringUtils;
 import org.entur.ukur.camelroute.InvalidSubscriptionIdException;
 import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.MetricsService;
+import org.entur.ukur.service.PrometheusMetricsService;
 import org.entur.ukur.service.QuayAndStopPlaceMappingService;
 import org.entur.ukur.xml.SiriMarshaller;
 import org.entur.ukur.xml.SiriObjectHelper;
@@ -84,6 +85,9 @@ import static org.entur.ukur.xml.SiriObjectHelper.getStringValue;
 
 @Service
 public class SubscriptionManager {
+
+    @Autowired
+    PrometheusMetricsService prometheusMetricsService;
 
     private DataStorageService dataStorageService;
     private SiriMarshaller siriMarshaller;
@@ -192,13 +196,13 @@ public class SubscriptionManager {
                 }
             }
             clone.setIsCompleteStopSequence(false); //since we have tampered with the calls!
-            pushMessage(subscription, clone, timestamp);
+            pushMessage(subscription, clone, timestamp, "ET_STOPS", clone.getDataSource());
         }
     }
 
     public void notifySubscriptionsWithFullMessage(HashSet<Subscription> subscriptions, EstimatedVehicleJourney estimatedVehicleJourney, ZonedDateTime timestamp) {
         for (Subscription subscription : subscriptions) {
-            pushMessage(subscription, estimatedVehicleJourney, timestamp);
+            pushMessage(subscription, estimatedVehicleJourney, timestamp, "ET_FULL", estimatedVehicleJourney.getDataSource());
         }
     }
 
@@ -229,7 +233,7 @@ public class SubscriptionManager {
             }
 
             if (withAffects(clone)) {
-                pushMessage(subscription, clone, timestamp);
+                pushMessage(subscription, clone, timestamp, "SX", clone.getParticipantRef() != null ? clone.getParticipantRef().getValue() : null);
             } else {
                 BigInteger version = SiriObjectHelper.getBigIntegerValue(clone.getVersion());
                 String situationNumber = getStringValue(clone.getSituationNumber());
@@ -368,6 +372,9 @@ public class SubscriptionManager {
                 Subscription subscription = iterator.next();
                 if (subscription.getInitialTerminationTime() != null && now.isAfter(subscription.getInitialTerminationTime())) {
                     logger.info("Removes subscription with InitialTerminationTime in the past - subscription id={}, name={}", subscription.getId(), subscription.getName());
+                    if (prometheusMetricsService != null) {
+                        prometheusMetricsService.registerRemovedSubscription(subscription.getPushHost(), 1);
+                    }
                     pushNotification(subscription, NotificationTypeEnum.subscriptionTerminated);
                     remove(subscription.getId());
                     iterator.remove(); //to prevent from also sending heartbeat
@@ -426,6 +433,9 @@ public class SubscriptionManager {
         } else {
             Subscription added = dataStorageService.addSubscription(subscription);
             logger.info("Added new subscription - assigns id: {}", added.getId());
+            if (prometheusMetricsService != null) {
+                prometheusMetricsService.registerAddedSubscription(added.getPushHost(), 1);
+            }
             return added;
         }
     }
@@ -484,8 +494,11 @@ public class SubscriptionManager {
         return SerializationUtils.clone(toClone);
     }
 
-    private void pushMessage(Subscription subscription, Object siriElement, ZonedDateTime timestamp) {
+    private void pushMessage(Subscription subscription, Object siriElement, ZonedDateTime timestamp, String typeOfMessage, String codespace) {
         logger.info("PUSH ({}) {} to subscription with id={}, name={}, pushAddress={}", hostname, siriElement.getClass().getSimpleName(), subscription.getId(), subscription.getName(), subscription.getPushAddress());
+        if (prometheusMetricsService != null) {
+            prometheusMetricsService.registerDataToSubscriber(subscription.getPushHost(), typeOfMessage, codespace, 1);
+        }
         pushToHttp(subscription, siriElement, timestamp);
     }
 

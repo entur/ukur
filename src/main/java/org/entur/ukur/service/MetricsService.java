@@ -142,13 +142,6 @@ public class MetricsService {
     }
 
     @SuppressWarnings("unused") //Used directly from Camel route
-    public void registerReceivedSubscribedMessage(String type) {
-        String counterName = "message.subs-received." + type;
-        metrics.meter(counterName).mark();
-        prometheusMetricsService.registerIncomingSubscribedData(type, 1);
-    }
-
-    @SuppressWarnings("unused") //Used directly from Camel route
     public void registerSentMessage(String messagetype) {
         String counterName = "message.sent." + messagetype;
         metrics.meter(counterName).mark();

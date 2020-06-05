@@ -32,7 +32,10 @@ public class PrometheusMetricsService extends PrometheusMeterRegistry {
     private final String DATA_INBOUND_COUNTER_NAME = METRICS_PREFIX + "data.inbound";
     private final String DATA_INBOUND_SUBSCRIBED_COUNTER_NAME = METRICS_PREFIX + "data.inbound.subscribed";
     private final String DATA_OUTBOUND_COUNTER_NAME = METRICS_PREFIX + "data.outbound";
-    private final String SUBSCRIPTIONS_COUNTER_NAME = METRICS_PREFIX + "subscriptions.count";
+    private final String DATA_OUTBOUND_SUBSCRIPTION_COUNTER_NAME = METRICS_PREFIX + "data.outbound.subscriptions";
+    private final String DATA_OUTBOUND_FILTERED_COUNTER_NAME = METRICS_PREFIX + "data.outbound.filtered";
+    private final String DATA_SUBSCRIPTION_ADDED_COUNTER_NAME = METRICS_PREFIX + "subscription.added";
+    private final String DATA_SUBSCRIPTION_REMOVED_COUNTER_NAME = METRICS_PREFIX + "subscription.removed";
 
     public PrometheusMetricsService() {
         super(PrometheusConfig.DEFAULT);
@@ -54,15 +57,23 @@ public class PrometheusMetricsService extends PrometheusMeterRegistry {
 //        gauge(SUBSCRIPTIONS_COUNTER_NAME, dataStorageService.getNumberOfSubscriptions());
     }
 
-    public void registerIncomingSubscribedData(String dataType, int count) {
-        super.counter(DATA_INBOUND_SUBSCRIBED_COUNTER_NAME, "datatype", dataType).increment(count);
-    }
-
     public void registerIncomingData(String dataType, int count) {
         super.counter(DATA_INBOUND_COUNTER_NAME, "datatype", dataType).increment(count);
     }
 
     public void registerOutboundData(String dataType, int count) {
         super.counter(DATA_OUTBOUND_COUNTER_NAME, "datatype", dataType).increment(count);
+    }
+
+    public void registerDataToSubscriber(String subscriberHost, String dataType, String codespace, int count) {
+        super.counter(DATA_OUTBOUND_SUBSCRIPTION_COUNTER_NAME, "datatype", dataType, "subscriber", subscriberHost, "codespace", codespace).increment(count);
+    }
+
+    public void registerAddedSubscription(String subscriberHost, int count) {
+        super.counter(DATA_SUBSCRIPTION_ADDED_COUNTER_NAME, "subscriber", subscriberHost).increment(count);
+    }
+
+    public void registerRemovedSubscription(String subscriberHost, int count) {
+        super.counter(DATA_SUBSCRIPTION_REMOVED_COUNTER_NAME, "subscriber", subscriberHost).increment(count);
     }
 }

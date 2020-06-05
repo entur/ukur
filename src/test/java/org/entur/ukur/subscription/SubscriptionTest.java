@@ -68,4 +68,12 @@ public class SubscriptionTest {
         assertTrue(s.shouldRemove()); //as the first error is seen 15 minutes ago, we only check that the failedPushCounter is greater than 3
         assertEquals(4, s.getFailedPushCounter());
     }
+
+    @Test
+    public void verifyURLParsing() {
+        Subscription s = new Subscription();
+        s.setPushAddress("https://www.ruter.no/gi-meg-siri-data");
+        assertEquals("https://www.ruter.no/gi-meg-siri-data", s.getPushAddress());
+        assertEquals("www.ruter.no", s.getPushHost());
+    }
 }
