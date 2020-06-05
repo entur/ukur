@@ -15,17 +15,28 @@
 
 package org.entur.ukur.service;
 
+import com.google.common.collect.Maps;
+import io.micrometer.core.instrument.ImmutableTag;
 import io.micrometer.prometheus.PrometheusConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
+import org.entur.ukur.subscription.Subscription;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
 import javax.annotation.PreDestroy;
+import java.math.BigInteger;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.Map;
 
 @Component
 public class PrometheusMetricsService extends PrometheusMeterRegistry {
     private static final Logger logger = LoggerFactory.getLogger(PrometheusMetricsService.class);
+
+    @Autowired
+    private DataStorageService dataStorageService;
 
     private final String METRICS_PREFIX = "app.ukur.";
 
@@ -36,6 +47,7 @@ public class PrometheusMetricsService extends PrometheusMeterRegistry {
     private final String DATA_OUTBOUND_FILTERED_COUNTER_NAME = METRICS_PREFIX + "data.outbound.filtered";
     private final String DATA_SUBSCRIPTION_ADDED_COUNTER_NAME = METRICS_PREFIX + "subscription.added";
     private final String DATA_SUBSCRIPTION_REMOVED_COUNTER_NAME = METRICS_PREFIX + "subscription.removed";
+    private final String DATA_SUBSCRIPTION_TOTAL_GAUGE_NAME = METRICS_PREFIX + "subscription";
 
     public PrometheusMetricsService() {
         super(PrometheusConfig.DEFAULT);
@@ -54,7 +66,24 @@ public class PrometheusMetricsService extends PrometheusMeterRegistry {
 
     private void update() {
 
-//        gauge(SUBSCRIPTIONS_COUNTER_NAME, dataStorageService.getNumberOfSubscriptions());
+        Collection<Subscription> subscriptions = dataStorageService.getSubscriptions();
+
+        Map<String, BigInteger> hostMap = Maps.newHashMap();
+
+        for (Subscription subscription : subscriptions) {
+            String host = subscription.getPushHost();
+            if (host != null) {
+                BigInteger subscriptionsByHost = hostMap.get(host);
+                if (subscriptionsByHost == null) {
+                    subscriptionsByHost = BigInteger.ZERO;
+                }
+                hostMap.put(host, subscriptionsByHost.add(BigInteger.ONE));
+            }
+        }
+
+        for (String host : hostMap.keySet()) {
+            totalSubscriptions(host, hostMap.get(host));
+        }
     }
 
     public void registerIncomingData(String dataType, int count) {
@@ -75,5 +104,9 @@ public class PrometheusMetricsService extends PrometheusMeterRegistry {
 
     public void registerRemovedSubscription(String subscriberHost, int count) {
         super.counter(DATA_SUBSCRIPTION_REMOVED_COUNTER_NAME, "subscriber", subscriberHost).increment(count);
+    }
+
+    public void totalSubscriptions(String subscriberHost, BigInteger count) {
+        super.gauge(DATA_SUBSCRIPTION_TOTAL_GAUGE_NAME, Collections.singletonList( new ImmutableTag("subscriber", subscriberHost)), count);
     }
 }

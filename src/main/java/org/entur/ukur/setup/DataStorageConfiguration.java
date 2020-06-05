@@ -36,13 +36,10 @@ import java.io.IOException;
 @Configuration
 public class DataStorageConfiguration {
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
-    private final MetricsService metricsService;
     private ITopic<String> subscriptionCacheRenewerTopic;
 
     @Autowired
-    public DataStorageConfiguration(MetricsService metricsService,
-                                    @Qualifier("subscriptionCacheRenewerTopic") ITopic<String> subscriptionCacheRenewerTopic) {
-        this.metricsService = metricsService;
+    public DataStorageConfiguration(@Qualifier("subscriptionCacheRenewerTopic") ITopic<String> subscriptionCacheRenewerTopic) {
         this.subscriptionCacheRenewerTopic = subscriptionCacheRenewerTopic;
     }
 
@@ -73,8 +70,6 @@ public class DataStorageConfiguration {
         DataStorageService dataStorageService = new DataStorageService(
                 service,
                 subscriptionCacheRenewerTopic);
-
-        metricsService.registerGauge(MetricsService.GAUGE_SUBSCRIPTIONS, dataStorageService::getNumberOfSubscriptions);
 
         return dataStorageService;
     }
