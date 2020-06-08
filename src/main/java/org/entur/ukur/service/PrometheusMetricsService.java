@@ -17,6 +17,9 @@ package org.entur.ukur.service;
 
 import com.google.common.collect.Maps;
 import io.micrometer.core.instrument.Gauge;
+import io.micrometer.core.instrument.ImmutableTag;
+import io.micrometer.core.instrument.Meter;
+import io.micrometer.core.instrument.Tag;
 import io.micrometer.prometheus.PrometheusConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import org.entur.ukur.subscription.Subscription;
@@ -27,7 +30,9 @@ import org.springframework.stereotype.Component;
 
 import javax.annotation.PreDestroy;
 import java.math.BigInteger;
+import java.util.ArrayList;
 import java.util.Collection;
+import java.util.List;
 import java.util.Map;
 
 @Component
@@ -48,7 +53,7 @@ public class PrometheusMetricsService extends PrometheusMeterRegistry {
     private final String DATA_SUBSCRIPTION_REMOVED_COUNTER_NAME = METRICS_PREFIX + "subscription.removed";
     private final String DATA_SUBSCRIPTION_TOTAL_GAUGE_NAME = METRICS_PREFIX + "subscription";
 
-    private Map<String, Gauge> subscriptionTotalGaugeByHost = Maps.newHashMap();
+    //private Map<String, Gauge> subscriptionTotalGaugeByHost = Maps.newHashMap();
 
     public PrometheusMetricsService() {
         super(PrometheusConfig.DEFAULT);
@@ -66,6 +71,11 @@ public class PrometheusMetricsService extends PrometheusMeterRegistry {
     }
 
     private void update() {
+        for (Meter meter : this.getMeters()) {
+            if (DATA_SUBSCRIPTION_TOTAL_GAUGE_NAME.equals(meter.getId().getName())) {
+                this.remove(meter);
+            }
+        }
 
         Collection<Subscription> subscriptions = dataStorageService.getSubscriptions();
 
@@ -109,6 +119,10 @@ public class PrometheusMetricsService extends PrometheusMeterRegistry {
 
     public void totalSubscriptions(String subscriberHost, BigInteger count) {
         if (count.intValue() > 0) {
+            List<Tag> counterTags = new ArrayList<>();
+            counterTags.add(new ImmutableTag("subscriber", subscriberHost));
+            this.gauge(DATA_SUBSCRIPTION_TOTAL_GAUGE_NAME, counterTags, count, BigInteger::doubleValue);
+            /*
             if (!subscriptionTotalGaugeByHost.containsKey(subscriberHost)) {
                 subscriptionTotalGaugeByHost.put(subscriberHost, Gauge.builder(DATA_SUBSCRIPTION_TOTAL_GAUGE_NAME, count, BigInteger::doubleValue).tags("subscriber", subscriberHost).register(this));
             }
@@ -117,6 +131,8 @@ public class PrometheusMetricsService extends PrometheusMeterRegistry {
                 ((io.prometheus.client.Gauge) gauge).clear();
                 ((io.prometheus.client.Gauge) gauge).set(count.doubleValue());
             }
+
+             */
         }
     }
 }
