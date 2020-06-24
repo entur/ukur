@@ -48,7 +48,7 @@ public class Subscription implements Serializable {
     private long failedPushCounter = 0;
     @JsonIgnore
     private ZonedDateTime firstErrorSeen = null;
-    @JsonFormat(shape = JsonFormat.Shape.STRING, pattern = "yyyy-MM-dd'T'HH:mm:ss.SSSZ")
+    @JsonFormat(shape = JsonFormat.Shape.STRING)
     private ZonedDateTime initialTerminationTime;
     private Duration heartbeatInterval;
     private Duration minimumDelay;
