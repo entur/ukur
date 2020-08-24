@@ -34,6 +34,7 @@ resource "google_pubsub_subscription" "anshar_et_subscription" {
   project = var.pubsub_project
   name = var.inbound_anshar_et_pubsub_subscription
   topic = var.inbound_anshar_et_pubsub_topic
+  count = var.entur_env ? 0 : 1
 }
 
 resource "google_pubsub_subscription_iam_member" "anshar_et_subscription_iam_member" {
@@ -47,6 +48,7 @@ resource "google_pubsub_subscription" "anshar_sx_subscription" {
   project = var.pubsub_project
   name = var.inbound_anshar_sx_pubsub_subscription
   topic = var.inbound_anshar_sx_pubsub_topic
+  count = var.entur_env ? 0 : 1
 }
 
 resource "google_pubsub_subscription_iam_member" "anshar_sx_subscription_iam_member" {

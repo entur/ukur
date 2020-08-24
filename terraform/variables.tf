@@ -15,6 +15,10 @@ variable "load_config_file" {
   default     = false
 }
 
+variable entur_env {
+  description = "Whether deployment is to new entur environments"
+  default = false
+}
 variable "labels" {
   description = "Labels used in all resources"
   type        = map(string)
