@@ -1,5 +1,3 @@
-env: staging
-
 replicas: 2
 
 configmap:
@@ -12,3 +10,8 @@ resources:
   cpuRequest: 1
   memRequest: 2000Mi
   xmx: 9000m
+
+ingress:
+  enabled: true
+  loadBalancerIP: 130.211.80.129
+  domainName: .staging.entur.io

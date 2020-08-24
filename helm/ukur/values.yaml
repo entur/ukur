@@ -1,5 +1,3 @@
-env: dev
-
 rollingUpdate:
   maxSurge: 1
   maxUnavailable: 1
@@ -16,8 +14,3 @@ service:
   http:
     externalPort: 80
     internalPort: 8080
-ingress:
-  enabled: true
-  devIp: 35.195.223.29
-  stagingIp: 35.195.146.93
-  productionIp: 35.187.15.14
