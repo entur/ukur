@@ -33,7 +33,7 @@ spec:
             - name: TZ
               value: Europe/Oslo
             - name: GOOGLE_APPLICATION_CREDENTIALS
-              value: /etc/ukur-secret/ukur-service-account.json
+              value: /etc/ukur-secret/credentials.json
             - name: SPRING_ACTIVEMQ_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -93,7 +93,7 @@ spec:
           - name: ukur-secret
             secret:
               defaultMode: 420
-              secretName: ukur
+              secretName: ror-ukur-sa-key
           - configMap:
               defaultMode: 420
               name: ukur-config

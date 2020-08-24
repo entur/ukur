@@ -8,7 +8,7 @@ image:
 configmap:
   pubsub:
     credentials:
-      path: file:///etc/ukur-secret/ukur-service-account.json
+      path: file:///etc/ukur-secret/credentials.json
 
 service:
   http:
