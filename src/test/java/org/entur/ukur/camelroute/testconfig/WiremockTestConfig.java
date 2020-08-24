@@ -38,16 +38,6 @@ public class WiremockTestConfig extends UkurConfiguration {
     private Integer restPort = null;
 
     @Override
-    public String getAnsharETCamelUrl(String uuid) {
-        return "http4://localhost:" + wiremockPort + "/et";
-    }
-
-    @Override
-    public String getAnsharSXCamelUrl(String uuid) {
-        return "http4://localhost:" + wiremockPort + "/sx";
-    }
-
-    @Override
     public int getRestPort() {
         if (restPort == null) {
             try (ServerSocket s = new ServerSocket(0)) {

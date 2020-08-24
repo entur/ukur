@@ -36,24 +36,6 @@ public class UkurConfiguration {
     @Value("${rutebanken.hazelcast.management.url:}")
     private String hazelcastManagementUrl;
 
-    @Value("${ukur.camel.anshar.url:http://anshar/anshar}")
-    private String ansharURL;
-
-    @Value("${ukur.camel.anshar.subscriptionPostfix:/subscribe}")
-    private String ansharSubscriptionPostfix;
-
-    @Value("${ukur.camel.anshar.receiver.baseurl:http://ukur/internal/}")
-    private String ownSubscriptionURL;
-
-    @Value("${ukur.camel.anshar.et.enabled:true}")
-    private boolean etEnabled;
-
-    @Value("${ukur.camel.anshar.sx.enabled:true}")
-    private boolean sxEnabled;
-
-    @Value("${ukur.camel.anshar.subscription:false}")
-    private boolean useAnsharSubscription;
-
     @Value("${ukur.camel.rest.port:8080}")
     private int restPort;
 
@@ -68,9 +50,6 @@ public class UkurConfiguration {
 
     @Value("${ukur.camel.tiamat.stop_place_quays.enabled:true}")
     private boolean tiamatStopPlaceQuaysEnabled;
-
-    @Value("${ukur.camel.anshar.subscription.checking:true}")
-    private boolean subscriptionCheckingEnabled;
 
     @Value("${ukur.camel.subscription-heartbeat-check.interval:10000}")
     private int heartbeatCheckInterval;
@@ -105,60 +84,6 @@ public class UkurConfiguration {
         return namespace;
     }
 
-    private String getAnsharURL(boolean convertToHttp4) {
-        if (ansharURL != null) {
-            String url = ansharURL.trim();
-            if (url.endsWith("/")) {
-                url = url.substring(0, url.length() - 1);
-            }
-            if (convertToHttp4) {
-                url = url.replace("http:", "http4:");
-                url = url.replace("https:", "https4:");
-            }
-            return url;
-        }
-        return null;
-    }
-
-    private String getAnsharSubscriptionPostfix() {
-        if (!ansharSubscriptionPostfix.startsWith("/")) {
-            return "/"+ansharSubscriptionPostfix;
-        }
-        return ansharSubscriptionPostfix;
-    }
-
-    public String getAnsharETCamelUrl(String requestorId) {
-        return getAnsharURL(true) + "/rest/et?requestorId=" + requestorId + "&maxSize=500";
-    }
-
-    public String getAnsharSXCamelUrl(String requestorId) {
-        return getAnsharURL(true) + "/rest/sx?requestorId=" + requestorId + "&maxSize=500";
-    }
-
-    public String getAnsharSubscriptionUrl() {
-        return getAnsharURL(false) + getAnsharSubscriptionPostfix();
-    }
-
-    public String getOwnSubscriptionURL() {
-        if (ownSubscriptionURL == null) {
-            //not to be called if not set
-            throw new IllegalStateException("Required (when subscribing to anshar) config for own subscription url is not set");
-        }
-        String trimmed = ownSubscriptionURL.trim();
-        if (!trimmed.endsWith("/")) {
-            return trimmed + "/";
-        }
-        return trimmed;
-    }
-
-    public boolean isEtEnabled() {
-        return etEnabled;
-    }
-
-    public boolean isSxEnabled() {
-        return sxEnabled;
-    }
-
     public int getRestPort() {
         return restPort;
     }
@@ -177,14 +102,6 @@ public class UkurConfiguration {
 
     public boolean isTiamatStopPlaceQuaysEnabled() {
         return tiamatStopPlaceQuaysEnabled;
-    }
-
-    public boolean useAnsharSubscription() {
-        return useAnsharSubscription;
-    }
-
-    public boolean isSubscriptionCheckingEnabled() {
-        return subscriptionCheckingEnabled;
     }
 
     public int getHeartbeatCheckInterval() {

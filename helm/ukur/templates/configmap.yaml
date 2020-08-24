@@ -3,13 +3,7 @@ data:
   application.properties: |-
         rutebanken.kubernetes.namespace={{.Values.env }}
         ukur.camel.tiamat.stop_place_quays.url=http4://tiamat/services/stop_places/list/stop_place_quays/
-        spring.activemq.pooled=true
-        ukur.camel.anshar.receiver.baseurl=http://ukur/internal/
-        ukur.camel.anshar.subscription=true
-        spring.activemq.user=admin
-        ukur.camel.anshar.url=http://anshar/anshar
         ukur.datastore.useDatastore=true
-        spring.activemq.broker-url=tcp://activemq.default:61616
         # Temporary setting until bug in KeycloakWebSecurityConfigurerAdapter is fixed
         (The bean ''httpSessionManager'', defined in class path resource [xx/XXSecurityConfiguration.class],
         could not be registered. A bean with that name has already been defined in URL)

@@ -30,7 +30,6 @@
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <docker.maven.plugin.version>0.21.0</docker.maven.plugin.version>
         <spring.version>2.1.1.RELEASE</spring.version>
-        <activemq.version>5.15.8</activemq.version>
         <metrics-version>4.0.3</metrics-version>
         <camel.version>2.22.1</camel.version>
         <hazelcast.version>3.11</hazelcast.version>
