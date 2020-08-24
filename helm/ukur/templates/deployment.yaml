@@ -85,8 +85,6 @@ spec:
               name: application-config
               readOnly: true
       dnsPolicy: ClusterFirst
-      imagePullSecrets:
-        - name: rutebanken-registry-key
       restartPolicy: Always
       schedulerName: default-scheduler
       securityContext: {}

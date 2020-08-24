@@ -2,6 +2,10 @@ variable "gcp_project" {
   description = "The GCP project id"
 }
 
+variable "pubsub_project" {
+  description = "The GCP pubsub project id"
+}
+
 variable "kube_namespace" {
   description = "The Kubernetes namespace"
 }

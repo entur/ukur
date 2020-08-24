@@ -1,0 +1,14 @@
+env: staging
+
+replicas: 2
+
+configmap:
+  pubsub:
+    project_id: radon-1287
+
+resources:
+  cpuLimit: 7
+  memLimit: 12000Mi
+  cpuRequest: 1
+  memRequest: 2000Mi
+  xmx: 9000m

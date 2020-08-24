@@ -1,0 +1,14 @@
+env: production
+
+replicas: 3
+
+configmap:
+  pubsub:
+    project_id: neon-1287
+
+resources:
+  cpuLimit: 7
+  memLimit: 12000Mi
+  cpuRequest: 1
+  memRequest: 10000Mi
+  xmx: 9000m
