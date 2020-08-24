@@ -34,11 +34,6 @@ spec:
               value: Europe/Oslo
             - name: GOOGLE_APPLICATION_CREDENTIALS
               value: /etc/ukur-secret/credentials.json
-            - name: SPRING_ACTIVEMQ_PASSWORD
-              valueFrom:
-                secretKeyRef:
-                  key: password
-                  name: ukur-activemq-password
           image: {{ .Values.image.identifier }}
           imagePullPolicy: {{ .Values.image.imagePullPolicy }}
           livenessProbe:
