@@ -56,17 +56,12 @@ import static org.apache.camel.Exchange.CONTENT_LENGTH;
 public class UkurCamelRouteBuilder extends SpringRouteBuilder {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
+
             static final String ROUTE_ET_RETRIEVER = "seda:retrieveAnsharET";
             static final String ROUTE_SX_RETRIEVER = "seda:retrieveAnsharSX";
-    private static final String ROUTE_TIAMAT_MAP = "seda:getStopPlacesAndQuays";
-    private static final String ROUTEID_TIAMAT_MAP = "Tiamat StopPlacesAndQuays";
-    private static final String ROUTEID_HEARTBEAT_CHECKER  = "Check Subscriptions For Missing Heartbeats";
-    private static final String ROUTEID_HEARTBEAT_TRIGGER  = "Check Subscriptions Trigger";
-    private static final String ROUTEID_ET_TRIGGER = "ET trigger";
-    private static final String ROUTEID_SX_TRIGGER = "SX trigger";
+    private static final String ROUTE_TIAMAT_MAP = "direct:getStopPlacesAndQuays";
+    private static final String ROUTEID_TIAMAT_MAP = "StopPlacesAndQuays";
     private static final String ROUTEID_TIAMAT_MAP_TRIGGER = "Tiamat trigger";
-    private static final String ROUTEID_ANSHAR_SUBSRENEWER_TRIGGER = "Anshar Subscription Renewer Trigger";
-    private static final String ROUTEID_ANSHAR_SUBSCHECKER_TRIGGER = "Anshar Subscription Checker Trigger";
 
     private final UkurConfiguration config;
     private final ETSubscriptionProcessor ETSubscriptionProcessor;
