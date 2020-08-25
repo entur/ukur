@@ -43,12 +43,17 @@ import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
 import uk.org.siri.siri20.Siri;
 
+import java.io.IOException;
 import java.net.InetAddress;
+import java.net.URL;
 import java.net.UnknownHostException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
 import java.util.Map;
+import java.util.concurrent.Executors;
+import java.util.concurrent.ScheduledExecutorService;
+import java.util.concurrent.TimeUnit;
 
 import static org.apache.camel.Exchange.CONTENT_LENGTH;
 
@@ -105,14 +110,11 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .setBody(constant(""));
 
         createJaxbProcessingRoutes();
-        createWorkerRoutes(config.getTiamatStopPlaceQuaysURL());
+        createWorkerRoutes(config.getStopPlaceQuaysURL(), config.getStopPlaceQuaysUpdateIntervalMillis());
         createRestRoutes(config.getRestPort());
-        createQuartzRoutes(config.isTiamatStopPlaceQuaysEnabled(), config.getTiamatStopPlaceQuaysInterval());
     }
 
     private void createJaxbProcessingRoutes() {
-
-
 
         from("direct:compress.jaxb")
                 .setBody(body().convertToString())
@@ -143,7 +145,20 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
         ;
     }
 
-    private void createWorkerRoutes(String tiamatStopPlaceQuaysURL) {
+    private void createWorkerRoutes(String tiamatStopPlaceQuaysURL, long tiamatRepeatInterval) {
+
+        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+        executor.scheduleWithFixedDelay(() -> {
+                    try {
+                        tiamatStopPlaceQuaysProcessor.readFileFromInputStream(new URL(tiamatStopPlaceQuaysURL).openStream());
+                        logger.info("StopPlaceQuays initialized from {}", tiamatStopPlaceQuaysURL);
+                    } catch (IOException e) {
+                        logger.info("Initializing StopPlaceQuays failed - fallback to camelroutes", e);
+                    }
+        }, 0,
+        tiamatRepeatInterval,
+        TimeUnit.MILLISECONDS);
+
 
         from(config.getEtPubsubQueue())
                 .routeId("ET pubsub Listener")
@@ -159,18 +174,6 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .to("direct:map.protobuf.to.jaxb")
                 .process(SXSubscriptionProcessor)
                 .log(LoggingLevel.DEBUG, "Done handling SX message from queue")
-                .end();
-
-        from(ROUTE_TIAMAT_MAP)
-                .routeId(ROUTEID_TIAMAT_MAP)
-                .to("metrics:timer:" + MetricsService.TIMER_TIAMAT + "?action=start")
-                .log(LoggingLevel.INFO, "About to get stops from url: " + tiamatStopPlaceQuaysURL)
-                .setHeader(Exchange.HTTP_METHOD, constant("GET"))
-                .setHeader("ET-Client-Name", constant("Ukur"))
-                .setHeader("ET-Client-ID", constant(getHostName()))
-                .to(tiamatStopPlaceQuaysURL)
-                .process(tiamatStopPlaceQuaysProcessor)
-                .to("metrics:timer:" + MetricsService.TIMER_TIAMAT + "?action=stop")
                 .end();
     }
 
@@ -250,19 +253,6 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                     exchange.getOut().setBody(status);
                 });
 
-    }
-
-    private void createQuartzRoutes(boolean stopPlaceToQuayEnabled, int tiamatRepeatInterval) {
-
-        if (stopPlaceToQuayEnabled) {
-            from("quartz2://ukur/getStopPlacesFromTiamat?trigger.repeatInterval=" + tiamatRepeatInterval + "&fireNow=true")
-                    .routeId(ROUTEID_TIAMAT_MAP_TRIGGER)
-                    .log(LoggingLevel.INFO, "getStopPlacesFromTiamat triggered by timer")
-                    .to(ROUTE_TIAMAT_MAP);
-
-            //Trigger immediately
-            from("timer://runOnce?repeatCount=1&delay=10").to(ROUTE_TIAMAT_MAP);
-        }
     }
 
     private String getHostName(){

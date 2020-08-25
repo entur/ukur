@@ -36,14 +36,11 @@ public class UkurConfiguration {
     @Value("${ukur.camel.rest.port:8080}")
     private int restPort;
 
-    @Value("${ukur.camel.tiamat.stop_place_quays.url:http4://tiamat/services/stop_places/list/stop_place_quays/}")
-    private String tiamatStopPlaceQuaysURL;
+    @Value("${ukur.stop_place_quays.url:http4://tiamat/services/stop_places/list/stop_place_quays/}")
+    private String stopPlaceQuaysURL;
 
-    @Value("${ukur.camel.tiamat.stop_place_quays.interval:3600000}")
-    private int tiamatStopPlaceQuaysInterval;
-
-    @Value("${ukur.camel.tiamat.stop_place_quays.enabled:true}")
-    private boolean tiamatStopPlaceQuaysEnabled;
+    @Value("${ukur.stop_place_quays.interval:3600000}")
+    private int stopPlaceQuaysUpdateIntervalMillis;
 
     @Value("${ukur.camel.pubsub.et}")
     private String etPubsubQueue;
@@ -79,15 +76,12 @@ public class UkurConfiguration {
         return restPort;
     }
 
-    public String getTiamatStopPlaceQuaysURL() {
-        return tiamatStopPlaceQuaysURL;
+    public String getStopPlaceQuaysURL() {
+        return stopPlaceQuaysURL;
     }
 
-    public int getTiamatStopPlaceQuaysInterval() {
-        return tiamatStopPlaceQuaysInterval;
+    public int getStopPlaceQuaysUpdateIntervalMillis() {
+        return stopPlaceQuaysUpdateIntervalMillis;
     }
 
-    public boolean isTiamatStopPlaceQuaysEnabled() {
-        return tiamatStopPlaceQuaysEnabled;
-    }
 }
