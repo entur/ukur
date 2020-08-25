@@ -33,6 +33,7 @@
         <metrics-version>4.0.3</metrics-version>
         <camel.version>2.22.1</camel.version>
         <hazelcast.version>3.11</hazelcast.version>
+        <entur.helpers.version>1.0.22</entur.helpers.version>
     </properties>
 
     <licenses>
@@ -142,7 +143,7 @@
         <dependency>
             <groupId>org.entur.helpers</groupId>
             <artifactId>camel-entur-google-pubsub</artifactId>
-            <version>0.0.8-SNAPSHOT</version>
+            <version>${entur.helpers.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.camel</groupId>
@@ -167,13 +168,13 @@
         <dependency>
             <groupId>org.entur.helpers</groupId>
             <artifactId>hazelcast-helper</artifactId>
-            <version>0.0.4-SNAPSHOT</version>
+            <version>${entur.helpers.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.entur</groupId>
             <artifactId>siri-java-model</artifactId>
-            <version>0.13-SNAPSHOT</version>
+            <version>0.12</version>
         </dependency>
 
         <dependency>
