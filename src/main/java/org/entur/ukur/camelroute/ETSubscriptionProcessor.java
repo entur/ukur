@@ -83,7 +83,7 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
     public void process(Exchange exchange) {
         try {
             InputStream xml = exchange.getIn().getBody(InputStream.class);
-            logger.debug("Reveived XML with size {} bytes", xml.available());
+            logger.debug("Received XML with size {} bytes", xml.available());
             Timer timer = metricsService.getTimer(MetricsService.TIMER_ET_UNMARSHALL);
             Timer.Context time = timer.time();
             EstimatedVehicleJourney estimatedVehicleJourney;
