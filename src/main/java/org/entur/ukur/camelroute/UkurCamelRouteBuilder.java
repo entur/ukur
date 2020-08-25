@@ -263,8 +263,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
         if (stopPlaceToQuayEnabled) {
             from("quartz2://ukur/getStopPlacesFromTiamat?trigger.repeatInterval=" + tiamatRepeatInterval + "&fireNow=true")
                     .routeId(ROUTEID_TIAMAT_MAP_TRIGGER)
-                    .filter(e -> isNotRunning(ROUTEID_TIAMAT_MAP))
-                    .log(LoggingLevel.DEBUG, "getStopPlacesFromTiamat triggered by timer")
+                    .log(LoggingLevel.INFO, "getStopPlacesFromTiamat triggered by timer")
                     .to(ROUTE_TIAMAT_MAP);
         }
     }
@@ -275,13 +274,6 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
         } catch (UnknownHostException e) {
             return "Ukur-UnknownHost";
         }
-    }
-
-    private boolean isNotRunning(String routeId) {
-        int size = getContext().getInflightRepository().size(routeId);
-        boolean notRunning = size == 0;
-        logger.trace("Number of running instances of camelroute '{}' is {} - returns {}", routeId, size, notRunning);
-        return notRunning;
     }
 
     @Bean(name = "json-jackson")
