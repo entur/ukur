@@ -21,9 +21,6 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class UkurConfiguration {
 
-
-    private static final String QUEUE_PREFIX = "ukur";
-
     @Value("${rutebanken.kubernetes.url:}")
     private String kubernetesUrl;
 
@@ -39,20 +36,14 @@ public class UkurConfiguration {
     @Value("${ukur.camel.rest.port:8080}")
     private int restPort;
 
-    @Value("${ukur.camel.polling.interval:60000}")
-    private int pollingInterval;
-
     @Value("${ukur.camel.tiamat.stop_place_quays.url:http4://tiamat/services/stop_places/list/stop_place_quays/}")
     private String tiamatStopPlaceQuaysURL;
 
-    @Value("${ukur.camel.tiamat.stop_place_quays.interval:3600000}")
+    @Value("${ukur.camel.tiamat.stop_place_quays.interval:3600}")
     private int tiamatStopPlaceQuaysInterval;
 
     @Value("${ukur.camel.tiamat.stop_place_quays.enabled:true}")
     private boolean tiamatStopPlaceQuaysEnabled;
-
-    @Value("${ukur.camel.subscription-heartbeat-check.interval:10000}")
-    private int heartbeatCheckInterval;
 
     @Value("${ukur.camel.pubsub.et}")
     private String etPubsubQueue;
@@ -88,10 +79,6 @@ public class UkurConfiguration {
         return restPort;
     }
 
-    public int getPollingInterval() {
-        return pollingInterval;
-    }
-
     public String getTiamatStopPlaceQuaysURL() {
         return tiamatStopPlaceQuaysURL;
     }
@@ -102,9 +89,5 @@ public class UkurConfiguration {
 
     public boolean isTiamatStopPlaceQuaysEnabled() {
         return tiamatStopPlaceQuaysEnabled;
-    }
-
-    public int getHeartbeatCheckInterval() {
-        return heartbeatCheckInterval;
     }
 }

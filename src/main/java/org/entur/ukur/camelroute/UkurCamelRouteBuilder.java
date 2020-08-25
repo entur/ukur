@@ -112,7 +112,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
         createJaxbProcessingRoutes();
         createWorkerRoutes(config.getTiamatStopPlaceQuaysURL());
         createRestRoutes(config.getRestPort());
-        createQuartzRoutes(config.getHeartbeatCheckInterval(), config.isTiamatStopPlaceQuaysEnabled(), config.getTiamatStopPlaceQuaysInterval());
+        createQuartzRoutes(config.isTiamatStopPlaceQuaysEnabled(), config.getTiamatStopPlaceQuaysInterval());
     }
 
     private void createJaxbProcessingRoutes() {
@@ -169,7 +169,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
         from(ROUTE_TIAMAT_MAP)
                 .routeId(ROUTEID_TIAMAT_MAP)
                 .to("metrics:timer:" + MetricsService.TIMER_TIAMAT + "?action=start")
-                .log(LoggingLevel.DEBUG, "About to call Tiamat with url: " + tiamatStopPlaceQuaysURL)
+                .log(LoggingLevel.INFO, "About to get stops from url: " + tiamatStopPlaceQuaysURL)
                 .setHeader(Exchange.HTTP_METHOD, constant("GET"))
                 .setHeader("ET-Client-Name", constant("Ukur"))
                 .setHeader("ET-Client-ID", constant(getHostName()))
@@ -258,10 +258,10 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
 
     }
 
-    private void createQuartzRoutes(int subscriptionCheckerRepatInterval, boolean stopPlaceToQuayEnabled, int tiamatRepatInterval) {
+    private void createQuartzRoutes(boolean stopPlaceToQuayEnabled, int tiamatRepeatInterval) {
 
         if (stopPlaceToQuayEnabled) {
-            from("quartz2://ukur/getStopPlacesFromTiamat?trigger.repeatInterval=" + tiamatRepatInterval + "&fireNow=true")
+            from("quartz2://ukur/getStopPlacesFromTiamat?trigger.repeatInterval=" + tiamatRepeatInterval + "&fireNow=true")
                     .routeId(ROUTEID_TIAMAT_MAP_TRIGGER)
                     .filter(e -> isNotRunning(ROUTEID_TIAMAT_MAP))
                     .log(LoggingLevel.DEBUG, "getStopPlacesFromTiamat triggered by timer")
