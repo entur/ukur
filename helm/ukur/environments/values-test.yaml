@@ -1,5 +1,9 @@
 replicas: 2
 
+env:
+  datastore:
+    project_id: radon-1287
+
 configmap:
   pubsub:
     project_id: radon-1287

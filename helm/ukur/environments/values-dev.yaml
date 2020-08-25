@@ -1,5 +1,7 @@
 replicas: 2
-
+env:
+  datastore:
+    project_id: carbon-1287
 configmap:
   pubsub:
     project_id: carbon-1287

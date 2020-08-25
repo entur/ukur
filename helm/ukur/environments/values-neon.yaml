@@ -1,5 +1,9 @@
 replicas: 3
 
+env:
+  datastore:
+    project_id: neon-1287
+
 configmap:
   pubsub:
     project_id: neon-1287

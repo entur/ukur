@@ -34,6 +34,8 @@ spec:
               value: Europe/Oslo
             - name: GOOGLE_APPLICATION_CREDENTIALS
               value: /etc/ukur-secret/credentials.json
+            - name: DATASTORE_PROJECT_ID
+              value: {{ .Values.env.datastore.project_id }}
           image: {{ .Values.image.identifier }}
           imagePullPolicy: {{ .Values.image.imagePullPolicy }}
           livenessProbe:
