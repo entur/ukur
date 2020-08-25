@@ -172,7 +172,6 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .process(tiamatStopPlaceQuaysProcessor)
                 .to("metrics:timer:" + MetricsService.TIMER_TIAMAT + "?action=stop")
                 .end();
-
     }
 
     private void createRestRoutes(int jettyPort) {
@@ -260,6 +259,9 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                     .routeId(ROUTEID_TIAMAT_MAP_TRIGGER)
                     .log(LoggingLevel.INFO, "getStopPlacesFromTiamat triggered by timer")
                     .to(ROUTE_TIAMAT_MAP);
+
+            //Trigger immediately
+            from("timer://runOnce?repeatCount=1&delay=10").to(ROUTE_TIAMAT_MAP);
         }
     }
 
