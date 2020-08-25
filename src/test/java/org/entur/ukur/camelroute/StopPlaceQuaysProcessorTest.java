@@ -40,7 +40,7 @@ import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
-public class TiamatStopPlaceQuaysProcessorTest {
+public class StopPlaceQuaysProcessorTest {
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
@@ -71,7 +71,7 @@ public class TiamatStopPlaceQuaysProcessorTest {
 
         InputStream stream = IOUtils.toInputStream(json, "UTF-8");
         QuayAndStopPlaceMappingService quayAndStopPlaceMappingService = new QuayAndStopPlaceMappingService(new MetricsService());
-        TiamatStopPlaceQuaysProcessor processor = new TiamatStopPlaceQuaysProcessor(quayAndStopPlaceMappingService);
+        StopPlaceQuaysProcessor processor = new StopPlaceQuaysProcessor(quayAndStopPlaceMappingService);
         Exchange exchangeMock = createExchangeMock(stream);
 
         assertEquals(0, quayAndStopPlaceMappingService.getNumberOfStopPlaces());
@@ -99,7 +99,7 @@ public class TiamatStopPlaceQuaysProcessorTest {
     @Ignore
     public void verifyActualTiamatData() throws IOException {
         QuayAndStopPlaceMappingService quayAndStopPlaceMappingService = new QuayAndStopPlaceMappingService(new MetricsService());
-        TiamatStopPlaceQuaysProcessor processor = new TiamatStopPlaceQuaysProcessor(quayAndStopPlaceMappingService);
+        StopPlaceQuaysProcessor processor = new StopPlaceQuaysProcessor(quayAndStopPlaceMappingService);
         Exchange exchangeMock = createExchangeMock(new FileInputStream("/home/jon/Documents/Entur/StopPlacesAndQuays.json"));
 
         assertEquals(0, quayAndStopPlaceMappingService.getNumberOfStopPlaces());

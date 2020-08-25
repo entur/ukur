@@ -30,13 +30,13 @@ import java.util.HashMap;
 import java.util.Map;
 
 @Service
-public class TiamatStopPlaceQuaysProcessor implements Processor {
+public class StopPlaceQuaysProcessor implements Processor {
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
     private QuayAndStopPlaceMappingService dataStorageService;
     boolean hasRun = false;
 
-    public TiamatStopPlaceQuaysProcessor(QuayAndStopPlaceMappingService quayAndStopPlaceMappingService) {
+    public StopPlaceQuaysProcessor(QuayAndStopPlaceMappingService quayAndStopPlaceMappingService) {
         this.dataStorageService = quayAndStopPlaceMappingService;
     }
 

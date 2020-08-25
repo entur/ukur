@@ -76,7 +76,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
     private final PrometheusMetricsService prometheusMeterRegistry;
 
     private final String nodeStarted;
-    private final TiamatStopPlaceQuaysProcessor tiamatStopPlaceQuaysProcessor;
+    private final StopPlaceQuaysProcessor stopPlaceQuaysProcessor;
     private final Namespaces siriNamespace = new Namespaces("s", "http://www.siri.org.uk/siri");
     private final KryoSerializer kryoSerializer = new KryoSerializer();
 
@@ -84,12 +84,12 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
     public UkurCamelRouteBuilder(UkurConfiguration config,
                                  ETSubscriptionProcessor ETSubscriptionProcessor,
                                  SXSubscriptionProcessor SXSubscriptionProcessor,
-                                 TiamatStopPlaceQuaysProcessor tiamatStopPlaceQuaysProcessor,
+                                 StopPlaceQuaysProcessor stopPlaceQuaysProcessor,
                                  MetricsService metricsService, PrometheusMetricsService prometheusMeterRegistry) {
         this.config = config;
         this.ETSubscriptionProcessor = ETSubscriptionProcessor;
         this.SXSubscriptionProcessor = SXSubscriptionProcessor;
-        this.tiamatStopPlaceQuaysProcessor = tiamatStopPlaceQuaysProcessor;
+        this.stopPlaceQuaysProcessor = stopPlaceQuaysProcessor;
         this.metricsService = metricsService;
         this.prometheusMeterRegistry = prometheusMeterRegistry;
         nodeStarted = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
@@ -145,18 +145,18 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
         ;
     }
 
-    private void createWorkerRoutes(String tiamatStopPlaceQuaysURL, long tiamatRepeatInterval) {
+    private void createWorkerRoutes(String stopPlaceQuaysURL, long stopPlaceUpdaterRepeatInterval) {
 
         ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
         executor.scheduleWithFixedDelay(() -> {
                     try {
-                        tiamatStopPlaceQuaysProcessor.readFileFromInputStream(new URL(tiamatStopPlaceQuaysURL).openStream());
-                        logger.info("StopPlaceQuays initialized from {}", tiamatStopPlaceQuaysURL);
+                        stopPlaceQuaysProcessor.readFileFromInputStream(new URL(stopPlaceQuaysURL).openStream());
+                        logger.info("StopPlaceQuays initialized from {}", stopPlaceQuaysURL);
                     } catch (IOException e) {
                         logger.info("Initializing StopPlaceQuays failed - fallback to camelroutes", e);
                     }
         }, 0,
-        tiamatRepeatInterval,
+        stopPlaceUpdaterRepeatInterval,
         TimeUnit.MILLISECONDS);
 
 
@@ -220,7 +220,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
         from("direct:ready")
                 .routeId("Ready checker")
                 .choice()
-                .when(exchange -> tiamatStopPlaceQuaysProcessor.hasRun()).to("direct:OK")
+                .when(exchange -> stopPlaceQuaysProcessor.hasRun()).to("direct:OK")
                 .otherwise()
                 .log(LoggingLevel.WARN, "not ready (has not retrieved stopplace data yet)")
                 .setBody(simple("NOT OK    \n\n"))

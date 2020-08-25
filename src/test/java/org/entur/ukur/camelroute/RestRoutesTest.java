@@ -43,7 +43,7 @@ public class RestRoutesTest extends AbstractJUnit4SpringContextTests {
     private WiremockTestConfig config;
 
     @Autowired
-    private TiamatStopPlaceQuaysProcessor tiamatStopPlaceQuaysProcessor;
+    private StopPlaceQuaysProcessor stopPlaceQuaysProcessor;
 
     /**
      * Simply call the various internal REST endpoints to make sure they do not have any runtime errors.
@@ -52,7 +52,7 @@ public class RestRoutesTest extends AbstractJUnit4SpringContextTests {
     public void testInternalRESTendpoints() {
         String baseUrl = "http://localhost:"+config.getRestPort()+"/internal";
 
-        tiamatStopPlaceQuaysProcessor.hasRun = true; //to allow health/ready respond OK
+        stopPlaceQuaysProcessor.hasRun = true; //to allow health/ready respond OK
         assert200Response(baseUrl + "/health/ready");
         assert200Response(baseUrl + "/health/live");
         assert200Response(baseUrl + "/health/subscriptions");
