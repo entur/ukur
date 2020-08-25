@@ -22,21 +22,15 @@ import com.codahale.metrics.MetricFilter;
 import com.codahale.metrics.MetricRegistry;
 import com.codahale.metrics.SlidingTimeWindowArrayReservoir;
 import com.codahale.metrics.Timer;
-import com.codahale.metrics.graphite.Graphite;
-import com.codahale.metrics.graphite.GraphiteReporter;
 import org.apache.camel.component.metrics.MetricsComponent;
 import org.apache.commons.lang3.StringUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
-import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 import org.springframework.stereotype.Service;
 
-import javax.annotation.PostConstruct;
-import javax.annotation.PreDestroy;
-import java.io.IOException;
 import java.time.ZonedDateTime;
 import java.time.format.DateTimeFormatter;
 import java.time.temporal.ChronoUnit;
@@ -48,7 +42,6 @@ import java.util.concurrent.TimeUnit;
 @Configuration
 public class MetricsService {
     public static final String TIMER_PUSH                  = "timer.push.http";
-    public static final String TIMER_TIAMAT                = "timer.tiamat.StopPlacesAndQuays";
     public static final String TIMER_ET_PROCESS            = "timer.process.EstimatedVehicleJourney";
     public static final String TIMER_SX_PROCESS            = "timer.process.PtSituationElement";
     public static final String TIMER_ET_UNMARSHALL         = "timer.unmarshall.EstimatedVehicleJourney";
@@ -63,70 +56,13 @@ public class MetricsService {
     public static final String HISTOGRAM_PROCESSED_DELAY   = "histogram.processed_delay";
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final MetricRegistry metrics = new MetricRegistry();
-    private final boolean graphiteEnabled;
-    private GraphiteReporter reporter;
-    private Graphite graphite;
 
     @Autowired
     PrometheusMetricsService prometheusMetricsService;
 
-    public MetricsService() {
-        this(null, -1, null);
-        logger.warn("Test-only constructor called");
-    }
-
     @Autowired
-    public MetricsService(@Value("${ukur.graphite.host:}") String graphiteHost,
-                          @Value("${ukur.graphite.port:2003}") int graphitePort,
-                          ExtendedHazelcastService hazelcastService) {
-        graphiteEnabled = false;
+    public MetricsService() {
 
-       /*
-        String nodename;
-        if (hazelcastService != null) {
-            nodename = hazelcastService.getMyNodeName();
-        } else {
-            nodename = "local";
-        }
-        logger.debug("Uses node name {}", nodename);
-
-        if (Strings.isNullOrEmpty(graphiteHost) ) {
-            graphiteEnabled = false;
-            logger.info("Setting up local metrics service");
-        } else {
-            graphiteEnabled = true;
-            String prefix = "app.ukur." + nodename;
-            logger.info("Setting up metrics reporter with Graphite server: host={}, port={}, prefix={}", graphiteHost, graphitePort, prefix);
-            graphite = new Graphite(new InetSocketAddress(graphiteHost, graphitePort));
-            reporter = GraphiteReporter.forRegistry(metrics)
-                    .prefixedWith(prefix)
-                    .convertRatesTo(TimeUnit.SECONDS)
-                    .convertDurationsTo(TimeUnit.MILLISECONDS)
-                    .filter(MetricFilter.ALL)
-                    //each of the metric attributes below results in a 3.1mb database per metric in graphite - disables the one we don't need:
-                    .disabledMetricAttributes(Sets.newHashSet(MAX, MEAN, MIN, STDDEV, P50, P75, P98, P99, P999, M1_RATE, M5_RATE, M15_RATE))
-                    .build(graphite);
-        }
-        */
-    }
-
-    @PostConstruct
-    public void startGraphiteReporter() {
-        if (graphiteEnabled) {
-            logger.info("Starting graphite reporter");
-            reporter.start(10, TimeUnit.SECONDS);
-        }
-    }
-
-    @PreDestroy
-    public void shutdownGraphiteReporter() throws IOException {
-        if (graphiteEnabled) {
-            reporter.stop();
-            if (graphite.isConnected()) {
-                graphite.flush();
-                graphite.close();
-            }
-        }
     }
 
     /**
