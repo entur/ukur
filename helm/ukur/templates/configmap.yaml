@@ -3,6 +3,7 @@ data:
   application.properties: |-
         rutebanken.kubernetes.namespace={{.Values.env }}
         ukur.camel.tiamat.stop_place_quays.url=https4://storage.googleapis.com/anshar-production/mapping_data/stop_place_quays.json
+        ukur.camel.tiamat.stop_place_quays.interval=3600000
         ukur.datastore.useDatastore=true
         # Temporary setting until bug in KeycloakWebSecurityConfigurerAdapter is fixed (The bean ''httpSessionManager'', defined in class path resource [xx/XXSecurityConfiguration.class], could not be registered. A bean with that name has already been defined in URL)
         spring.main.allow-bean-definition-overriding=true

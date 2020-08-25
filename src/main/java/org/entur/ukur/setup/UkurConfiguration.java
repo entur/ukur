@@ -39,7 +39,7 @@ public class UkurConfiguration {
     @Value("${ukur.camel.tiamat.stop_place_quays.url:http4://tiamat/services/stop_places/list/stop_place_quays/}")
     private String tiamatStopPlaceQuaysURL;
 
-    @Value("${ukur.camel.tiamat.stop_place_quays.interval:3600}")
+    @Value("${ukur.camel.tiamat.stop_place_quays.interval:3600000}")
     private int tiamatStopPlaceQuaysInterval;
 
     @Value("${ukur.camel.tiamat.stop_place_quays.enabled:true}")
