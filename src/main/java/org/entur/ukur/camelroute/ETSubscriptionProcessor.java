@@ -32,13 +32,28 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import uk.org.siri.siri20.*;
+import uk.org.siri.siri20.ArrivalBoardingActivityEnumeration;
+import uk.org.siri.siri20.CallStatusEnumeration;
+import uk.org.siri.siri20.DepartureBoardingActivityEnumeration;
+import uk.org.siri.siri20.EstimatedCall;
+import uk.org.siri.siri20.EstimatedVehicleJourney;
+import uk.org.siri.siri20.RecordedCall;
+import uk.org.siri.siri20.ServiceDelivery;
+import uk.org.siri.siri20.ServiceFeatureRef;
+import uk.org.siri.siri20.Siri;
+import uk.org.siri.siri20.StopAssignmentStructure;
 
 import java.io.InputStream;
 import java.time.Duration;
 import java.time.Instant;
 import java.time.ZonedDateTime;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Date;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Map;
+import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.entur.ukur.subscription.SubscriptionTypeEnum.ET;
@@ -341,18 +356,20 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
         EstimatedVehicleJourney.EstimatedCalls estimatedCalls = estimatedVehicleJourney.getEstimatedCalls();
         boolean cancelledJourney = Boolean.TRUE.equals(estimatedVehicleJourney.isCancellation());
         List<StopDetails> deviations = new ArrayList<>();
-        for (EstimatedCall call : estimatedCalls.getEstimatedCalls()) {
-            if (futureEstimatedCall(call)) {
-                if (cancelledJourney || Boolean.TRUE.equals(call.isCancellation())) {
-                    deviations.add(StopDetails.cancelled(getStringValue(call.getStopPointRef())));
-                } else if (isTrackChange(call)) {
-                    deviations.add(StopDetails.trackChange(getStringValue(call.getStopPointRef())));
-                } else {
-                    boolean delayedDeparture = call.getDepartureStatus() == CallStatusEnumeration.DELAYED || isDelayed(call.getAimedDepartureTime(), call.getExpectedDepartureTime());
-                    boolean delayedArrival = call.getArrivalStatus() == CallStatusEnumeration.DELAYED || isDelayed(call.getAimedArrivalTime(), call.getExpectedArrivalTime());
-                    final Duration delayedArrivalDuration = getDelayedArrivalDuration(call.getAimedArrivalTime(), call.getExpectedArrivalTime());
-                    if (delayedArrival || delayedDeparture) {
-                        deviations.add(StopDetails.delayed(getStringValue(call.getStopPointRef()), delayedDeparture, delayedArrival, delayedArrivalDuration));
+        if (estimatedCalls.getEstimatedCalls() != null) {
+            for (EstimatedCall call : estimatedCalls.getEstimatedCalls()) {
+                if (futureEstimatedCall(call)) {
+                    if (cancelledJourney || Boolean.TRUE.equals(call.isCancellation())) {
+                        deviations.add(StopDetails.cancelled(getStringValue(call.getStopPointRef())));
+                    } else if (isTrackChange(call)) {
+                        deviations.add(StopDetails.trackChange(getStringValue(call.getStopPointRef())));
+                    } else {
+                        boolean delayedDeparture = call.getDepartureStatus() == CallStatusEnumeration.DELAYED || isDelayed(call.getAimedDepartureTime(), call.getExpectedDepartureTime());
+                        boolean delayedArrival = call.getArrivalStatus() == CallStatusEnumeration.DELAYED || isDelayed(call.getAimedArrivalTime(), call.getExpectedArrivalTime());
+                        final Duration delayedArrivalDuration = getDelayedArrivalDuration(call.getAimedArrivalTime(), call.getExpectedArrivalTime());
+                        if (delayedArrival || delayedDeparture) {
+                            deviations.add(StopDetails.delayed(getStringValue(call.getStopPointRef()), delayedDeparture, delayedArrival, delayedArrivalDuration));
+                        }
                     }
                 }
             }
