@@ -1,7 +1,7 @@
 apiVersion: v1
 data:
   application.properties: |-
-        rutebanken.kubernetes.namespace={{.Values.env }}
+        rutebanken.kubernetes.namespace={{ .Release.Namespace }}
         ukur.stop_place_quays.url=https://storage.googleapis.com/anshar-production/mapping_data/stop_place_quays.json
         ukur.stop_place_quays.interval=3600000
         ukur.datastore.useDatastore=true
