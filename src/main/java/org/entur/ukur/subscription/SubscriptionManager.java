@@ -679,7 +679,7 @@ public class SubscriptionManager {
                     pushMessage instanceof PtSituationElement) ||
                     (pushMessage instanceof Siri && ((Siri)pushMessage).getServiceDelivery() != null)) {
                 // Excessive logging of payload
-                logger.info("Sending data: " + payload);
+                logger.info("Sending data: {} for subscription {}", payload, subscription);
             }
 
             byte[] bytes = payload.getBytes();
