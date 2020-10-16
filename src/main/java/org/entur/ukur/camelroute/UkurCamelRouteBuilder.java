@@ -22,12 +22,17 @@ import com.codahale.metrics.Timer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.camel.Exchange;
 import org.apache.camel.LoggingLevel;
+import org.apache.camel.Route;
 import org.apache.camel.builder.xml.Namespaces;
 import org.apache.camel.component.jackson.JacksonDataFormat;
+import org.apache.camel.model.RouteDefinition;
 import org.apache.camel.model.rest.RestBindingMode;
+import org.apache.camel.spi.RouteContext;
+import org.apache.camel.spi.RoutePolicy;
 import org.apache.camel.spring.SpringRouteBuilder;
 import org.apache.http.entity.ContentType;
 import org.entur.protobuf.mapper.SiriMapper;
+import org.entur.ukur.camelroute.policy.InterruptibleHazelcastRoutePolicy;
 import org.entur.ukur.camelroute.status.RouteStatus;
 import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.service.PrometheusMetricsService;
@@ -50,23 +55,26 @@ import java.net.UnknownHostException;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
+import java.util.List;
 import java.util.Map;
 import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
 import static org.apache.camel.Exchange.CONTENT_LENGTH;
+import static org.entur.ukur.camelroute.policy.SingletonRoutePolicyFactory.SINGLETON_ROUTE_DEFINITION_GROUP_NAME;
 
 @Component
 public class UkurCamelRouteBuilder extends SpringRouteBuilder {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
-            static final String ROUTE_ET_RETRIEVER = "seda:retrieveAnsharET";
+  private static final String ROUTE_HEARTBEAT_CHECKER = "seda:heartbeatChecker";
+  private static final String ROUTEID_HEARTBEAT_CHECKER  = "Check Subscriptions For Missing Heartbeats";
+  private static final String ROUTEID_HEARTBEAT_TRIGGER  = "Check Subscriptions Trigger";
+
+  static final String ROUTE_ET_RETRIEVER = "seda:retrieveAnsharET";
             static final String ROUTE_SX_RETRIEVER = "seda:retrieveAnsharSX";
-    private static final String ROUTE_TIAMAT_MAP = "direct:getStopPlacesAndQuays";
-    private static final String ROUTEID_TIAMAT_MAP = "StopPlacesAndQuays";
-    private static final String ROUTEID_TIAMAT_MAP_TRIGGER = "Tiamat trigger";
 
     private final UkurConfiguration config;
     private final ETSubscriptionProcessor ETSubscriptionProcessor;
@@ -112,6 +120,20 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
         createJaxbProcessingRoutes();
         createWorkerRoutes(config.getStopPlaceQuaysURL(), config.getStopPlaceQuaysUpdateIntervalMillis());
         createRestRoutes(config.getRestPort());
+        createQuartzRoutes(config.getHeartbeatCheckInterval());
+
+    }
+
+    private void createQuartzRoutes(int subscriptionCheckerRepatInterval) {
+
+      createSingletonQuartz2Route(
+          "subscriptionHeartbeatAndTermination",
+          subscriptionCheckerRepatInterval,
+          ROUTEID_HEARTBEAT_TRIGGER,
+          ROUTEID_HEARTBEAT_CHECKER,
+          ROUTE_HEARTBEAT_CHECKER
+      );
+
     }
 
     private void createJaxbProcessingRoutes() {
@@ -175,6 +197,20 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
                 .process(SXSubscriptionProcessor)
                 .log(LoggingLevel.DEBUG, "Done handling SX message from queue")
                 .end();
+
+      from(ROUTE_HEARTBEAT_CHECKER)
+                .routeId(ROUTEID_HEARTBEAT_CHECKER)
+                .to("bean:subscriptionManager?method=handleHeartbeatAndTermination()");
+
+    }
+
+    private void createSingletonQuartz2Route(String timerName, int repeatInterval, String triggerRouteId, String toRouteId, String toRoute) {
+        String uri = "quartz2://ukur/" + timerName + "?trigger.repeatInterval=" + repeatInterval + "&startDelayedSeconds=5&fireNow=true";
+        singletonFrom(uri, triggerRouteId)
+            .filter(e -> isLeader(e.getFromRouteId()))
+            .filter(e -> isNotRunning(toRouteId))
+            .log(LoggingLevel.DEBUG, timerName + " triggered by timer")
+            .to(toRoute);
     }
 
     private void createRestRoutes(int jettyPort) {
@@ -267,6 +303,43 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
     @Scope(ConfigurableBeanFactory.SCOPE_PROTOTYPE)
     public JacksonDataFormat jacksonDataFormat(ObjectMapper objectMapper) {
         return new JacksonDataFormat(objectMapper, HashMap.class);
+    }
+
+    private boolean isNotRunning(String routeId) {
+        int size = getContext().getInflightRepository().size(routeId);
+        boolean notRunning = size == 0;
+        logger.trace("Number of running instances of camelroute '{}' is {} - returns {}", routeId, size, notRunning);
+        return notRunning;
+    }
+    private String routeStatus(String triggerRoute) {
+        return isLeader(triggerRoute) ? "LEADER" : "NOT LEADER";
+    }
+
+    /**
+    * Create a new singleton camelroute definition from URI. Only one such camelroute should be active throughout the cluster at any time.
+    */
+    private RouteDefinition singletonFrom(String uri, String routeId) {
+        return this.from(uri)
+            .group(SINGLETON_ROUTE_DEFINITION_GROUP_NAME)
+            .routeId(routeId)
+            .autoStartup(true);
+    }
+
+
+    private boolean isLeader(String routeId) {
+        Route route = getContext().getRoute(routeId);
+        if (route != null) {
+            RouteContext routeContext = route.getRouteContext();
+            List<RoutePolicy> routePolicyList = routeContext.getRoutePolicyList();
+            if (routePolicyList != null) {
+                for (RoutePolicy routePolicy : routePolicyList) {
+                    if (routePolicy instanceof InterruptibleHazelcastRoutePolicy) {
+                        return ((InterruptibleHazelcastRoutePolicy) (routePolicy)).isLeader();
+                    }
+                }
+            }
+        }
+        return false;
     }
 
 }

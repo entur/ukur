@@ -21,6 +21,8 @@ import org.springframework.context.annotation.Configuration;
 @Configuration
 public class UkurConfiguration {
 
+    private static final String QUEUE_PREFIX = "ukur";
+
     @Value("${rutebanken.kubernetes.url:}")
     private String kubernetesUrl;
 
@@ -39,6 +41,9 @@ public class UkurConfiguration {
     @Value("${ukur.stop_place_quays.url:http4://tiamat/services/stop_places/list/stop_place_quays/}")
     private String stopPlaceQuaysURL;
 
+    @Value("${ukur.camel.polling.interval:60000}")
+    private int pollingInterval;
+
     @Value("${ukur.stop_place_quays.interval:3600000}")
     private int stopPlaceQuaysUpdateIntervalMillis;
 
@@ -47,6 +52,9 @@ public class UkurConfiguration {
 
     @Value("${ukur.camel.pubsub.sx}")
     private String sxPubsubQueue;
+
+    @Value("${ukur.camel.subscription-heartbeat-check.interval:10000}")
+    private int heartbeatCheckInterval;
 
     public String getEtPubsubQueue() {
         return etPubsubQueue;
@@ -76,6 +84,9 @@ public class UkurConfiguration {
         return restPort;
     }
 
+    public int getPollingInterval() {
+        return pollingInterval;
+    }
     public String getStopPlaceQuaysURL() {
         return stopPlaceQuaysURL;
     }
@@ -84,4 +95,7 @@ public class UkurConfiguration {
         return stopPlaceQuaysUpdateIntervalMillis;
     }
 
+    public int getHeartbeatCheckInterval() {
+        return heartbeatCheckInterval;
+    }
 }
