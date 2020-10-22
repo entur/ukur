@@ -55,8 +55,3 @@ variable "inbound_anshar_sx_subscription_role" {
   description = "IAM role for inbound anshar sx subscription"
   default = "roles/pubsub.subscriber"
 }
-
-variable "datastore_role" {
-  description = "IAM role for datastore"
-  default = "roles/datastore.user"
-}
