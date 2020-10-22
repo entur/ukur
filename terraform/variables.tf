@@ -38,7 +38,7 @@ variable "inbound_anshar_et_pubsub_subscription" {
 
 variable "inbound_anshar_et_subscription_role" {
   description = "IAM role for inboud anshar et subscription"
-  default = "roles/pubsub.editor"
+  default = "roles/pubsub.subscriber"
 }
 
 variable "inbound_anshar_sx_pubsub_topic" {
@@ -53,5 +53,5 @@ variable "inbound_anshar_sx_pubsub_subscription" {
 
 variable "inbound_anshar_sx_subscription_role" {
   description = "IAM role for inbound anshar sx subscription"
-  default = "roles/pubsub.editor"
+  default = "roles/pubsub.subscriber"
 }
