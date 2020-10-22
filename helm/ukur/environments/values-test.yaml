@@ -6,7 +6,7 @@ env:
 
 configmap:
   pubsub:
-    project_id: radon-1287
+    project_id: entur-ror-test
 
 resources:
   cpuLimit: 7
