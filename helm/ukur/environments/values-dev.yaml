@@ -1,7 +1,7 @@
 replicas: 2
 env:
   datastore:
-    project_id: carbon-1287
+    project_id: entur-ror-dev
 configmap:
   pubsub:
     project_id: entur-ror-dev
