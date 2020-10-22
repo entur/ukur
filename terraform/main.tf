@@ -55,3 +55,9 @@ resource "google_pubsub_subscription_iam_member" "anshar_sx_subscription_iam_mem
   role = var.inbound_anshar_sx_subscription_role
   member = "serviceAccount:${google_service_account.service_account.email}"
 }
+
+resource "google_datastore_iam_member" "datastore_iam_member" {
+  project = var.gcp_project
+  role = var.datastore_role
+  member = "serviceAccount:${google_service_account.service_account.email}"
+}
