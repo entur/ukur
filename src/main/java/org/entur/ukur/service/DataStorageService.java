@@ -24,6 +24,7 @@ import com.google.cloud.datastore.KeyFactory;
 import com.google.cloud.datastore.LongValue;
 import com.google.cloud.datastore.NullValue;
 import com.google.cloud.datastore.Query;
+import com.google.cloud.datastore.QueryResults;
 import com.google.cloud.datastore.StringValue;
 import com.google.cloud.datastore.Transaction;
 import com.hazelcast.core.ITopic;
@@ -105,8 +106,15 @@ public class DataStorageService implements MessageListener<String> {
         Query<Entity> query = Query.newEntityQueryBuilder()
                 .setKind(KIND_SUBSCRIPTIONS)
                 .build();
-        Set<Subscription> subscriptions = convertSubscription(datastore.run(query));
-        logger.info("Fetched {} subscriptions from Datastore", subscriptions.size());
+
+        logger.info("Created query for {}", KIND_SUBSCRIPTIONS);
+
+        final QueryResults<Entity> entities = datastore.run(query);
+
+        logger.info("Fetched entities from Datastore");
+
+        Set<Subscription> subscriptions = convertSubscription(entities);
+        logger.info("Converted to {} subscriptions", subscriptions.size());
 
         HashMap<String, Subscription> idToSubscription = new HashMap<>();
         HashMap<String, Set<String>> stopToSubscription = new HashMap<>();
