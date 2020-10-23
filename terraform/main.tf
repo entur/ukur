@@ -55,3 +55,10 @@ resource "google_pubsub_subscription_iam_member" "anshar_sx_subscription_iam_mem
   role = var.inbound_anshar_sx_subscription_role
   member = "serviceAccount:${google_service_account.service_account.email}"
 }
+
+# add service account as member to the datastore
+resource "google_project_iam_member" "project" {
+  project = var.gcp_project
+  role    = var.service_account_datastore_role
+  member = "serviceAccount:${google_service_account.service_account.email}"
+}
