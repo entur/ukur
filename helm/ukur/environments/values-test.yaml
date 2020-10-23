@@ -2,7 +2,7 @@ replicas: 2
 
 env:
   datastore:
-    project_id: radon-1287
+    project_id: entur-ror-test
 
 configmap:
   pubsub:
