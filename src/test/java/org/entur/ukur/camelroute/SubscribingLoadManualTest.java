@@ -208,7 +208,7 @@ public class SubscribingLoadManualTest extends AbstractJUnit4SpringContextTests 
         HttpURLConnection connection = (HttpURLConnection) new URL(postUrl).openConnection();
         connection.setRequestMethod("POST");
         connection.setRequestProperty("Content-Type", "application/json");
-        connection.setRequestProperty("Content-Length", "" +Integer.toString(bytes.length));
+        connection.setRequestProperty("Content-Length", "" + bytes.length);
         connection.setDoOutput(true);
         connection.setDoInput(true);
         DataOutputStream out = new DataOutputStream(connection.getOutputStream());
@@ -238,7 +238,7 @@ public class SubscribingLoadManualTest extends AbstractJUnit4SpringContextTests 
         connection.setRequestMethod("POST");
         connection.setRequestProperty("Content-Type", "application/xml");
         byte[] bytes = IOUtils.toByteArray(new FileInputStream(file.toFile()));
-        connection.setRequestProperty("Content-Length", "" +Integer.toString(bytes.length));
+        connection.setRequestProperty("Content-Length", "" + bytes.length);
         connection.setDoOutput(true);
         DataOutputStream out = new DataOutputStream(connection.getOutputStream());
         out.write(bytes);
@@ -257,7 +257,7 @@ public class SubscribingLoadManualTest extends AbstractJUnit4SpringContextTests 
             HttpURLConnection connection = (HttpURLConnection) new URL(postUrl).openConnection();
             connection.setRequestMethod("POST");
             connection.setRequestProperty("Content-Type", "application/xml");
-            connection.setRequestProperty("Content-Length", "" +Integer.toString(body.getBytes().length));
+            connection.setRequestProperty("Content-Length", "" + body.getBytes().length);
             connection.setDoOutput(true);
             DataOutputStream out = new DataOutputStream(connection.getOutputStream());
             out.writeBytes(body);
