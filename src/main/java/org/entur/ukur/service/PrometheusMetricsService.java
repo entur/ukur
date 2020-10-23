@@ -16,15 +16,13 @@
 package org.entur.ukur.service;
 
 import com.google.common.collect.Maps;
-import io.micrometer.core.instrument.Gauge;
 import io.micrometer.core.instrument.ImmutableTag;
 import io.micrometer.core.instrument.Meter;
 import io.micrometer.core.instrument.Tag;
 import io.micrometer.prometheus.PrometheusConfig;
 import io.micrometer.prometheus.PrometheusMeterRegistry;
 import org.entur.ukur.subscription.Subscription;
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
+
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.stereotype.Component;
 
@@ -37,7 +35,6 @@ import java.util.Map;
 
 @Component
 public class PrometheusMetricsService extends PrometheusMeterRegistry {
-    private static final Logger logger = LoggerFactory.getLogger(PrometheusMetricsService.class);
 
     @Autowired
     private DataStorageService dataStorageService;
@@ -45,15 +42,12 @@ public class PrometheusMetricsService extends PrometheusMeterRegistry {
     private final String METRICS_PREFIX = "app.ukur.";
 
     private final String DATA_INBOUND_COUNTER_NAME = METRICS_PREFIX + "data.inbound";
-    private final String DATA_INBOUND_SUBSCRIBED_COUNTER_NAME = METRICS_PREFIX + "data.inbound.subscribed";
     private final String DATA_OUTBOUND_COUNTER_NAME = METRICS_PREFIX + "data.outbound";
     private final String DATA_OUTBOUND_SUBSCRIPTION_COUNTER_NAME = METRICS_PREFIX + "data.outbound.subscriptions";
-    private final String DATA_OUTBOUND_FILTERED_COUNTER_NAME = METRICS_PREFIX + "data.outbound.filtered";
     private final String DATA_SUBSCRIPTION_ADDED_COUNTER_NAME = METRICS_PREFIX + "subscription.added";
     private final String DATA_SUBSCRIPTION_REMOVED_COUNTER_NAME = METRICS_PREFIX + "subscription.removed";
     private final String DATA_SUBSCRIPTION_TOTAL_GAUGE_NAME = METRICS_PREFIX + "subscription";
 
-    //private Map<String, Gauge> subscriptionTotalGaugeByHost = Maps.newHashMap();
 
     public PrometheusMetricsService() {
         super(PrometheusConfig.DEFAULT);
@@ -122,17 +116,6 @@ public class PrometheusMetricsService extends PrometheusMeterRegistry {
             List<Tag> counterTags = new ArrayList<>();
             counterTags.add(new ImmutableTag("subscriber", subscriberHost));
             this.gauge(DATA_SUBSCRIPTION_TOTAL_GAUGE_NAME, counterTags, count, BigInteger::doubleValue);
-            /*
-            if (!subscriptionTotalGaugeByHost.containsKey(subscriberHost)) {
-                subscriptionTotalGaugeByHost.put(subscriberHost, Gauge.builder(DATA_SUBSCRIPTION_TOTAL_GAUGE_NAME, count, BigInteger::doubleValue).tags("subscriber", subscriberHost).register(this));
-            }
-            Gauge gauge = subscriptionTotalGaugeByHost.get(subscriberHost);
-            if (gauge instanceof io.prometheus.client.Gauge) {
-                ((io.prometheus.client.Gauge) gauge).clear();
-                ((io.prometheus.client.Gauge) gauge).set(count.doubleValue());
-            }
-
-             */
         }
     }
 }
