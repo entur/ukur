@@ -69,7 +69,7 @@ public class DataStorageConfiguration {
         DataStorageService dataStorageService = new DataStorageService(
                 service,
                 subscriptionCacheRenewerTopic);
-
+        logger.info("DataStorageService created");
         return dataStorageService;
     }
 }

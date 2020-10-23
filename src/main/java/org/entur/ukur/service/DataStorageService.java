@@ -96,6 +96,9 @@ public class DataStorageService implements MessageListener<String> {
     }
 
     private void populateSubscriptionCacheFromDatastore(long time) {
+
+        logger.info("Refreshing Subscription-cache from Datastore");
+
         lastReloadedTime = time;
         //it turned out datastore wasn't suited to our subscription needs - now we simply use it as persistence (maybe not the best usage of datatore...)
         //TODO: This aproach will not scale with massive amounts of subscriptions.... But it doesn't seem like we will have many anyway as we don't deal with clients directly
@@ -103,6 +106,8 @@ public class DataStorageService implements MessageListener<String> {
                 .setKind(KIND_SUBSCRIPTIONS)
                 .build();
         Set<Subscription> subscriptions = convertSubscription(datastore.run(query));
+        logger.info("Fetched {} subscriptions from Datastore", subscriptions.size());
+
         HashMap<String, Subscription> idToSubscription = new HashMap<>();
         HashMap<String, Set<String>> stopToSubscription = new HashMap<>();
         HashMap<String, Set<String>> lineNoStopsToSubscription = new HashMap<>();
@@ -111,6 +116,7 @@ public class DataStorageService implements MessageListener<String> {
             addOrUpdateSubscriptionInLocalStorage(idToSubscription, stopToSubscription, lineNoStopsToSubscription, codespaceNoStopsToSubscription, subscription);
         }
         updateSubscriptionCache(idToSubscription, stopToSubscription, lineNoStopsToSubscription, codespaceNoStopsToSubscription);
+        logger.info("Cache updated");
     }
 
     private void addOrUpdateSubscriptionInLocalStorage(HashMap<String, Subscription> idToSubscription, HashMap<String, Set<String>> stopToSubscription, HashMap<String, Set<String>> lineNoStopsToSubscription, HashMap<String, Set<String>> codespaceNoStopsToSubscription, Subscription subscription) {
