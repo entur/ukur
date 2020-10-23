@@ -259,7 +259,7 @@
         <dependency>
             <groupId>com.google.cloud</groupId>
             <artifactId>google-cloud-datastore</artifactId>
-            <version>1.105.0</version>
+            <version>1.90.0</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.google.api</groupId>
