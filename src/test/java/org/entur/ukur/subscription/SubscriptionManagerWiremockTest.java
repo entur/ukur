@@ -31,7 +31,16 @@ import org.hamcrest.CoreMatchers;
 import org.junit.Before;
 import org.junit.Rule;
 import org.junit.Test;
-import uk.org.siri.siri20.*;
+import uk.org.siri.siri20.AffectedRouteStructure;
+import uk.org.siri.siri20.AffectedVehicleJourneyStructure;
+import uk.org.siri.siri20.EstimatedTimetableDeliveryStructure;
+import uk.org.siri.siri20.EstimatedVehicleJourney;
+import uk.org.siri.siri20.EstimatedVersionFrameStructure;
+import uk.org.siri.siri20.HeartbeatNotificationStructure;
+import uk.org.siri.siri20.OperatorRefStructure;
+import uk.org.siri.siri20.PtSituationElement;
+import uk.org.siri.siri20.Siri;
+import uk.org.siri.siri20.SubscriptionTerminatedNotificationStructure;
 
 import javax.xml.bind.JAXBException;
 import javax.xml.datatype.DatatypeFactory;
@@ -46,7 +55,12 @@ import java.util.List;
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
 import static org.hamcrest.CoreMatchers.hasItem;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
 public class SubscriptionManagerWiremockTest extends DatastoreTest {
@@ -535,7 +549,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
     private void waitAndVerifyFailedPushCounter(int expected, Subscription subscription) {
         long start = System.currentTimeMillis();
         long actual = 0;
-        while (System.currentTimeMillis() - start < 10000) {
+        while (System.currentTimeMillis() - start < 20000) {
             actual = subscription.getFailedPushCounter();
             if (actual > expected) {
                 fail("Expected " + expected + " found " + actual);
