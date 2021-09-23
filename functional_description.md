@@ -7,10 +7,10 @@ This is a functional description of how Ukur works.
 There are two ways to create and maintain subscriptions in Ukur: a original json way and the standardized SIRI format with XML. 
 The latter does not support subscriptions on to- and from-stops, but otherwise they are quite similar. Ukur is not intended to
 push messages directly to end-user clients, instead it is expected that the subscriber handles that with knowledge about what 
-to push, how often etc. Also the subscriber should make sure that similar subscriptions to end-users result in only one 
+to push, how often, etc. Also the subscriber should make sure that similar subscriptions to end-users result in only one 
 subscription to Ukur.  
 
-### Properitary JSON format 
+### Proprietary JSON format 
 
 To subscribe, **post** subscription data to https://{BASE_URL}/subscription as `application/json`.  
 
