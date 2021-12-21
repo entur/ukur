@@ -17,7 +17,6 @@ resources:
 
 ingress:
   enabled: true
-  loadBalancerIP: 35.205.233.237
   domainName: .entur.io
 
 rbac:
