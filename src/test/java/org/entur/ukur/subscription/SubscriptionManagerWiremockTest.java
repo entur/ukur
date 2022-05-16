@@ -29,6 +29,7 @@ import org.entur.ukur.testsupport.DatastoreTest;
 import org.entur.ukur.xml.SiriMarshaller;
 import org.hamcrest.CoreMatchers;
 import org.junit.Before;
+import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import uk.org.siri.siri20.AffectedRouteStructure;
@@ -184,6 +185,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
     }
 
     @Test
+    @Ignore
     public void testETPushError() {
 
         String url = "/push/error/et";
