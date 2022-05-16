@@ -29,7 +29,6 @@ import org.entur.ukur.testsupport.DatastoreTest;
 import org.entur.ukur.xml.SiriMarshaller;
 import org.hamcrest.CoreMatchers;
 import org.junit.Before;
-import org.junit.Ignore;
 import org.junit.Rule;
 import org.junit.Test;
 import uk.org.siri.siri20.AffectedRouteStructure;
@@ -568,7 +567,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
     private void waitAndVerifyAtLeast(int expected, RequestPatternBuilder requestPatternBuilder) {
         long start = System.currentTimeMillis();
         int actual = 0;
-        while (System.currentTimeMillis() - start < 30000) {
+        while (System.currentTimeMillis() - start < 20000) {
             List<LoggedRequest> all = findAll(requestPatternBuilder);
             actual = all.size();
             if (actual > expected) {
@@ -578,7 +577,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
                 return;
             }
         }
-        fail("Expected " + expected + " but found only " + actual + " before we timed out after " + (System.currentTimeMillis() - start) +" ms...");
+        fail("Expected " + expected + " but found only " + actual + " before we timed out...");
     }
 
     private void waitAndVerifyNotificationsInOrder(RequestPatternBuilder requestPatternBuilder, Class... notifications) throws Exception {
