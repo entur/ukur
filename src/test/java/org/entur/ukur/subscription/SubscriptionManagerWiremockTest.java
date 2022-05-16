@@ -567,7 +567,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
     private void waitAndVerifyAtLeast(int expected, RequestPatternBuilder requestPatternBuilder) {
         long start = System.currentTimeMillis();
         int actual = 0;
-        while (System.currentTimeMillis() - start < 10000) {
+        while (System.currentTimeMillis() - start < 20000) {
             List<LoggedRequest> all = findAll(requestPatternBuilder);
             actual = all.size();
             if (actual > expected) {
