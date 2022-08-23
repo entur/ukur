@@ -356,7 +356,7 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
         EstimatedVehicleJourney.EstimatedCalls estimatedCalls = estimatedVehicleJourney.getEstimatedCalls();
         boolean cancelledJourney = Boolean.TRUE.equals(estimatedVehicleJourney.isCancellation());
         List<StopDetails> deviations = new ArrayList<>();
-        if (estimatedCalls.getEstimatedCalls() != null) {
+        if (estimatedCalls != null && estimatedCalls.getEstimatedCalls() != null) {
             for (EstimatedCall call : estimatedCalls.getEstimatedCalls()) {
                 if (futureEstimatedCall(call)) {
                     if (cancelledJourney || Boolean.TRUE.equals(call.isCancellation())) {
