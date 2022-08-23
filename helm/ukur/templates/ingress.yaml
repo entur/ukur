@@ -14,7 +14,8 @@ spec:
   - host: realtime-deviations-v1{{ .Values.ingress.domainName }}
     http:
       paths:
-        - backend:
+        - pathType: ImplementationSpecific
+          backend:
             service:
               name:  {{ template "ukur.name" . }}
               port:
