@@ -43,8 +43,7 @@
             <pattern>%date{HH:mm:ss} [%thread] %-5level %logger{35} - %msg %n</pattern>
         </encoder>
     </appender>
-    <logger name="org.entur" level="DEBUG"/>
-    <root level="INFO">
+    <root level="WARN">
         <appender-ref ref="${logback-appender:-console}"/>
     </root>
 </configuration>
