@@ -20,7 +20,6 @@ import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.datastore.testing.LocalDatastoreHelper;
 import com.hazelcast.core.ITopic;
-import org.apache.commons.lang3.StringUtils;
 import org.entur.ukur.service.DataStorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -28,6 +27,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.context.annotation.Profile;
 
 import java.io.IOException;
 
@@ -43,33 +43,39 @@ public class DataStorageConfiguration {
     }
 
     @Bean
-    public DataStorageService createDataStorageService() throws IOException, InterruptedException {
-        Datastore service;
-        String google_application_credentials = System.getenv("GOOGLE_APPLICATION_CREDENTIALS");
-        if (StringUtils.isNotBlank(google_application_credentials)) {
-            service = DatastoreOptions.getDefaultInstance().getService();
+    @Profile("gcp-datastore")
+    public DataStorageService createDataStorageService()  {
+        Datastore service = DatastoreOptions.getDefaultInstance().getService();
             logger.info("Found GOOGLE_APPLICATION_CREDENTIALS as environment varable and instantiates a Datastore service based on those!");
-        } else {
-            LocalDatastoreHelper helper = LocalDatastoreHelper.create(1.0);
-            helper.start();
-            service = helper.getOptions().toBuilder().setNamespace("LocalTesting").build().getService();
-            logger.info("Uses LocalDatastoreHelper to emulate a Datastore service");
-            logger.warn("This node is not part of any datastore cluster and data is not persisted");
-            Runtime.getRuntime().addShutdownHook(new Thread(() -> {
-                try {
-                    logger.info("Shuts down LocalDatastoreHelper...");
-                    helper.stop();
-                    logger.info("...LocalDatastoreHelper is stopped");
-                } catch (Exception e) {
-                    logger.error("Could not shut down LocalDatastoreHelper", e);
-                }
-            }));
-        }
+
         logger.info("Creates a DataStorageService on Google Datastore");
         DataStorageService dataStorageService = new DataStorageService(
                 service,
                 subscriptionCacheRenewerTopic);
         logger.info("DataStorageService created");
         return dataStorageService;
+    }
+
+    @Bean
+    @Profile("local-datastore")
+    public DataStorageService createLocalDateStorage() throws IOException, InterruptedException {
+        LocalDatastoreHelper helper = LocalDatastoreHelper.create(1.0);
+        helper.start();
+        Datastore service = helper.getOptions().toBuilder().setNamespace("LocalTesting").build().getService();
+        logger.info("Uses LocalDatastoreHelper to emulate a Datastore service");
+        logger.warn("This node is not part of any datastore cluster and data is not persisted");
+        Runtime.getRuntime().addShutdownHook(new Thread(() -> {
+            try {
+                logger.info("Shuts down LocalDatastoreHelper...");
+                helper.stop();
+                logger.info("...LocalDatastoreHelper is stopped");
+            } catch (Exception e) {
+                logger.error("Could not shut down LocalDatastoreHelper", e);
+            }
+        }));
+
+        return  new DataStorageService(
+                service,
+                subscriptionCacheRenewerTopic);
     }
 }
