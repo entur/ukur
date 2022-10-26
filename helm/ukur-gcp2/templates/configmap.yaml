@@ -14,7 +14,7 @@ data:
         ukur.camel.pubsub.et=entur-google-pubsub://ukur.protobuf.estimated_timetables.subscription
         ukur.camel.pubsub.sx=entur-google-pubsub://ukur.protobuf.situation_exchange.subscription
         spring.cloud.gcp.pubsub.project-id={{ .Values.configmap.pubsub.project_id }}
-        
+        spring.profiles.active=gcp-datastore
         #logging.level.root=INFO
 kind: ConfigMap
 metadata:
