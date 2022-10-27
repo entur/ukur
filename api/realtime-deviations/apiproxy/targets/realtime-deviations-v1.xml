@@ -24,6 +24,6 @@
     </PreFlow>
     <HTTPTargetConnection>
         <Properties/>
-        <URL>https://realtime-deviations-v1.INGRESS_ENVIRONMENT/external</URL>
+        <URL>https://realtime-deviations-v1-gcp2.INGRESS_ENVIRONMENT/external</URL>
     </HTTPTargetConnection>
 </TargetEndpoint>
