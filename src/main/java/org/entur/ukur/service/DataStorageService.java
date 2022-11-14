@@ -27,9 +27,9 @@ import com.google.cloud.datastore.Query;
 import com.google.cloud.datastore.QueryResults;
 import com.google.cloud.datastore.StringValue;
 import com.google.cloud.datastore.Transaction;
-import com.hazelcast.core.ITopic;
-import com.hazelcast.core.Message;
-import com.hazelcast.core.MessageListener;
+import com.hazelcast.topic.ITopic;
+import com.hazelcast.topic.Message;
+import com.hazelcast.topic.MessageListener;
 import org.apache.commons.lang3.StringUtils;
 import org.entur.ukur.subscription.DeviationType;
 import org.entur.ukur.subscription.Subscription;
@@ -86,7 +86,7 @@ public class DataStorageService implements MessageListener<String> {
                 populateSubscriptionCacheFromDatastore();
                 logger.debug("Reloads subscriptions from datastore");
             } catch (Exception e) {
-                logger.error("Got excetption while reloading subscriptions from datastore", e);
+                logger.error("Got exception while reloading subscriptions from datastore", e);
             }
         }, 1, 1, TimeUnit.HOURS);
     }

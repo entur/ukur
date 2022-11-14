@@ -18,7 +18,7 @@ package org.entur.ukur.camelroute;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 import com.google.common.collect.Sets;
-import com.hazelcast.core.IMap;
+import com.hazelcast.map.IMap;
 import org.apache.commons.io.IOUtils;
 import org.entur.ukur.App;
 import org.entur.ukur.camelroute.testconfig.WiremockTestConfig;

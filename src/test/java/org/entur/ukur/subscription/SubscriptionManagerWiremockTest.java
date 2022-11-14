@@ -20,7 +20,7 @@ import com.github.tomakehurst.wiremock.matching.RequestPatternBuilder;
 import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 import com.google.common.collect.Sets;
 import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.core.ITopic;
+import com.hazelcast.topic.ITopic;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
 import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.MetricsService;

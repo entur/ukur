@@ -17,6 +17,11 @@
          xsi:schemaLocation="http://maven.apache.org/POM/4.0.0 http://maven.apache.org/maven-v4_0_0.xsd">
 
     <modelVersion>4.0.0</modelVersion>
+    <parent>
+        <groupId>org.entur.ror</groupId>
+        <artifactId>superpom</artifactId>
+        <version>1.48</version>
+    </parent>
 
     <groupId>org.entur</groupId>
     <artifactId>ukur</artifactId>
@@ -29,11 +34,11 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <docker.maven.plugin.version>0.21.0</docker.maven.plugin.version>
-        <spring.version>2.1.1.RELEASE</spring.version>
+        <spring.version>2.7.5</spring.version>
         <metrics-version>4.0.3</metrics-version>
-        <camel.version>2.22.1</camel.version>
-        <hazelcast.version>3.11</hazelcast.version>
-        <entur.helpers.version>1.0.22</entur.helpers.version>
+        <camel.version>3.19.0</camel.version>
+        <hazelcast.version>5.2.0</hazelcast.version>
+        <entur.helpers.version>1.86</entur.helpers.version>
     </properties>
 
     <licenses>
@@ -47,6 +52,20 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
+                <groupId>org.apache.camel</groupId>
+                <artifactId>camel-bom</artifactId>
+                <version>${camel.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
+                <groupId>org.apache.camel.springboot</groupId>
+                <artifactId>camel-spring-boot-dependencies</artifactId>
+                <version>${camel.version}</version>
+                <type>pom</type>
+                <scope>import</scope>
+            </dependency>
+            <dependency>
                 <!-- Import dependency management from Spring Boot -->
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-dependencies</artifactId>
@@ -54,20 +73,15 @@
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
-
             <dependency>
-                <groupId>org.apache.camel</groupId>
-                <artifactId>camel-spring-boot-dependencies</artifactId>
-                <version>${camel.version}</version>
-                <type>pom</type>
-                <scope>import</scope>
+                <groupId>org.entur.ror.helpers</groupId>
+                <artifactId>camel3-entur-google-pubsub</artifactId>
+                <version>${entur.helpers.version}</version>
             </dependency>
-
             <dependency>
-                <!-- Override transitive dependency from hazelcast-helpers with newest version -->
-                <groupId>io.fabric8</groupId>
-                <artifactId>kubernetes-client</artifactId>
-                <version>4.0.5</version>
+                <groupId>org.entur.ror.helpers</groupId>
+                <artifactId>hazelcast4-helper</artifactId>
+                <version>${entur.helpers.version}</version>
             </dependency>
 
             <dependency>
@@ -84,12 +98,12 @@
         <dependency>
             <groupId>javax.xml.bind</groupId>
             <artifactId>jaxb-api</artifactId>
-            <version>2.3.0</version>
+            <version>2.4.0-b180830.0359</version>
         </dependency>
         <dependency>
             <groupId>org.glassfish.jaxb</groupId>
             <artifactId>jaxb-runtime</artifactId>
-            <version>2.3.0.1</version>
+            <version>4.0.0</version>
         </dependency>
         <dependency>
             <groupId>com.sun.activation</groupId>
@@ -102,7 +116,7 @@
         </dependency>
         <dependency>
             <groupId>org.apache.camel</groupId>
-            <artifactId>camel-http4</artifactId>
+            <artifactId>camel-http</artifactId>
         </dependency>
         <dependency>
             <groupId>org.apache.camel</groupId>
@@ -121,12 +135,13 @@
             <artifactId>camel-jaxb</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.apache.camel</groupId>
-            <artifactId>camel-spring-boot</artifactId>
+            <groupId>org.apache.camel.springboot</groupId>
+            <artifactId>camel-spring-boot-starter</artifactId>
+            <version>${camel.version}</version>
         </dependency>
         <dependency>
             <groupId>org.apache.camel</groupId>
-            <artifactId>camel-quartz2</artifactId>
+            <artifactId>camel-quartz</artifactId>
         </dependency>
         <dependency>
             <groupId>org.apache.camel</groupId>
@@ -141,8 +156,8 @@
             <artifactId>camel-swagger-java</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.entur.helpers</groupId>
-            <artifactId>camel-entur-google-pubsub</artifactId>
+            <groupId>org.entur.ror.helpers</groupId>
+            <artifactId>camel3-entur-google-pubsub</artifactId>
             <version>${entur.helpers.version}</version>
         </dependency>
         <dependency>
@@ -150,6 +165,17 @@
             <artifactId>camel-metrics</artifactId>
         </dependency>
 
+        <dependency>
+            <groupId>javax.el</groupId>
+            <artifactId>javax.el-api</artifactId>
+            <version>3.0.0</version>
+            <scope>provided</scope>
+        </dependency>
+        <dependency>
+            <groupId>xerces</groupId>
+            <artifactId>xercesImpl</artifactId>
+            <version>2.12.2</version>
+        </dependency>
         <dependency>
             <groupId>com.esotericsoftware</groupId>
             <artifactId>kryo-shaded</artifactId>
@@ -166,21 +192,21 @@
         </dependency>
 
         <dependency>
-            <groupId>org.entur.helpers</groupId>
-            <artifactId>hazelcast-helper</artifactId>
+            <groupId>org.entur.ror.helpers</groupId>
+            <artifactId>hazelcast4-helper</artifactId>
             <version>${entur.helpers.version}</version>
         </dependency>
 
         <dependency>
             <groupId>org.entur</groupId>
             <artifactId>siri-java-model</artifactId>
-            <version>0.12</version>
+            <version>0.14</version>
         </dependency>
 
         <dependency>
             <groupId>org.entur</groupId>
             <artifactId>siri-protobuf-mapper</artifactId>
-            <version>0.4.1</version>
+            <version>0.9</version>
         </dependency>
 
         <dependency>
@@ -192,7 +218,7 @@
         <dependency>
             <groupId>com.google.guava</groupId>
             <artifactId>guava</artifactId>
-            <version>27.0-jre</version>
+            <version>31.1-jre</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.google.api</groupId>
@@ -258,8 +284,14 @@
 
         <dependency>
             <groupId>com.google.cloud</groupId>
+            <artifactId>google-cloud-pubsub</artifactId>
+            <version>1.120.24</version>
+        </dependency>
+
+        <dependency>
+            <groupId>com.google.cloud</groupId>
             <artifactId>google-cloud-datastore</artifactId>
-            <version>1.90.0</version>
+            <version>2.12.5</version>
             <exclusions>
                 <exclusion>
                     <groupId>com.google.api</groupId>
@@ -309,42 +341,15 @@
         </dependency>
 
     </dependencies>
+
     <build>
         <plugins>
             <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-compiler-plugin</artifactId>
-                <version>3.8.0</version>
-                <configuration>
-                    <source>11</source>
-                    <target>11</target>
-                    <forceJavacCompilerUse>true</forceJavacCompilerUse>
-                </configuration>
-            </plugin>
-            <plugin>
-                <groupId>org.apache.maven.plugins</groupId>
-                <artifactId>maven-surefire-plugin</artifactId>
-                <version>3.0.0-M1</version>
-                <inherited>true</inherited>
-                <configuration>
-                    <excludes>
-                        <exclude>**/*ManualTest.java</exclude>
-                    </excludes>
-                </configuration>
-            </plugin>
-            <plugin>
                 <groupId>org.springframework.boot</groupId>
                 <artifactId>spring-boot-maven-plugin</artifactId>
-                <version>${spring.version}</version>
-                <executions>
-                    <execution>
-                        <goals>
-                            <goal>repackage</goal>
-                        </goals>
-                    </execution>
-                </executions>
             </plugin>
         </plugins>
     </build>
+
 
 </project>

@@ -22,12 +22,10 @@ import com.codahale.metrics.Timer;
 import com.fasterxml.jackson.databind.ObjectMapper;
 import org.apache.camel.Exchange;
 import org.apache.camel.LoggingLevel;
-import org.apache.camel.Route;
-import org.apache.camel.builder.xml.Namespaces;
+import org.apache.camel.support.builder.Namespaces;
 import org.apache.camel.component.jackson.JacksonDataFormat;
 import org.apache.camel.model.RouteDefinition;
 import org.apache.camel.model.rest.RestBindingMode;
-import org.apache.camel.spi.RouteContext;
 import org.apache.camel.spi.RoutePolicy;
 import org.apache.camel.spring.SpringRouteBuilder;
 import org.apache.http.entity.ContentType;
@@ -126,7 +124,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
 
     private void createQuartzRoutes(int subscriptionCheckerRepatInterval) {
 
-      createSingletonQuartz2Route(
+      createSingletonQuartzRoute(
           "subscriptionHeartbeatAndTermination",
           subscriptionCheckerRepatInterval,
           ROUTEID_HEARTBEAT_TRIGGER,
@@ -204,8 +202,8 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
 
     }
 
-    private void createSingletonQuartz2Route(String timerName, int repeatInterval, String triggerRouteId, String toRouteId, String toRoute) {
-        String uri = "quartz2://ukur/" + timerName + "?trigger.repeatInterval=" + repeatInterval + "&startDelayedSeconds=5&fireNow=true";
+    private void createSingletonQuartzRoute(String timerName, int repeatInterval, String triggerRouteId, String toRouteId, String toRoute) {
+        String uri = "quartz://ukur/" + timerName + "?trigger.repeatInterval=" + repeatInterval;
         singletonFrom(uri, triggerRouteId)
             .filter(e -> isLeader(e.getFromRouteId()))
             .filter(e -> isNotRunning(toRouteId))
@@ -249,7 +247,7 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
 
         from("direct:scrape")
                 .routeId("Prometheus scrape")
-                .bean(prometheusMeterRegistry, "scrape")
+                .bean(prometheusMeterRegistry, "scrape()")
                 .setHeader(Exchange.CONTENT_TYPE, constant(ContentType.TEXT_PLAIN))
                 .setHeader(Exchange.HTTP_RESPONSE_CODE, constant("200"));
 
@@ -327,15 +325,11 @@ public class UkurCamelRouteBuilder extends SpringRouteBuilder {
 
 
     private boolean isLeader(String routeId) {
-        Route route = getContext().getRoute(routeId);
-        if (route != null) {
-            RouteContext routeContext = route.getRouteContext();
-            List<RoutePolicy> routePolicyList = routeContext.getRoutePolicyList();
-            if (routePolicyList != null) {
-                for (RoutePolicy routePolicy : routePolicyList) {
-                    if (routePolicy instanceof InterruptibleHazelcastRoutePolicy) {
-                        return ((InterruptibleHazelcastRoutePolicy) (routePolicy)).isLeader();
-                    }
+        List<RoutePolicy> routePolicyList =getContext().getRoute(routeId).getRoutePolicyList();
+        if (routePolicyList != null) {
+            for (RoutePolicy routePolicy : routePolicyList) {
+                if (routePolicy instanceof InterruptibleHazelcastRoutePolicy) {
+                    return ((InterruptibleHazelcastRoutePolicy) (routePolicy)).isLeader();
                 }
             }
         }

@@ -15,7 +15,11 @@
 
 package org.entur.ukur.service;
 
-import com.hazelcast.core.*;
+import com.hazelcast.cluster.Member;
+import com.hazelcast.core.HazelcastInstance;
+import com.hazelcast.map.IMap;
+import com.hazelcast.cluster.Cluster;
+import com.hazelcast.topic.ITopic;
 import org.entur.ukur.setup.UkurConfiguration;
 import org.entur.ukur.subscription.MessageIdentifierKey;
 import org.rutebanken.hazelcasthelper.service.HazelCastService;
@@ -39,7 +43,7 @@ public class ExtendedHazelcastService extends HazelCastService {
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
     public ExtendedHazelcastService(@Autowired KubernetesService kubernetesService, @Autowired UkurConfiguration cfg) {
-        super(kubernetesService, cfg.getHazelcastManagementUrl());
+        super(kubernetesService);
     }
 
     public HazelcastInstance getHazelcastInstance() {

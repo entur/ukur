@@ -19,7 +19,7 @@ package org.entur.ukur.setup;
 import com.google.cloud.datastore.Datastore;
 import com.google.cloud.datastore.DatastoreOptions;
 import com.google.cloud.datastore.testing.LocalDatastoreHelper;
-import com.hazelcast.core.ITopic;
+import com.hazelcast.topic.ITopic;
 import org.entur.ukur.service.DataStorageService;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
