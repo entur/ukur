@@ -3,7 +3,7 @@ terraform {
 }
 
 provider "google" {
-  version = ">= 4.26"
+  version = "~> 4.84.0"
 }
 
 resource "google_pubsub_subscription" "anshar_et_subscription" {
