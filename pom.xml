@@ -20,7 +20,7 @@
     <parent>
         <groupId>org.entur.ror</groupId>
         <artifactId>superpom</artifactId>
-        <version>1.48</version>
+        <version>2.4</version>
     </parent>
 
     <groupId>org.entur</groupId>
@@ -34,9 +34,9 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <docker.maven.plugin.version>0.21.0</docker.maven.plugin.version>
-        <spring.version>2.7.5</spring.version>
+        <spring-boot.version>3.1.5</spring-boot.version>
         <metrics-version>4.0.3</metrics-version>
-        <camel.version>3.19.0</camel.version>
+        <camel.version>4.1.0</camel.version>
         <hazelcast.version>5.2.0</hazelcast.version>
         <entur.helpers.version>1.86</entur.helpers.version>
     </properties>
@@ -52,31 +52,25 @@
     <dependencyManagement>
         <dependencies>
             <dependency>
-                <groupId>org.apache.camel</groupId>
-                <artifactId>camel-bom</artifactId>
-                <version>${camel.version}</version>
+                <groupId>org.springframework.boot</groupId>
+                <artifactId>spring-boot-dependencies</artifactId>
+                <version>${spring-boot.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
             <dependency>
                 <groupId>org.apache.camel.springboot</groupId>
-                <artifactId>camel-spring-boot-dependencies</artifactId>
+                <artifactId>camel-spring-boot-bom</artifactId>
                 <version>${camel.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
             </dependency>
             <dependency>
-                <!-- Import dependency management from Spring Boot -->
-                <groupId>org.springframework.boot</groupId>
-                <artifactId>spring-boot-dependencies</artifactId>
-                <version>${spring.version}</version>
+                <groupId>org.apache.camel</groupId>
+                <artifactId>camel-bom</artifactId>
+                <version>${camel.version}</version>
                 <type>pom</type>
                 <scope>import</scope>
-            </dependency>
-            <dependency>
-                <groupId>org.entur.ror.helpers</groupId>
-                <artifactId>camel3-entur-google-pubsub</artifactId>
-                <version>${entur.helpers.version}</version>
             </dependency>
             <dependency>
                 <groupId>org.entur.ror.helpers</groupId>
@@ -135,11 +129,6 @@
             <artifactId>camel-jaxb</artifactId>
         </dependency>
         <dependency>
-            <groupId>org.apache.camel.springboot</groupId>
-            <artifactId>camel-spring-boot-starter</artifactId>
-            <version>${camel.version}</version>
-        </dependency>
-        <dependency>
             <groupId>org.apache.camel</groupId>
             <artifactId>camel-quartz</artifactId>
         </dependency>
@@ -153,12 +142,7 @@
         </dependency>
         <dependency>
             <groupId>org.apache.camel</groupId>
-            <artifactId>camel-swagger-java</artifactId>
-        </dependency>
-        <dependency>
-            <groupId>org.entur.ror.helpers</groupId>
-            <artifactId>camel3-entur-google-pubsub</artifactId>
-            <version>${entur.helpers.version}</version>
+            <artifactId>camel-openapi-java</artifactId>
         </dependency>
         <dependency>
             <groupId>org.apache.camel</groupId>
@@ -200,13 +184,13 @@
         <dependency>
             <groupId>org.entur</groupId>
             <artifactId>siri-java-model</artifactId>
-            <version>0.14</version>
+            <version>1.25</version>
         </dependency>
 
         <dependency>
             <groupId>org.entur</groupId>
             <artifactId>siri-protobuf-mapper</artifactId>
-            <version>0.9</version>
+            <version>1.0.3</version>
         </dependency>
 
         <dependency>
@@ -314,16 +298,6 @@
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.camel</groupId>
-            <artifactId>camel-test</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.apache.camel</groupId>
-            <artifactId>camel-test-spring</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>

@@ -24,7 +24,7 @@ import org.mockito.junit.MockitoJUnitRunner;
 import uk.org.siri.siri20.*;
 
 import javax.xml.datatype.DatatypeFactory;
-import javax.xml.datatype.Duration;
+import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
@@ -280,8 +280,7 @@ public class SiriXMLSubscriptionHandlerTest {
     }
 
     static Siri createSubscriptionRequest(boolean sx, boolean addLines) throws Exception {
-        DatatypeFactory datatypeFactory = DatatypeFactory.newInstance();
-        Duration heartbeatInterval = datatypeFactory.newDuration(HEARTBEAT_INTERVAL);
+        Duration heartbeatInterval = Duration.parse(HEARTBEAT_INTERVAL);
         LineRef lineRef1 = new LineRef();
         lineRef1.setValue("NSB:Line:L1");
         LineRef lineRef2 = new LineRef();

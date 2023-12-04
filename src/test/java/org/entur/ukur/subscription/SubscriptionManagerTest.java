@@ -21,7 +21,7 @@ import org.entur.ukur.service.QuayAndStopPlaceMappingService;
 import org.entur.ukur.xml.SiriMarshaller;
 import org.junit.Test;
 
-import javax.xml.bind.JAXBException;
+import jakarta.xml.bind.JAXBException;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.Set;

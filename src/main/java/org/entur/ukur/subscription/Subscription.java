@@ -19,7 +19,7 @@ import com.fasterxml.jackson.annotation.JsonFormat;
 import com.fasterxml.jackson.annotation.JsonIgnore;
 import org.apache.commons.lang3.StringUtils;
 
-import javax.xml.datatype.Duration;
+import java.time.Duration;
 import java.io.Serializable;
 import java.net.MalformedURLException;
 import java.net.URL;

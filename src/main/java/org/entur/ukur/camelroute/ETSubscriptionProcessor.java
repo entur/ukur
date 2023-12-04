@@ -185,12 +185,11 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
 
     }
 
-    private boolean delayedLessThan(Duration delayDuration, javax.xml.datatype.Duration minimumDelay) {
+    private boolean delayedLessThan(Duration delayDuration, Duration minimumDelay) {
         if (minimumDelay == null) {
             return false;
         } else {
-            var dateNow = Date.from(Instant.now());
-            var minimumDelayTimeInMillis = minimumDelay.getTimeInMillis(dateNow);
+            var minimumDelayTimeInMillis = minimumDelay.toMillis();
             var delayedArrivalInMillis = delayDuration.toMillis();
             return delayedArrivalInMillis <= minimumDelayTimeInMillis;
         }

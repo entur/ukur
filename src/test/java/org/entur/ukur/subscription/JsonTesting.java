@@ -25,6 +25,7 @@ import org.slf4j.LoggerFactory;
 import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
 import java.io.IOException;
+import java.time.Duration;
 import java.time.ZonedDateTime;
 
 import static org.junit.Assert.*;
@@ -46,8 +47,8 @@ public class JsonTesting {
         subscription.addFromStopPoint("NRS:StopPlace:1");
         subscription.addToStopPoint("NRS:StopPlace:2");
         subscription.setPushAddress("http://localhost:888/blabla");
-        subscription.setHeartbeatInterval(datatypeFactory.newDuration("PT15M"));
-        subscription.setMinimumDelay(datatypeFactory.newDuration("PT30M"));
+        subscription.setHeartbeatInterval(Duration.parse("PT15M"));
+        subscription.setMinimumDelay(Duration.parse("PT30M"));
         subscription.setInitialTerminationTime(ZonedDateTime.now().plusWeeks(1));
 
         ObjectMapper mapper = new ObjectMapper();
@@ -120,8 +121,7 @@ public class JsonTesting {
         assertEquals(SubscriptionTypeEnum.SX, subscription.getType());
         assertTrue(subscription.isUseSiriSubscriptionModel());
         assertNotNull(subscription.getInitialTerminationTime());
-        DatatypeFactory datatypeFactory = DatatypeFactory.newInstance();
-        assertEquals(datatypeFactory.newDuration("PT15M"), subscription.getHeartbeatInterval());
-        assertEquals(datatypeFactory.newDuration("PT30M"), subscription.getMinimumDelay());
+        assertEquals(Duration.parse("PT15M"), subscription.getHeartbeatInterval());
+        assertEquals(Duration.parse("PT30M"), subscription.getMinimumDelay());
     }
 }

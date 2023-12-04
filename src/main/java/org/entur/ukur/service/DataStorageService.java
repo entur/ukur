@@ -37,9 +37,9 @@ import org.entur.ukur.subscription.SubscriptionTypeEnum;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
-import javax.annotation.PostConstruct;
-import javax.xml.datatype.DatatypeFactory;
-import javax.xml.datatype.Duration;
+import jakarta.annotation.PostConstruct;
+
+import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 import java.util.Arrays;
@@ -361,8 +361,8 @@ public class DataStorageService implements MessageListener<String> {
 
     private Duration toDuration(String heartbeatInterval) {
         try {
-            DatatypeFactory datatypeFactory = DatatypeFactory.newInstance();
-            return datatypeFactory.newDuration(heartbeatInterval);
+
+            return Duration.parse(heartbeatInterval);
         } catch (Exception e) {
             logger.error("Can't convert '{}' to a Duration instance", heartbeatInterval);
             return null;

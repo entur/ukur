@@ -28,10 +28,10 @@ import org.junit.Test;
 import org.mockito.ArgumentCaptor;
 import uk.org.siri.siri20.*;
 
-import javax.xml.bind.JAXBException;
+import jakarta.xml.bind.JAXBException;
 import javax.xml.datatype.DatatypeConfigurationException;
 import javax.xml.datatype.DatatypeFactory;
-import javax.xml.datatype.Duration;
+import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
 import java.util.Arrays;
@@ -95,9 +95,8 @@ public class ETSubscriptionProcessorTest {
     @SuppressWarnings("unchecked")
     @Test
     public void processEstimatedVehicleJourney() throws JAXBException, DatatypeConfigurationException {
-        DatatypeFactory datatypeFactory = DatatypeFactory.newInstance();
-        final Duration minimumDelay_sR1E1 = datatypeFactory.newDuration("PT30M");
-        final Duration minimumDelay_sR1E1C = datatypeFactory.newDuration("PT4M");
+        final Duration minimumDelay_sR1E1 = Duration.parse("PT30M");
+        final Duration minimumDelay_sR1E1C = Duration.parse("PT4M");
 
         EstimatedVehicleJourney.RecordedCalls recordedCalls = new EstimatedVehicleJourney.RecordedCalls();
         addRecordedCall(recordedCalls, "R1", ZonedDateTime.now().minus(2, ChronoUnit.HOURS));

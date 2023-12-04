@@ -43,9 +43,9 @@ import uk.org.siri.siri20.PtSituationElement;
 import uk.org.siri.siri20.Siri;
 import uk.org.siri.siri20.SubscriptionTerminatedNotificationStructure;
 
-import javax.xml.bind.JAXBException;
+import jakarta.xml.bind.JAXBException;
 import javax.xml.datatype.DatatypeFactory;
-import javax.xml.datatype.Duration;
+import java.time.Duration;
 import javax.xml.stream.XMLStreamException;
 import java.time.ZonedDateTime;
 import java.util.Collection;
@@ -328,10 +328,10 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
 
     @Test
     public void testHeartbeatAndTermination() throws Exception {
-        DatatypeFactory datatypeFactory = DatatypeFactory.newInstance();
+
         ZonedDateTime start = ZonedDateTime.now();
-        createStubAndSiriSubscription("s1", datatypeFactory.newDuration("PT1M"), start.plusHours(1));
-        createStubAndSiriSubscription("s2", datatypeFactory.newDuration("PT2M"), null);
+        createStubAndSiriSubscription("s1", Duration.parse("PT1M"), start.plusHours(1));
+        createStubAndSiriSubscription("s2", Duration.parse("PT2M"), null);
         createStubAndSiriSubscription("s3", null, null);
         RequestPatternBuilder s1RequestPattern = postRequestedFor(urlEqualTo("/heartbeat/s1"));
         RequestPatternBuilder s2RequestPattern = postRequestedFor(urlEqualTo("/heartbeat/s2"));

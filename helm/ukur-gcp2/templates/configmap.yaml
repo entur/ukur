@@ -11,8 +11,8 @@ data:
         management.metrics.endpoint.export.prometheus.enabled=true
         debug=false
         entur.pubsub.subscriber.autocreate=false
-        ukur.camel.pubsub.et=entur-google-pubsub://ukur.protobuf.estimated_timetables.subscription
-        ukur.camel.pubsub.sx=entur-google-pubsub://ukur.protobuf.situation_exchange.subscription
+        ukur.camel.pubsub.et=google-pubsub://{{ .Values.configmap.pubsub.project_id }}:ukur.protobuf.estimated_timetables.subscription
+        ukur.camel.pubsub.sx=google-pubsub://{{ .Values.configmap.pubsub.project_id }}:ukur.protobuf.situation_exchange.subscription
         spring.cloud.gcp.pubsub.project-id={{ .Values.configmap.pubsub.project_id }}
         spring.profiles.active=gcp-datastore
         #logging.level.root=INFO

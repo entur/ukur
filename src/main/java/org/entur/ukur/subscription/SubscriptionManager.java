@@ -51,8 +51,8 @@ import uk.org.siri.siri20.SituationExchangeDeliveryStructure;
 import uk.org.siri.siri20.SubscriptionQualifierStructure;
 import uk.org.siri.siri20.SubscriptionTerminatedNotificationStructure;
 
-import javax.xml.bind.DatatypeConverter;
-import javax.xml.datatype.Duration;
+import jakarta.xml.bind.DatatypeConverter;
+import java.time.Duration;
 import java.io.ByteArrayOutputStream;
 import java.io.DataOutputStream;
 import java.io.IOException;
@@ -387,7 +387,7 @@ public class SubscriptionManager {
             if (heartbeatInterval != null) {
                 Long nextHeartbeat = subscriptionNextHeartbeat.get(subscription.getId());
                 if (nextHeartbeat == null || nextHeartbeat < epochNow) {
-                    long epochNextNotification = heartbeatInterval.getTimeInMillis(dateNow) + epochNow;
+                    long epochNextNotification = heartbeatInterval.toMillis() + epochNow;
                     subscriptionNextHeartbeat.put(subscription.getId(), epochNextNotification);
                     if (nextHeartbeat != null) {
                         pushNotification(subscription, NotificationTypeEnum.heartbeat);

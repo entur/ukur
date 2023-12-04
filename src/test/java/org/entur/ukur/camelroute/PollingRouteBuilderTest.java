@@ -48,10 +48,10 @@ public class PollingRouteBuilderTest extends AbstractJUnit4SpringContextTests {
     @Autowired
     private MetricsService metricsService;
 
-    @Produce(uri = UkurCamelRouteBuilder.ROUTE_ET_RETRIEVER)
+    @Produce(value = UkurCamelRouteBuilder.ROUTE_ET_RETRIEVER)
     private ProducerTemplate etTemplate;
 
-    @Produce(uri = UkurCamelRouteBuilder.ROUTE_SX_RETRIEVER)
+    @Produce(value = UkurCamelRouteBuilder.ROUTE_SX_RETRIEVER)
     private ProducerTemplate sxTemplate;
 
     @Test

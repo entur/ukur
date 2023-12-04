@@ -36,7 +36,7 @@ import uk.org.siri.siri20.TerminateSubscriptionRequestStructure;
 import uk.org.siri.siri20.TerminateSubscriptionResponseStructure;
 import uk.org.siri.siri20.TerminationResponseStatusStructure;
 
-import javax.xml.datatype.Duration;
+import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.util.Collections;
 import java.util.Set;
