@@ -38,7 +38,7 @@
         <metrics-version>4.0.3</metrics-version>
         <camel.version>4.1.0</camel.version>
         <hazelcast.version>5.2.0</hazelcast.version>
-        <entur.helpers.version>1.86</entur.helpers.version>
+        <entur.helpers.version>2.4</entur.helpers.version>
     </properties>
 
     <licenses>
