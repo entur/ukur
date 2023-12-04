@@ -2,7 +2,7 @@ version: 2
 aliases:
   - &google-sdk-container-config
     docker:
-      - image: google/cloud-sdk:latest
+      - image: google/cloud-sdk:alpine
         auth:
           username: $DOCKERHUB_LOGIN
           password: $DOCKERHUB_PASSWORD
@@ -79,7 +79,7 @@ jobs:
     <<: *google-sdk-container-config
     steps:
       - setup_remote_docker:
-          version: 19.03.13
+          version: 20.10.14
       - attach_workspace:
           at: ~/project
       - run: *read-image-version
