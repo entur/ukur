@@ -20,14 +20,15 @@ import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import org.apache.camel.Configuration;
 import org.apache.camel.Exchange;
 import org.apache.camel.LoggingLevel;
-import org.apache.camel.support.builder.Namespaces;
+import org.apache.camel.builder.RouteBuilder;
 import org.apache.camel.component.jackson.JacksonDataFormat;
 import org.apache.camel.model.RouteDefinition;
 import org.apache.camel.model.rest.RestBindingMode;
 import org.apache.camel.spi.RoutePolicy;
-import org.apache.camel.spring.SpringRouteBuilder;
+import org.apache.camel.support.builder.Namespaces;
 import org.apache.http.entity.ContentType;
 import org.entur.protobuf.mapper.SiriMapper;
 import org.entur.ukur.camelroute.policy.InterruptibleHazelcastRoutePolicy;
@@ -63,7 +64,8 @@ import static org.apache.camel.Exchange.CONTENT_LENGTH;
 import static org.entur.ukur.camelroute.policy.SingletonRoutePolicyFactory.SINGLETON_ROUTE_DEFINITION_GROUP_NAME;
 
 @Component
-public class UkurCamelRouteBuilder extends SpringRouteBuilder {
+@Configuration
+public class UkurCamelRouteBuilder extends RouteBuilder {
 
     private final Logger logger = LoggerFactory.getLogger(this.getClass());
 
