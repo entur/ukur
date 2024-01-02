@@ -26,29 +26,23 @@ import org.entur.ukur.subscription.StopDetails;
 import org.entur.ukur.subscription.StopDetailsAndSubscriptions;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionManager;
-import org.entur.ukur.xml.SiriMarshaller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import uk.org.siri.siri20.ArrivalBoardingActivityEnumeration;
-import uk.org.siri.siri20.CallStatusEnumeration;
-import uk.org.siri.siri20.DepartureBoardingActivityEnumeration;
-import uk.org.siri.siri20.EstimatedCall;
-import uk.org.siri.siri20.EstimatedVehicleJourney;
-import uk.org.siri.siri20.RecordedCall;
-import uk.org.siri.siri20.ServiceDelivery;
-import uk.org.siri.siri20.ServiceFeatureRef;
-import uk.org.siri.siri20.Siri;
-import uk.org.siri.siri20.StopAssignmentStructure;
+import uk.org.siri.siri21.ArrivalBoardingActivityEnumeration;
+import uk.org.siri.siri21.CallStatusEnumeration;
+import uk.org.siri.siri21.DepartureBoardingActivityEnumeration;
+import uk.org.siri.siri21.EstimatedCall;
+import uk.org.siri.siri21.EstimatedVehicleJourney;
+import uk.org.siri.siri21.RecordedCall;
+import uk.org.siri.siri21.ServiceFeatureRef;
+import uk.org.siri.siri21.StopAssignmentStructure;
 
-import java.io.InputStream;
 import java.time.Duration;
-import java.time.Instant;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
-import java.util.Date;
 import java.util.HashMap;
 import java.util.HashSet;
 import java.util.List;
@@ -69,8 +63,6 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
     private SubscriptionManager subscriptionManager;
     private MetricsService metricsService;
     private QuayAndStopPlaceMappingService quayAndStopPlaceMappingService;
-
-    private SiriMarshaller siriMarshaller;
     private FileStorageService fileStorageService;
     @Value("${ukur.camel.et.store.files:false}")
     private boolean storeMessagesToFile = false;
@@ -79,11 +71,9 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
 
     @Autowired
     public ETSubscriptionProcessor(SubscriptionManager subscriptionManager,
-                                   SiriMarshaller siriMarshaller,
                                    FileStorageService fileStorageService,
                                    MetricsService metricsService,
                                    QuayAndStopPlaceMappingService quayAndStopPlaceMappingService) {
-        this.siriMarshaller = siriMarshaller;
         this.fileStorageService = fileStorageService;
         this.subscriptionManager = subscriptionManager;
         this.metricsService = metricsService;
@@ -97,20 +87,9 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
     @Override
     public void process(Exchange exchange) {
         try {
-            InputStream xml = exchange.getIn().getBody(InputStream.class);
-            logger.debug("Received XML with size {} bytes", xml.available());
-            Timer timer = metricsService.getTimer(MetricsService.TIMER_ET_UNMARSHALL);
-            Timer.Context time = timer.time();
-            EstimatedVehicleJourney estimatedVehicleJourney;
-            ZonedDateTime timestamp;
-            try {
-                Siri siri = siriMarshaller.unmarshall(xml, Siri.class);
-                ServiceDelivery serviceDelivery = siri.getServiceDelivery();
-                timestamp = serviceDelivery.getResponseTimestamp();
-                estimatedVehicleJourney = serviceDelivery.getEstimatedTimetableDeliveries().get(0).getEstimatedJourneyVersionFrames().get(0).getEstimatedVehicleJourneies().get(0);
-            } finally {
-                time.stop();
-            }
+            EstimatedVehicleJourney estimatedVehicleJourney = exchange.getIn().getBody(EstimatedVehicleJourney.class);
+            ZonedDateTime timestamp = estimatedVehicleJourney.getRecordedAtTime();
+
             if (estimatedVehicleJourney == null) {
                 throw new IllegalArgumentException("No EstimatedVehicleJourney element...");
             }
@@ -377,11 +356,17 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
     }
 
     private boolean isTrackChange(EstimatedCall call) {
-        StopAssignmentStructure stopAssignment = call.getArrivalStopAssignment();
-        if (stopAssignment == null) {
+        List<StopAssignmentStructure> stopAssignmentList = call.getArrivalStopAssignments();
+        if (stopAssignmentList == null && !stopAssignmentList.isEmpty()) {
             //According to the profile, only one of arrival- or departureStopAssigment can be set - our logic most often populate arrival
-            stopAssignment = call.getDepartureStopAssignment();
+            stopAssignmentList = call.getDepartureStopAssignments();
         }
+        StopAssignmentStructure stopAssignment = null;
+
+        if (stopAssignmentList != null && !stopAssignmentList.isEmpty()) {
+            stopAssignment = stopAssignmentList.get(0);
+        }
+
         if (stopAssignment != null && stopAssignment.getAimedQuayRef() != null && stopAssignment.getExpectedQuayRef() != null) {
             return !StringUtils.equals(stopAssignment.getAimedQuayRef().getValue(), stopAssignment.getExpectedQuayRef().getValue());
         }

@@ -17,8 +17,8 @@ package org.entur.ukur.camelroute;
 
 import com.google.common.collect.Sets;
 import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.topic.ITopic;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
+import com.hazelcast.topic.ITopic;
 import org.apache.commons.lang3.StringUtils;
 import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.FileStorageService;
@@ -32,14 +32,29 @@ import org.junit.Before;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import uk.org.siri.siri20.*;
+import uk.org.siri.siri21.AffectedRouteStructure;
+import uk.org.siri.siri21.AffectedStopPointStructure;
+import uk.org.siri.siri21.AffectedVehicleJourneyStructure;
+import uk.org.siri.siri21.AffectsScopeStructure;
+import uk.org.siri.siri21.PtSituationElement;
+import uk.org.siri.siri21.StopPointRefStructure;
+import uk.org.siri.siri21.VehicleJourneyRef;
 
 import java.io.Serializable;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Arrays;
+import java.util.Collection;
+import java.util.Collections;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
 import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 
 public class SXSubscriptionProcessorTest extends DatastoreTest {
@@ -267,8 +282,8 @@ public class SXSubscriptionProcessorTest extends DatastoreTest {
         return stop1;
     }
 
-    private StopPointRef createStopPointRef(String value) {
-        StopPointRef stopPointRef = new StopPointRef();
+    private StopPointRefStructure createStopPointRef(String value) {
+        StopPointRefStructure stopPointRef = new StopPointRefStructure();
         stopPointRef.setValue(value);
         return stopPointRef;
     }

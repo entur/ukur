@@ -29,20 +29,17 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import uk.org.ifopt.siri20.StopPlaceRef;
-import uk.org.siri.siri20.AffectedLineStructure;
-import uk.org.siri.siri20.AffectedRouteStructure;
-import uk.org.siri.siri20.AffectedStopPlaceStructure;
-import uk.org.siri.siri20.AffectedStopPointStructure;
-import uk.org.siri.siri20.AffectedVehicleJourneyStructure;
-import uk.org.siri.siri20.AffectsScopeStructure;
-import uk.org.siri.siri20.HalfOpenTimestampOutputRangeStructure;
-import uk.org.siri.siri20.PtSituationElement;
-import uk.org.siri.siri20.ServiceDelivery;
-import uk.org.siri.siri20.Siri;
-import uk.org.siri.siri20.StopPointRef;
+import uk.org.ifopt.siri21.StopPlaceRef;
+import uk.org.siri.siri21.AffectedLineStructure;
+import uk.org.siri.siri21.AffectedRouteStructure;
+import uk.org.siri.siri21.AffectedStopPlaceStructure;
+import uk.org.siri.siri21.AffectedStopPointStructure;
+import uk.org.siri.siri21.AffectedVehicleJourneyStructure;
+import uk.org.siri.siri21.AffectsScopeStructure;
+import uk.org.siri.siri21.HalfOpenTimestampOutputRangeStructure;
+import uk.org.siri.siri21.PtSituationElement;
+import uk.org.siri.siri21.StopPointRefStructure;
 
-import java.io.InputStream;
 import java.io.Serializable;
 import java.time.ZonedDateTime;
 import java.util.ArrayList;
@@ -59,7 +56,6 @@ public class SXSubscriptionProcessor implements Processor {
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
     private SubscriptionManager subscriptionManager;
-    private SiriMarshaller siriMarshaller;
     private FileStorageService fileStorageService;
     private MetricsService metricsService;
     @Value("${ukur.camel.sx.store.files:false}")
@@ -71,7 +67,6 @@ public class SXSubscriptionProcessor implements Processor {
                                    FileStorageService fileStorageService,
                                    MetricsService metricsService) {
         this.subscriptionManager = subscriptionManager;
-        this.siriMarshaller = siriMarshaller;
         this.fileStorageService = fileStorageService;
         this.metricsService = metricsService;
         logger.debug("Initializes...");
@@ -80,20 +75,9 @@ public class SXSubscriptionProcessor implements Processor {
     @Override
     public void process(Exchange exchange) {
         try {
-            InputStream xml = exchange.getIn().getBody(InputStream.class);
-            logger.debug("Received XML with size {} bytes", xml.available());
-            Timer timer = metricsService.getTimer(MetricsService.TIMER_SX_UNMARSHALL);
-            Timer.Context time = timer.time();
-            PtSituationElement ptSituationElement;
-            ZonedDateTime timestamp;
-            try {
-                Siri siri = siriMarshaller.unmarshall(xml, Siri.class);
-                ServiceDelivery serviceDelivery = siri.getServiceDelivery();
-                timestamp = serviceDelivery.getResponseTimestamp();
-                ptSituationElement = serviceDelivery.getSituationExchangeDeliveries().get(0).getSituations().getPtSituationElements().get(0);
-            } finally {
-                time.stop();
-            }
+            PtSituationElement ptSituationElement = exchange.getIn().getBody(PtSituationElement.class);
+            ZonedDateTime timestamp = (ptSituationElement.getVersionedAtTime() != null ?
+                    ptSituationElement.getVersionedAtTime():ptSituationElement.getCreationTime());
             if (ptSituationElement == null) {
                 throw new IllegalArgumentException("No PtSituationElement element...");
             }
@@ -240,7 +224,7 @@ public class SXSubscriptionProcessor implements Processor {
                 for (Serializable affectedStopPointsAndLinkProjectionToNextStopPoint : affectedStopPointsAndLinkProjectionToNextStopPoints) {
                     if (affectedStopPointsAndLinkProjectionToNextStopPoint instanceof AffectedStopPointStructure) {
                         AffectedStopPointStructure affectedStopPoint = (AffectedStopPointStructure) affectedStopPointsAndLinkProjectionToNextStopPoint;
-                        StopPointRef stopPointRef = affectedStopPoint.getStopPointRef();
+                        StopPointRefStructure stopPointRef = affectedStopPoint.getStopPointRef();
                         addStop(orderedListOfStops, getStringValue(stopPointRef)); //TODO: ROR-298: legg til affectedStopPoint.getStopConditions() så de kan tas høyde for!
                         /*
                         StopCondition(s) angir hvilke passasjerer meldingen gjelder for (kan f.eks. brukes for å beskrive relevans for av- og påstigning):

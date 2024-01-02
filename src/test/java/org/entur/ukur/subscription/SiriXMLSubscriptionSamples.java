@@ -15,12 +15,22 @@
 
 package org.entur.ukur.subscription;
 
-import uk.org.siri.siri20.*;
-
-import javax.xml.XMLConstants;
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.Marshaller;
 import jakarta.xml.bind.Unmarshaller;
+import uk.org.siri.siri21.HeartbeatNotificationStructure;
+import uk.org.siri.siri21.OtherErrorStructure;
+import uk.org.siri.siri21.RequestorRef;
+import uk.org.siri.siri21.ResponseStatus;
+import uk.org.siri.siri21.ServiceDeliveryErrorConditionElement;
+import uk.org.siri.siri21.Siri;
+import uk.org.siri.siri21.SubscriptionQualifierStructure;
+import uk.org.siri.siri21.SubscriptionResponseStructure;
+import uk.org.siri.siri21.SubscriptionTerminatedNotificationStructure;
+import uk.org.siri.siri21.TerminateSubscriptionResponseStructure;
+import uk.org.siri.siri21.TerminationResponseStatusStructure;
+
+import javax.xml.XMLConstants;
 import javax.xml.validation.Schema;
 import javax.xml.validation.SchemaFactory;
 import java.io.File;

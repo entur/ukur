@@ -15,13 +15,13 @@
 
 package org.entur.ukur.xml;
 
-import org.slf4j.Logger;
-import org.slf4j.LoggerFactory;
-import uk.org.siri.siri20.Siri;
-
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
+import org.slf4j.Logger;
+import org.slf4j.LoggerFactory;
+import uk.org.siri.siri21.Siri;
+
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamWriter;

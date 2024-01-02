@@ -16,6 +16,7 @@
 package org.entur.ukur.camelroute;
 
 import com.google.common.collect.Sets;
+import jakarta.xml.bind.JAXBException;
 import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.FileStorageService;
 import org.entur.ukur.service.MetricsService;
@@ -26,11 +27,19 @@ import org.entur.ukur.subscription.SubscriptionManager;
 import org.entur.ukur.xml.SiriMarshaller;
 import org.junit.Test;
 import org.mockito.ArgumentCaptor;
-import uk.org.siri.siri20.*;
+import uk.org.siri.siri21.CallStatusEnumeration;
+import uk.org.siri.siri21.DatedVehicleJourneyRef;
+import uk.org.siri.siri21.EstimatedCall;
+import uk.org.siri.siri21.EstimatedVehicleJourney;
+import uk.org.siri.siri21.LineRef;
+import uk.org.siri.siri21.OperatorRefStructure;
+import uk.org.siri.siri21.QuayRefStructure;
+import uk.org.siri.siri21.RecordedCall;
+import uk.org.siri.siri21.StopAssignmentStructure;
+import uk.org.siri.siri21.StopPointRefStructure;
+import uk.org.siri.siri21.VehicleRef;
 
-import jakarta.xml.bind.JAXBException;
 import javax.xml.datatype.DatatypeConfigurationException;
-import javax.xml.datatype.DatatypeFactory;
 import java.time.Duration;
 import java.time.ZonedDateTime;
 import java.time.temporal.ChronoUnit;
@@ -43,8 +52,13 @@ import static junit.framework.TestCase.assertEquals;
 import static junit.framework.TestCase.assertTrue;
 import static org.entur.ukur.subscription.SubscriptionTypeEnum.ET;
 import static org.hamcrest.CoreMatchers.hasItem;
-import static org.junit.Assert.*;
-import static org.mockito.Mockito.*;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertThat;
+import static org.mockito.Mockito.any;
+import static org.mockito.Mockito.eq;
+import static org.mockito.Mockito.mock;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
 
 public class ETSubscriptionProcessorTest {
 
@@ -65,7 +79,7 @@ public class ETSubscriptionProcessorTest {
         journey.setEstimatedCalls(estimatedCalls);
 
         ETSubscriptionProcessor processor = new ETSubscriptionProcessor(mock(SubscriptionManager.class),
-                new SiriMarshaller(), mock(FileStorageService.class),
+                mock(FileStorageService.class),
                 mock(MetricsService.class), mock(QuayAndStopPlaceMappingService.class));
 
         HashMap<String, ETSubscriptionProcessor.StopData> stopData = processor.getStopData(journey);
@@ -156,7 +170,7 @@ public class ETSubscriptionProcessorTest {
         when(mappingMock.mapQuayToStopPlace("NSR:Quay:R1")).thenReturn("NSR:StopPlace:R1");
 
         ETSubscriptionProcessor processor = new ETSubscriptionProcessor(subscriptionManagerMock,
-                new SiriMarshaller(), mock(FileStorageService.class),
+                mock(FileStorageService.class),
                 new MetricsService(), mappingMock);
 
         ArgumentCaptor<HashSet> subscriptionsOnStopsCaptor = ArgumentCaptor.forClass(HashSet.class);
@@ -197,7 +211,7 @@ public class ETSubscriptionProcessorTest {
                     }
                 };
 
-        ETSubscriptionProcessor processor = new ETSubscriptionProcessor(subscriptionManager, siriMarshaller,
+        ETSubscriptionProcessor processor = new ETSubscriptionProcessor(subscriptionManager,
                 mock(FileStorageService.class), metricsService, mappingMock);
 
         HashSet<Subscription> subscriptions = Sets.newHashSet(s1, s2);
@@ -294,7 +308,7 @@ public class ETSubscriptionProcessorTest {
         when(mappingMock.mapQuayToStopPlace("NSR:Quay:R1")).thenReturn("NSR:StopPlace:R1");
 
         ETSubscriptionProcessor processor = new ETSubscriptionProcessor(subscriptionManagerMock,
-                new SiriMarshaller(), mock(FileStorageService.class),
+                mock(FileStorageService.class),
                 new MetricsService(), mappingMock);
 
         ArgumentCaptor<HashSet> subscriptionsOnStopsCaptor = ArgumentCaptor.forClass(HashSet.class);
@@ -365,7 +379,7 @@ public class ETSubscriptionProcessorTest {
         when(mappingMock.mapQuayToStopPlace("NSR:Quay:R1")).thenReturn("NSR:StopPlace:R1");
 
         ETSubscriptionProcessor processor = new ETSubscriptionProcessor(subscriptionManagerMock,
-                new SiriMarshaller(), mock(FileStorageService.class),
+                mock(FileStorageService.class),
                 new MetricsService(), mappingMock);
 
         ArgumentCaptor<HashSet> subscriptionsOnStopsCaptor = ArgumentCaptor.forClass(HashSet.class);
@@ -448,7 +462,7 @@ public class ETSubscriptionProcessorTest {
 
     private void addDelayedEstimatedCall(EstimatedVehicleJourney.EstimatedCalls estimatedCalls, String stopPointRef, ZonedDateTime time) {
         EstimatedCall estimatedCall = new EstimatedCall();
-        StopPointRef ref = new StopPointRef();
+        StopPointRefStructure ref = new StopPointRefStructure();
         String quay = "NSR:Quay:" + stopPointRef;
         ref.setValue(quay);
         estimatedCall.setStopPointRef(ref);
@@ -458,7 +472,7 @@ public class ETSubscriptionProcessorTest {
         estimatedCall.setAimedArrivalTime(time);
         estimatedCall.setExpectedArrivalTime(time.plusMinutes(5));
         estimatedCall.setArrivalStatus(CallStatusEnumeration.DELAYED);
-        estimatedCall.setArrivalStopAssignment(createStopAssignment(false, quay));
+        estimatedCall.getArrivalStopAssignments().add(createStopAssignment(false, quay));
         estimatedCalls.getEstimatedCalls().add(estimatedCall);
     }
 
@@ -469,7 +483,7 @@ public class ETSubscriptionProcessorTest {
     private void addEstimatedCall(EstimatedVehicleJourney.EstimatedCalls estimatedCalls,
                                   String stopPointRef, ZonedDateTime time, boolean trackChange) {
         EstimatedCall estimatedCall = new EstimatedCall();
-        StopPointRef ref = new StopPointRef();
+        StopPointRefStructure ref = new StopPointRefStructure();
         String quay = "NSR:Quay:" + stopPointRef;
         ref.setValue(quay);
         estimatedCall.setStopPointRef(ref);
@@ -479,7 +493,7 @@ public class ETSubscriptionProcessorTest {
         estimatedCall.setAimedArrivalTime(time);
         estimatedCall.setExpectedArrivalTime(time);
         estimatedCall.setArrivalStatus(CallStatusEnumeration.ON_TIME);
-        estimatedCall.setArrivalStopAssignment(createStopAssignment(trackChange, quay));
+        estimatedCall.getArrivalStopAssignments().add(createStopAssignment(trackChange, quay));
         estimatedCalls.getEstimatedCalls().add(estimatedCall);
     }
 
@@ -496,7 +510,7 @@ public class ETSubscriptionProcessorTest {
 
     private void addRecordedCall(EstimatedVehicleJourney.RecordedCalls recordedCalls, String stopPointRef, ZonedDateTime departureTime) {
         RecordedCall recordedCall = new RecordedCall();
-        StopPointRef ref = new StopPointRef();
+        StopPointRefStructure ref = new StopPointRefStructure();
         ref.setValue("NSR:Quay:" + stopPointRef);
         recordedCall.setStopPointRef(ref);
         recordedCall.setAimedDepartureTime(departureTime);

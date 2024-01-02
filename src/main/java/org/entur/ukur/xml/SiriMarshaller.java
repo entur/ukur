@@ -15,19 +15,18 @@
 
 package org.entur.ukur.xml;
 
-import org.springframework.stereotype.Component;
-import uk.org.siri.siri20.Siri;
-
 import jakarta.xml.bind.JAXBContext;
 import jakarta.xml.bind.JAXBException;
 import jakarta.xml.bind.Marshaller;
 import jakarta.xml.bind.Unmarshaller;
+import org.springframework.stereotype.Component;
+import uk.org.siri.siri21.Siri;
+
 import javax.xml.stream.XMLInputFactory;
 import javax.xml.stream.XMLOutputFactory;
 import javax.xml.stream.XMLStreamException;
 import javax.xml.stream.XMLStreamReader;
 import javax.xml.stream.XMLStreamWriter;
-import java.io.InputStream;
 import java.io.StringReader;
 import java.io.StringWriter;
 
@@ -38,13 +37,6 @@ public class SiriMarshaller {
 
     public SiriMarshaller() throws JAXBException {
         jaxbContext = JAXBContext.newInstance(Siri.class);
-    }
-
-    public <T> T unmarshall(InputStream xml, Class<T>resultingClass) throws JAXBException, XMLStreamException {
-        Unmarshaller jaxbUnmarshaller = jaxbContext.createUnmarshaller();
-        XMLInputFactory xmlif = XMLInputFactory.newInstance();
-        XMLStreamReader xmlsr = xmlif.createXMLStreamReader(xml);
-        return resultingClass.cast(jaxbUnmarshaller.unmarshal(xmlsr));
     }
 
     public <T> T unmarshall(String xml, Class<T>resultingClass) throws JAXBException, XMLStreamException {

@@ -191,14 +191,8 @@
 
         <dependency>
             <groupId>org.entur</groupId>
-            <artifactId>siri-java-model</artifactId>
-            <version>1.25</version>
-        </dependency>
-
-        <dependency>
-            <groupId>org.entur</groupId>
-            <artifactId>siri-protobuf-mapper</artifactId>
-            <version>1.0.3</version>
+            <artifactId>siri-avro-mapper</artifactId>
+            <version>2.5.2</version>
         </dependency>
 
         <dependency>

@@ -21,16 +21,33 @@ import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.MockitoJUnitRunner;
-import uk.org.siri.siri20.*;
+import uk.org.siri.siri21.EstimatedTimetableRequestStructure;
+import uk.org.siri.siri21.EstimatedTimetableSubscriptionStructure;
+import uk.org.siri.siri21.LineDirectionStructure;
+import uk.org.siri.siri21.LineRef;
+import uk.org.siri.siri21.RequestorRef;
+import uk.org.siri.siri21.ResponseStatus;
+import uk.org.siri.siri21.Siri;
+import uk.org.siri.siri21.SituationExchangeRequestStructure;
+import uk.org.siri.siri21.SituationExchangeSubscriptionStructure;
+import uk.org.siri.siri21.SubscriptionContextStructure;
+import uk.org.siri.siri21.SubscriptionQualifierStructure;
+import uk.org.siri.siri21.SubscriptionRequest;
+import uk.org.siri.siri21.TerminateSubscriptionRequestStructure;
+import uk.org.siri.siri21.TerminationResponseStatusStructure;
 
-import javax.xml.datatype.DatatypeFactory;
 import java.time.Duration;
 import java.time.ZoneId;
 import java.time.ZonedDateTime;
 
 import static org.entur.ukur.subscription.SiriXMLSubscriptionHandler.SIRI_VERSION;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertNotNull;
+import static org.junit.Assert.assertNull;
+import static org.junit.Assert.assertThat;
+import static org.junit.Assert.assertTrue;
 import static org.mockito.Mockito.verify;
 
 @RunWith(MockitoJUnitRunner.class)

@@ -30,7 +30,9 @@ import org.apache.camel.model.rest.RestBindingMode;
 import org.apache.camel.spi.RoutePolicy;
 import org.apache.camel.support.builder.Namespaces;
 import org.apache.http.entity.ContentType;
-import org.entur.protobuf.mapper.SiriMapper;
+import org.entur.avro.realtime.siri.converter.avro2jaxb.Avro2JaxbConverter;
+import org.entur.avro.realtime.siri.model.EstimatedVehicleJourneyRecord;
+import org.entur.avro.realtime.siri.model.PtSituationElementRecord;
 import org.entur.ukur.camelroute.policy.InterruptibleHazelcastRoutePolicy;
 import org.entur.ukur.camelroute.status.RouteStatus;
 import org.entur.ukur.service.MetricsService;
@@ -45,12 +47,15 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Scope;
 import org.springframework.stereotype.Component;
-import uk.org.siri.siri20.Siri;
+import uk.org.siri.siri21.EstimatedVehicleJourney;
+import uk.org.siri.siri21.PtSituationElement;
+import uk.org.siri.siri21.Siri;
 
 import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URL;
 import java.net.UnknownHostException;
+import java.nio.ByteBuffer;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -60,7 +65,6 @@ import java.util.concurrent.Executors;
 import java.util.concurrent.ScheduledExecutorService;
 import java.util.concurrent.TimeUnit;
 
-import static org.apache.camel.Exchange.CONTENT_LENGTH;
 import static org.entur.ukur.camelroute.policy.SingletonRoutePolicyFactory.SINGLETON_ROUTE_DEFINITION_GROUP_NAME;
 
 @Component
@@ -138,29 +142,50 @@ public class UkurCamelRouteBuilder extends RouteBuilder {
 
     private void createJaxbProcessingRoutes() {
 
-        from("direct:compress.jaxb")
-                .setBody(body().convertToString())
-                .bean(kryoSerializer, "write")
-        ;
+//        from("direct:compress.jaxb")
+//                .setBody(body().convertToString())
+//                .bean(kryoSerializer, "write")
+//        ;
+//
+//        from("direct:decompress.jaxb")
+//                .bean(kryoSerializer, "read")
+//                .process(p -> {
+//                    final String body = p.getIn().getBody(String.class);
+//                    p.getOut().setBody(body);
+//                    p.getOut().setHeaders(p.getIn().getHeaders());
+//                    p.getOut().setHeader(CONTENT_LENGTH, body.getBytes().length);
+//                })
+//        ;
 
-        from("direct:decompress.jaxb")
-                .bean(kryoSerializer, "read")
+        from("direct:map.avro.et.to.jaxb")
                 .process(p -> {
-                    final String body = p.getIn().getBody(String.class);
+                    p.getOut().setBody(
+                            EstimatedVehicleJourneyRecord.fromByteBuffer(
+                                    p.getIn().getBody(ByteBuffer.class)
+                            )
+                    );
+                    p.getOut().setHeaders(p.getIn().getHeaders());
+                })
+                .bean(Avro2JaxbConverter.class, "convert")
+                .process(p -> {
+                    final EstimatedVehicleJourney body = p.getIn().getBody(EstimatedVehicleJourney.class);
                     p.getOut().setBody(body);
                     p.getOut().setHeaders(p.getIn().getHeaders());
-                    p.getOut().setHeader(CONTENT_LENGTH, body.getBytes().length);
                 })
         ;
 
-        from("direct:map.protobuf.to.jaxb")
+        from("direct:map.avro.sx.to.jaxb")
                 .process(p -> {
-                    p.getOut().setBody(p.getIn().getBody(byte[].class));
+                    p.getOut().setBody(
+                            PtSituationElementRecord.fromByteBuffer(
+                                    p.getIn().getBody(ByteBuffer.class)
+                            )
+                    );
                     p.getOut().setHeaders(p.getIn().getHeaders());
                 })
-                .bean(SiriMapper.class, "mapToJaxb")
+                .bean(Avro2JaxbConverter.class, "convert")
                 .process(p -> {
-                    final Siri body = p.getIn().getBody(Siri.class);
+                    final PtSituationElement body = p.getIn().getBody(PtSituationElement.class);
                     p.getOut().setBody(body);
                     p.getOut().setHeaders(p.getIn().getHeaders());
                 })
@@ -185,7 +210,7 @@ public class UkurCamelRouteBuilder extends RouteBuilder {
         from(config.getEtPubsubQueue())
                 .routeId("ET pubsub Listener")
                 .log(LoggingLevel.DEBUG, "About to handle ET message from queue")
-                .to("direct:map.protobuf.to.jaxb")
+                .to("direct:map.avro.et.to.jaxb")
                 .process(ETSubscriptionProcessor)
                 .log(LoggingLevel.DEBUG, "Done handling ET message from queue")
                 .end();
@@ -193,7 +218,7 @@ public class UkurCamelRouteBuilder extends RouteBuilder {
         from(config.getSxPubsubQueue())
                 .routeId("SX pubsub Listener")
                 .log(LoggingLevel.DEBUG, "About to handle SX message from queue")
-                .to("direct:map.protobuf.to.jaxb")
+                .to("direct:map.avro.sx.to.jaxb")
                 .process(SXSubscriptionProcessor)
                 .log(LoggingLevel.DEBUG, "Done handling SX message from queue")
                 .end();

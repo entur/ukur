@@ -21,10 +21,12 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 import com.github.tomakehurst.wiremock.junit.WireMockRule;
 import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 import com.hazelcast.core.HazelcastInstance;
-import com.hazelcast.topic.ITopic;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
+import com.hazelcast.topic.ITopic;
+import jakarta.xml.bind.JAXBException;
 import org.apache.camel.Exchange;
 import org.apache.camel.Message;
+import org.entur.siri21.util.SiriXml;
 import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.FileStorageService;
 import org.entur.ukur.service.MetricsService;
@@ -39,9 +41,9 @@ import org.junit.Rule;
 import org.junit.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
-import uk.org.siri.siri20.EstimatedVehicleJourney;
+import uk.org.siri.siri21.EstimatedVehicleJourney;
+import uk.org.siri.siri21.Siri;
 
-import jakarta.xml.bind.JAXBException;
 import javax.xml.stream.XMLStreamException;
 import java.io.FileInputStream;
 import java.io.IOException;
@@ -52,12 +54,27 @@ import java.nio.file.Files;
 import java.nio.file.Path;
 import java.nio.file.Paths;
 import java.text.NumberFormat;
-import java.util.*;
+import java.util.ArrayList;
+import java.util.Collection;
+import java.util.HashMap;
+import java.util.HashSet;
+import java.util.List;
+import java.util.Locale;
 import java.util.stream.Collectors;
 
-import static com.github.tomakehurst.wiremock.client.WireMock.*;
+import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.findAll;
+import static com.github.tomakehurst.wiremock.client.WireMock.post;
+import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
+import static com.github.tomakehurst.wiremock.client.WireMock.urlMatching;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
-import static org.junit.Assert.*;
+import static org.junit.Assert.assertEquals;
+import static org.junit.Assert.assertFalse;
+import static org.junit.Assert.assertTrue;
+import static org.junit.Assert.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -81,8 +98,8 @@ public class NsbETSubscriptionManualTest extends DatastoreTest {
         siriMarshaller = new SiriMarshaller();
         DataStorageService dataStorageService = new DataStorageService(datastore, subscriptionTopic);
         quayAndStopPlaceMappingService = new QuayAndStopPlaceMappingService(metricsService);
-        subscriptionManager = new SubscriptionManager(dataStorageService, siriMarshaller, metricsService, new HashMap<>(), new HashMap<>(), quayAndStopPlaceMappingService);
-        ETSubscriptionProcessor = new ETSubscriptionProcessor(subscriptionManager, siriMarshaller, mock(FileStorageService.class), metricsService, quayAndStopPlaceMappingService);
+        subscriptionManager = new SubscriptionManager(dataStorageService,siriMarshaller, metricsService, new HashMap<>(), new HashMap<>(), quayAndStopPlaceMappingService);
+        ETSubscriptionProcessor = new ETSubscriptionProcessor(subscriptionManager, mock(FileStorageService.class), metricsService, quayAndStopPlaceMappingService);
         ETSubscriptionProcessor.skipCallTimeChecks = true; //since we post old recorded ET messages
     }
 
@@ -164,14 +181,21 @@ public class NsbETSubscriptionManualTest extends DatastoreTest {
 
         assertEquals(1  , subscriptionManager.listAll().size());
 
-        List<Path> etMessages = Files.walk(Paths.get("/Users/Lasse/Projects/SVV/reiseplanlegger/ukur/src/test/resources"))
+        List<Path> etMessages = Files.walk(Paths.get("src/test/resources"))
                 .filter(Files::isRegularFile)
                 .filter(p -> p.toString().contains("ET"))
                 .collect(Collectors.toList());
+
         long start = System.currentTimeMillis();
         for (int i = 0; i < etMessages.size(); i++) {
             long deltaStart = System.currentTimeMillis();
-            ETSubscriptionProcessor.process(createExchangeMock(new FileInputStream(etMessages.get(i).toFile())));
+            Siri siri = SiriXml.parseXml(new FileInputStream(etMessages.get(0).toFile()));
+            ETSubscriptionProcessor.process(createExchangeMock(
+                            siri.getServiceDelivery()
+                                    .getEstimatedTimetableDeliveries().get(0)
+                                    .getEstimatedJourneyVersionFrames().get(0)
+                                    .getEstimatedVehicleJourneies().get(0))
+            );
             logger.info("Processed message {}/{} in {} ms", (i+1), etMessages.size(), formatTimeSince(deltaStart));
         }
         logger.info("DONE!");
@@ -253,7 +277,13 @@ public class NsbETSubscriptionManualTest extends DatastoreTest {
         long start = System.currentTimeMillis();
         for (int i = 0; i < etMessages.size(); i++) {
             long deltaStart = System.currentTimeMillis();
-            ETSubscriptionProcessor.process(createExchangeMock(new FileInputStream(etMessages.get(i).toFile())));
+            Siri siri = SiriXml.parseXml(new FileInputStream(etMessages.get(0).toFile()));
+            ETSubscriptionProcessor.process(createExchangeMock(
+                    siri.getServiceDelivery()
+                            .getEstimatedTimetableDeliveries().get(0)
+                            .getEstimatedJourneyVersionFrames().get(0)
+                            .getEstimatedVehicleJourneies().get(0))
+            );
             logger.info("Processed message {}/{} in {} ms", (i+1), etMessages.size(), formatTimeSince(deltaStart));
         }
         logger.info("DONE!");
@@ -315,11 +345,11 @@ public class NsbETSubscriptionManualTest extends DatastoreTest {
         return result.stream().map(e -> e.getDatedVehicleJourneyRef().getValue()).collect(Collectors.toCollection(HashSet::new));
     }
 
-    private Exchange createExchangeMock(InputStream stream) {
+    private Exchange createExchangeMock(EstimatedVehicleJourney stream) {
         Exchange exchangeMock = mock(Exchange.class);
         Message messageMock = mock(Message.class);
         when(exchangeMock.getIn()).thenReturn(messageMock);
-        when(messageMock.getBody(InputStream.class)).thenReturn(stream);
+        when(messageMock.getBody(EstimatedVehicleJourney.class)).thenReturn(stream);
         return exchangeMock;
     }
 

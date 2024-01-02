@@ -15,17 +15,18 @@
 
 package org.entur.ukur.service;
 
+import jakarta.xml.bind.JAXBException;
 import org.apache.commons.lang3.StringUtils;
+import org.entur.avro.realtime.siri.converter.jaxb2avro.Jaxb2AvroConverter;
 import org.entur.ukur.xml.SiriMarshaller;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Value;
 import org.springframework.stereotype.Service;
-import uk.org.siri.siri20.EstimatedVehicleJourney;
-import uk.org.siri.siri20.PtSituationElement;
+import uk.org.siri.siri21.EstimatedVehicleJourney;
+import uk.org.siri.siri21.PtSituationElement;
 
-import jakarta.xml.bind.JAXBException;
 import java.io.File;
 import java.io.FileWriter;
 import java.io.IOException;
@@ -54,7 +55,7 @@ public class FileStorageService {
 
     public void writeToFile(EstimatedVehicleJourney estimatedVehicleJourney) {
         String filename = getPushMessageFilename(estimatedVehicleJourney);
-        String xmlString = toXMLString(estimatedVehicleJourney);
+        String xmlString = Jaxb2AvroConverter.convert(estimatedVehicleJourney).toString();
         String[] lineRefArray = StringUtils.split(getStringValue(estimatedVehicleJourney.getLineRef()), ':');
         String subfolder;
         if (lineRefArray == null || lineRefArray.length < 1 || StringUtils.isBlank(lineRefArray[0]) || "-".equals(lineRefArray[0])) {
@@ -68,7 +69,7 @@ public class FileStorageService {
 
     public void writeToFile(PtSituationElement ptSituationElement) {
         String filename = getPushMessageFilename(ptSituationElement);
-        String xmlString = toXMLString(ptSituationElement);
+        String xmlString = Jaxb2AvroConverter.convert(ptSituationElement).toString();
         String subfolder = StringUtils.lowerCase(getStringValue(ptSituationElement.getParticipantRef()));
         if (StringUtils.isBlank(subfolder) || "-".equals(subfolder)) {
             subfolder = "empty";
@@ -77,13 +78,13 @@ public class FileStorageService {
         writeMessageToFile(xmlString, subfolder, filename);
     }
 
-    private void writeMessageToFile(String xml, String subfolder, String pushMessageFilename) {
+    private void writeMessageToFile(String json, String subfolder, String pushMessageFilename) {
         try {
             File targetFolder = new File(folder, subfolder);
             //noinspection ResultOfMethodCallIgnored
             targetFolder.mkdir();
             FileWriter fw = new FileWriter(new File(targetFolder, pushMessageFilename));
-            fw.write(xml);
+            fw.write(json);
             fw.close();
         } catch (IOException e) {
             logger.error("Could not write pushmessage file", e);
@@ -96,7 +97,7 @@ public class FileStorageService {
         if (StringUtils.containsIgnoreCase(line, ":Line:")) {
             line = StringUtils.substringAfterLast(line, ":");
         }
-        String filename = LocalDateTime.now().format(formatter) + "_ET_" + line + "_" + vehicleJourney + ".xml";
+        String filename = LocalDateTime.now().format(formatter) + "_ET_" + line + "_" + vehicleJourney + ".json";
         return filename.replaceAll(" ", "");
     }
 
