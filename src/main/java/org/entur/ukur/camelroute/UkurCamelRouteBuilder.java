@@ -20,6 +20,7 @@ import com.codahale.metrics.Histogram;
 import com.codahale.metrics.Meter;
 import com.codahale.metrics.Timer;
 import com.fasterxml.jackson.databind.ObjectMapper;
+import com.fasterxml.jackson.datatype.jsr310.JavaTimeModule;
 import org.apache.camel.Configuration;
 import org.apache.camel.Exchange;
 import org.apache.camel.LoggingLevel;
@@ -322,6 +323,13 @@ public class UkurCamelRouteBuilder extends RouteBuilder {
         } catch (UnknownHostException e) {
             return "Ukur-UnknownHost";
         }
+    }
+
+    @Bean
+    public ObjectMapper objectMapper() {
+        ObjectMapper objectMapper = new ObjectMapper();
+        objectMapper.registerModule(new JavaTimeModule());
+        return objectMapper;
     }
 
     @Bean(name = "json-jackson")

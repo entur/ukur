@@ -15,6 +15,7 @@ data:
         ukur.camel.pubsub.sx=google-pubsub://{{ .Values.configmap.pubsub.project_id }}:ukur.avro.situation_exchange.subscription
         spring.cloud.gcp.pubsub.project-id={{ .Values.configmap.pubsub.project_id }}
         spring.profiles.active=gcp-datastore
+        camel.dataformat.jackson.object-mapper=objectMapper
         #logging.level.root=INFO
 kind: ConfigMap
 metadata:
