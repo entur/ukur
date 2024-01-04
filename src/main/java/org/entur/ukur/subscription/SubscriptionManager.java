@@ -58,6 +58,7 @@ import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.math.BigInteger;
+import java.net.ConnectException;
 import java.net.HttpURLConnection;
 import java.net.InetAddress;
 import java.net.URL;
@@ -696,6 +697,9 @@ public class SubscriptionManager {
             int responseCode = connection.getResponseCode();
             logger.debug("Receive {} on push to {} for subscription {}", responseCode, pushAddress, subscription);
             return HttpStatus.valueOf(responseCode);
+        } catch (ConnectException e) {
+            logger.info("Connection timed out for push to {} for subscription with id {}", subscription.getPushAddress(), subscription.getId(), e);
+            return null;
         } catch (Exception e) {
             logger.warn("Could not push to {} for subscription with id {}", subscription.getPushAddress(), subscription.getId(), e);
             return null;
