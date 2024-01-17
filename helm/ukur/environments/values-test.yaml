@@ -2,11 +2,11 @@ replicas: 2
 
 env:
   datastore:
-    project_id: entur-ror-test
+    project_id: ent-ukur-tst
 
 configmap:
   pubsub:
-    project_id: entur-ror-test
+    project_id: ent-ukur-tst
 
 resources:
   cpuLimit: 7
@@ -18,6 +18,3 @@ resources:
 ingress:
   enabled: true
   domainName: .staging.entur.io
-
-rbac:
-  enabled: true

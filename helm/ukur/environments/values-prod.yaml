@@ -2,11 +2,11 @@ replicas: 3
 
 env:
   datastore:
-    project_id: entur-ror-prod
+    project_id: ent-ukur-prd
 
 configmap:
   pubsub:
-    project_id: entur-ror-prod
+    project_id: ent-ukur-prd
 
 resources:
   cpuLimit: 7
@@ -18,6 +18,3 @@ resources:
 ingress:
   enabled: true
   domainName: .entur.io
-
-rbac:
-  enabled: true

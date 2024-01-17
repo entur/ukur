@@ -5,14 +5,7 @@ image:
   identifier: ${artifact.metadata.image}
   imagePullPolicy: Always
 
-configmap:
-  pubsub:
-    credentials:
-      path: file:///etc/ukur-secret/credentials.json
-
 service:
   http:
     externalPort: 80
     internalPort: 8080
-rbac:
-  enabled: false

@@ -2,7 +2,7 @@ apiVersion: v1
 data:
   application.properties: |-
         rutebanken.kubernetes.namespace={{ .Release.Namespace }}
-        ukur.stop_place_quays.url=https://storage.googleapis.com/anshar-production/mapping_data/stop_place_quays.json
+        ukur.stop_place_quays.url=https://storage.googleapis.com/ror-anshar-gcp2-prd/mapping_data/stop_place_quays.json
         ukur.stop_place_quays.interval=3600000
         ukur.datastore.useDatastore=true
         spring.main.web-application-type=none
@@ -11,12 +11,11 @@ data:
         management.metrics.endpoint.export.prometheus.enabled=true
         debug=false
         entur.pubsub.subscriber.autocreate=false
-        ukur.camel.pubsub.et=entur-google-pubsub://ukur.protobuf.estimated_timetables.subscription
-        ukur.camel.pubsub.sx=entur-google-pubsub://ukur.protobuf.situation_exchange.subscription
+        ukur.camel.pubsub.et=google-pubsub://{{ .Values.configmap.pubsub.project_id }}:ukur.avro.estimated_timetables.subscription
+        ukur.camel.pubsub.sx=google-pubsub://{{ .Values.configmap.pubsub.project_id }}:ukur.avro.situation_exchange.subscription
         spring.cloud.gcp.pubsub.project-id={{ .Values.configmap.pubsub.project_id }}
-        spring.cloud.gcp.pubsub.credentials.location={{ .Values.configmap.pubsub.credentials.path }}
         spring.profiles.active=gcp-datastore
-        
+        camel.dataformat.jackson.object-mapper=objectMapper
         #logging.level.root=INFO
 kind: ConfigMap
 metadata:

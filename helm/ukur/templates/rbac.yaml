@@ -1,13 +1,5 @@
-{{- if .Values.rbac.enabled }}
-apiVersion: v1
-kind: ServiceAccount
-metadata:
-  name: ukur-service-account
-  labels:
-    {{- include "common.labels" . | indent 4 }}
----
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRoleBinding
+kind: RoleBinding
 metadata:
   name: ukur-service-account
   namespace: {{ .Release.Namespace }}
@@ -15,15 +7,15 @@ metadata:
     {{- include "common.labels" . | indent 4 }}
 roleRef:
   apiGroup: rbac.authorization.k8s.io
-  kind: ClusterRole
+  kind: Role
   name: ukur-service-account
 subjects:
   - kind: ServiceAccount
-    name: ukur-service-account
+    name: application
     namespace: {{ .Release.Namespace }}
 ---
 apiVersion: rbac.authorization.k8s.io/v1
-kind: ClusterRole
+kind: Role
 metadata:
   name: ukur-service-account
   namespace: {{ .Release.Namespace }}
@@ -33,4 +25,3 @@ rules:
   - apiGroups: [""] # "" indicates the core API group
     resources: ["services", "pods", "configmaps", "endpoints"]
     verbs: ["get", "watch", "list"]
-  {{- end }}
