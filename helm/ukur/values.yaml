@@ -2,7 +2,7 @@ rollingUpdate:
   maxSurge: 1
   maxUnavailable: 1
 image:
-  identifier: ${artifact.metadata.image}
+  identifier: <+artifacts.primary.image>
   imagePullPolicy: Always
 
 service:
