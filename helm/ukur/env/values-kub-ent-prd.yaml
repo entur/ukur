@@ -10,7 +10,7 @@ configmap:
 
 resources:
   memLimit: 18000Mi
-  cpuRequest: 1
+  cpuRequest: 4
   memRequest: 14000Mi
   xmx: 13000m
 
