@@ -67,7 +67,6 @@ spec:
             timeoutSeconds: 60
           resources:
             limits:
-              cpu: {{ .Values.resources.cpuLimit }}
               memory: {{ .Values.resources.memLimit }}
             requests:
               cpu: {{ .Values.resources.cpuRequest }}

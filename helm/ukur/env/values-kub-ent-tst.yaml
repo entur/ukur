@@ -9,7 +9,6 @@ configmap:
     project_id: ent-ukur-tst
 
 resources:
-  cpuLimit: 7
   memLimit: 12000Mi
   cpuRequest: 1
   memRequest: 2000Mi
