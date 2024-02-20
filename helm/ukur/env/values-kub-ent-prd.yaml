@@ -9,10 +9,10 @@ configmap:
     project_id: ent-ukur-prd
 
 resources:
-  memLimit: 18000Mi
+  memLimit: 20000Mi
   cpuRequest: 4
-  memRequest: 14000Mi
-  xmx: 13000m
+  memRequest: 16000Mi
+  xmx: 15000m
 
 ingress:
   enabled: true
