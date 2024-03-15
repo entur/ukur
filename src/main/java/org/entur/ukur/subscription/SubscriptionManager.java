@@ -496,7 +496,7 @@ public class SubscriptionManager {
     }
 
     private void pushMessage(Subscription subscription, Object siriElement, ZonedDateTime timestamp, String typeOfMessage, String codespace) {
-        logger.info("PUSH ({}) {} to subscription with id={}, name={}, pushAddress={}", hostname, siriElement.getClass().getSimpleName(), subscription.getId(), subscription.getName(), subscription.getPushAddress());
+        logger.info("PUSH {} to id={}", siriElement.getClass().getSimpleName(), subscription.getId());
         if (prometheusMetricsService != null) {
             prometheusMetricsService.registerDataToSubscriber(subscription.getPushHost(), typeOfMessage, codespace, 1);
         }
@@ -533,7 +533,7 @@ public class SubscriptionManager {
                         return;
                 }
                 HttpStatus responseStatus = post(subscription, subscription.getPushAddress(), siri);
-                logger.info("Posted a {} notification for subscription with id={}, {} responded {}", type, subscription.getId(), subscription.getPushAddress(), responseStatus);
+                logger.info("POST {} to {}: {}", type, subscription.getId(), responseStatus);
 
                 handleResponse(responseStatus, subscription, subscription.getPushAddress());
 
