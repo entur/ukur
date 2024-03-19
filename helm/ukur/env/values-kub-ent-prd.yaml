@@ -1,4 +1,4 @@
-replicas: 3
+replicas: 4
 
 env:
   datastore:
@@ -10,7 +10,7 @@ configmap:
 
 resources:
   memLimit: 20000Mi
-  cpuRequest: 4
+  cpuRequest: 3
   memRequest: 16000Mi
   xmx: 15000m
 
