@@ -5,6 +5,7 @@ env:
 configmap:
   pubsub:
     project_id: ent-ukur-dev
+  loglevel: WARN
 
 resources:
   memLimit: 12000Mi

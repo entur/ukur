@@ -5,6 +5,9 @@ image:
   identifier: <+artifacts.primary.image>
   imagePullPolicy: Always
 
+configmap:
+  loglevel: INFO
+
 service:
   http:
     externalPort: 80
