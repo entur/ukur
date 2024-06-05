@@ -32,8 +32,7 @@ import org.apache.camel.spi.RoutePolicy;
 import org.apache.camel.support.builder.Namespaces;
 import org.apache.http.entity.ContentType;
 import org.entur.avro.realtime.siri.converter.avro2jaxb.Avro2JaxbConverter;
-import org.entur.avro.realtime.siri.model.EstimatedVehicleJourneyRecord;
-import org.entur.avro.realtime.siri.model.PtSituationElementRecord;
+import org.entur.avro.realtime.siri.helper.JsonReader;
 import org.entur.ukur.camelroute.policy.InterruptibleHazelcastRoutePolicy;
 import org.entur.ukur.camelroute.status.RouteStatus;
 import org.entur.ukur.service.MetricsService;
@@ -56,7 +55,6 @@ import java.io.IOException;
 import java.net.InetAddress;
 import java.net.URL;
 import java.net.UnknownHostException;
-import java.nio.ByteBuffer;
 import java.time.LocalDateTime;
 import java.time.format.DateTimeFormatter;
 import java.util.HashMap;
@@ -143,28 +141,9 @@ public class UkurCamelRouteBuilder extends RouteBuilder {
 
     private void createJaxbProcessingRoutes() {
 
-//        from("direct:compress.jaxb")
-//                .setBody(body().convertToString())
-//                .bean(kryoSerializer, "write")
-//        ;
-//
-//        from("direct:decompress.jaxb")
-//                .bean(kryoSerializer, "read")
-//                .process(p -> {
-//                    final String body = p.getIn().getBody(String.class);
-//                    p.getOut().setBody(body);
-//                    p.getOut().setHeaders(p.getIn().getHeaders());
-//                    p.getOut().setHeader(CONTENT_LENGTH, body.getBytes().length);
-//                })
-//        ;
-
         from("direct:map.avro.et.to.jaxb")
                 .process(p -> {
-                    p.getOut().setBody(
-                            EstimatedVehicleJourneyRecord.fromByteBuffer(
-                                    p.getIn().getBody(ByteBuffer.class)
-                            )
-                    );
+                    p.getOut().setBody(JsonReader.readEstimatedVehicleJourney(p.getIn().getBody(String.class)));
                     p.getOut().setHeaders(p.getIn().getHeaders());
                 })
                 .bean(Avro2JaxbConverter.class, "convert")
@@ -178,9 +157,7 @@ public class UkurCamelRouteBuilder extends RouteBuilder {
         from("direct:map.avro.sx.to.jaxb")
                 .process(p -> {
                     p.getOut().setBody(
-                            PtSituationElementRecord.fromByteBuffer(
-                                    p.getIn().getBody(ByteBuffer.class)
-                            )
+                            JsonReader.readPtSituationElement(p.getIn().getBody(String.class))
                     );
                     p.getOut().setHeaders(p.getIn().getHeaders());
                 })

@@ -11,8 +11,8 @@ data:
         management.metrics.endpoint.export.prometheus.enabled=true
         debug=false
         entur.pubsub.subscriber.autocreate=false
-        ukur.camel.pubsub.et=google-pubsub://{{ .Values.configmap.pubsub.project_id }}:ukur.avro.estimated_timetables.subscription
-        ukur.camel.pubsub.sx=google-pubsub://{{ .Values.configmap.pubsub.project_id }}:ukur.avro.situation_exchange.subscription
+        ukur.camel.pubsub.et=google-pubsub://{{ .Values.configmap.pubsub.project_id }}:ukur.siri.estimated_timetables.subscription
+        ukur.camel.pubsub.sx=google-pubsub://{{ .Values.configmap.pubsub.project_id }}:ukur.siri.situation_exchange.subscription
         spring.cloud.gcp.pubsub.project-id={{ .Values.configmap.pubsub.project_id }}
         spring.profiles.active=gcp-datastore
         camel.dataformat.jackson.object-mapper=objectMapper

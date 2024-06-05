@@ -8,7 +8,7 @@ variable "inbound_anshar_et_pubsub_topic" {
 
 variable "inbound_anshar_et_pubsub_subscription" {
   description = "Subscription name for inbound anshar et messages"
-  default = "ukur.avro.estimated_timetables.subscription"
+  default = "ukur.siri.estimated_timetables.subscription"
 }
 
 variable "inbound_anshar_sx_pubsub_topic" {
@@ -17,5 +17,5 @@ variable "inbound_anshar_sx_pubsub_topic" {
 
 variable "inbound_anshar_sx_pubsub_subscription" {
   description = "Subscription name for inbound anshar sx messages"
-  default = "ukur.avro.situation_exchange.subscription"
+  default = "ukur.siri.situation_exchange.subscription"
 }

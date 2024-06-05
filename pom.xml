@@ -192,7 +192,7 @@
         <dependency>
             <groupId>org.entur</groupId>
             <artifactId>siri-avro-mapper</artifactId>
-            <version>2.5.11</version>
+            <version>3.0.0</version>
         </dependency>
 
         <dependency>
