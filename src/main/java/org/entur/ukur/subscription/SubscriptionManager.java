@@ -19,6 +19,12 @@ import com.codahale.metrics.Timer;
 import jakarta.xml.bind.DatatypeConverter;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.StringUtils;
+import org.apache.http.client.methods.CloseableHttpResponse;
+import org.apache.http.client.methods.HttpPost;
+import org.apache.http.entity.ByteArrayEntity;
+import org.apache.http.entity.ContentType;
+import org.apache.http.impl.client.CloseableHttpClient;
+import org.apache.http.impl.client.HttpClients;
 import org.entur.ukur.camelroute.InvalidSubscriptionIdException;
 import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.MetricsService;
@@ -53,16 +59,15 @@ import uk.org.siri.siri21.SubscriptionQualifierStructure;
 import uk.org.siri.siri21.SubscriptionTerminatedNotificationStructure;
 
 import java.io.ByteArrayOutputStream;
-import java.io.DataOutputStream;
 import java.io.IOException;
 import java.io.ObjectOutputStream;
 import java.io.Serializable;
 import java.math.BigInteger;
 import java.net.ConnectException;
-import java.net.HttpURLConnection;
 import java.net.InetAddress;
-import java.net.URL;
+import java.net.URI;
 import java.net.UnknownHostException;
+import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
 import java.time.Duration;
@@ -673,6 +678,8 @@ public class SubscriptionManager {
     private HttpStatus post(Subscription subscription, String pushAddress, Object pushMessage) {
         Timer pushToHttp = metricsService.getTimer(MetricsService.TIMER_PUSH);
         Timer.Context context = pushToHttp.time();
+        CloseableHttpClient client = HttpClients.createDefault();
+        CloseableHttpResponse response = null;
         try {
             String payload = siriMarshaller.marshall(pushMessage);
 
@@ -683,18 +690,17 @@ public class SubscriptionManager {
                 logger.debug("Sending data: {} for subscription {}", payload, subscription);
             }
 
-            byte[] bytes = payload.getBytes();
-            URL url = new URL(pushAddress);
-            HttpURLConnection connection = (HttpURLConnection) url.openConnection();
-            connection.setRequestMethod("POST");
-            connection.setRequestProperty("Content-Type", "application/xml");
-            connection.setRequestProperty("Content-Length", "" + Integer.toString(bytes.length));
-            connection.setDoOutput(true);
-            DataOutputStream out = new DataOutputStream(connection.getOutputStream());
-            out.write(bytes);
-            out.flush();
-            out.close();
-            int responseCode = connection.getResponseCode();
+            HttpPost post = new HttpPost(URI.create(pushAddress));
+            post.setEntity(
+                    new ByteArrayEntity(
+                            payload.getBytes(),
+                            ContentType.APPLICATION_XML.withCharset(StandardCharsets.UTF_8)
+                    )
+            );
+
+            response = client.execute(post);
+            int responseCode = response.getStatusLine().getStatusCode();
+
             logger.debug("Receive {} on push to {} for subscription {}", responseCode, pushAddress, subscription);
             return HttpStatus.valueOf(responseCode);
         } catch (ConnectException e) {
@@ -705,6 +711,18 @@ public class SubscriptionManager {
             return null;
         } finally {
             context.stop();
+            if (response != null) {
+                try {
+                    response.close();
+                } catch (IOException e) {
+                    logger.warn("Could not close response", e);
+                }
+            }
+            try {
+                client.close();
+            } catch (IOException e) {
+                logger.warn("Could not close client", e);
+            }
         }
     }
 
