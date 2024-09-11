@@ -17,6 +17,10 @@ data:
         spring.profiles.active=gcp-datastore
         camel.dataformat.jackson.object-mapper=objectMapper
         logging.level.root={{ .Values.configmap.loglevel }}
+    
+        # HttpClient Connection-pool settings
+        jdk.httpclient.connectionPoolSize=500
+        jdk.httpclient.keepalive.timeout=60
 kind: ConfigMap
 metadata:
   name: {{ template "ukur.name" . }}-config
