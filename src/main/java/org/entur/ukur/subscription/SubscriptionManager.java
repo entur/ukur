@@ -19,12 +19,6 @@ import com.codahale.metrics.Timer;
 import jakarta.xml.bind.DatatypeConverter;
 import org.apache.commons.lang3.SerializationUtils;
 import org.apache.commons.lang3.StringUtils;
-import org.apache.http.client.methods.CloseableHttpResponse;
-import org.apache.http.client.methods.HttpPost;
-import org.apache.http.entity.ByteArrayEntity;
-import org.apache.http.entity.ContentType;
-import org.apache.http.impl.client.CloseableHttpClient;
-import org.apache.http.impl.client.HttpClients;
 import org.entur.ukur.camelroute.InvalidSubscriptionIdException;
 import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.MetricsService;
@@ -67,6 +61,9 @@ import java.net.ConnectException;
 import java.net.InetAddress;
 import java.net.URI;
 import java.net.UnknownHostException;
+import java.net.http.HttpClient;
+import java.net.http.HttpRequest;
+import java.net.http.HttpResponse;
 import java.nio.charset.StandardCharsets;
 import java.security.MessageDigest;
 import java.security.NoSuchAlgorithmException;
@@ -674,12 +671,11 @@ public class SubscriptionManager {
             }
         }
     }
+    HttpClient httpClient = HttpClient.newHttpClient();
 
     private HttpStatus post(Subscription subscription, String pushAddress, Object pushMessage) {
         Timer pushToHttp = metricsService.getTimer(MetricsService.TIMER_PUSH);
         Timer.Context context = pushToHttp.time();
-        CloseableHttpClient client = HttpClients.createDefault();
-        CloseableHttpResponse response = null;
         try {
             String payload = siriMarshaller.marshall(pushMessage);
 
@@ -690,16 +686,14 @@ public class SubscriptionManager {
                 logger.debug("Sending data: {} for subscription {}", payload, subscription);
             }
 
-            HttpPost post = new HttpPost(URI.create(pushAddress));
-            post.setEntity(
-                    new ByteArrayEntity(
-                            payload.getBytes(),
-                            ContentType.APPLICATION_XML.withCharset(StandardCharsets.UTF_8)
-                    )
-            );
+            HttpRequest post = HttpRequest.newBuilder()
+                    .uri(URI.create(pushAddress))
+                    .POST(HttpRequest.BodyPublishers.ofByteArray(payload.getBytes(StandardCharsets.UTF_8)))
+                    .header("Content-Type", "application/xml")
+                    .build();
 
-            response = client.execute(post);
-            int responseCode = response.getStatusLine().getStatusCode();
+            HttpResponse<Void> response = httpClient.send(post, HttpResponse.BodyHandlers.discarding());
+            int responseCode = response.statusCode();
 
             logger.debug("Receive {} on push to {} for subscription {}", responseCode, pushAddress, subscription);
             return HttpStatus.valueOf(responseCode);
@@ -711,18 +705,6 @@ public class SubscriptionManager {
             return null;
         } finally {
             context.stop();
-            if (response != null) {
-                try {
-                    response.close();
-                } catch (IOException e) {
-                    logger.warn("Could not close response", e);
-                }
-            }
-            try {
-                client.close();
-            } catch (IOException e) {
-                logger.warn("Could not close client", e);
-            }
         }
     }
 
