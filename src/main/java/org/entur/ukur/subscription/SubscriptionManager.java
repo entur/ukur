@@ -501,7 +501,7 @@ public class SubscriptionManager {
     }
 
     private void pushMessage(Subscription subscription, Object siriElement, ZonedDateTime timestamp, String typeOfMessage, String codespace) {
-        logger.info("PUSH {} to id={}", siriElement.getClass().getSimpleName(), subscription.getId());
+//        logger.info("PUSH {} to id={}", siriElement.getClass().getSimpleName(), subscription.getId());
         if (prometheusMetricsService != null) {
             prometheusMetricsService.registerDataToSubscriber(subscription.getPushHost(), typeOfMessage, codespace, 1);
         }
