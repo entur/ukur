@@ -698,11 +698,11 @@ public class SubscriptionManager {
             logger.debug("Receive {} on push to {} for subscription {}", responseCode, pushAddress, subscription);
             return HttpStatus.valueOf(responseCode);
         } catch (ConnectException e) {
-            logger.info("Connection timed out for push to {} for subscription with id {}", subscription.getPushAddress(), subscription.getId(), e);
-            return null;
+            logger.warn("Connection timed out for push to {} for subscription with id {}", subscription.getPushAddress(), subscription.getId(), e);
+            return HttpStatus.REQUEST_TIMEOUT;
         } catch (Exception e) {
             logger.warn("Could not push to {} for subscription with id {}", subscription.getPushAddress(), subscription.getId(), e);
-            return null;
+            return HttpStatus.BAD_REQUEST;
         } finally {
             context.stop();
         }
