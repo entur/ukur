@@ -43,6 +43,7 @@ import org.entur.ukur.xml.KryoSerializer;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.beans.factory.config.ConfigurableBeanFactory;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Scope;
@@ -90,19 +91,22 @@ public class UkurCamelRouteBuilder extends RouteBuilder {
     private final StopPlaceQuaysProcessor stopPlaceQuaysProcessor;
     private final Namespaces siriNamespace = new Namespaces("s", "http://www.siri.org.uk/siri");
     private final KryoSerializer kryoSerializer = new KryoSerializer();
+    private final Map<String, String> healthCheckMap;
 
     @Autowired
     public UkurCamelRouteBuilder(UkurConfiguration config,
                                  ETSubscriptionProcessor ETSubscriptionProcessor,
                                  SXSubscriptionProcessor SXSubscriptionProcessor,
                                  StopPlaceQuaysProcessor stopPlaceQuaysProcessor,
-                                 MetricsService metricsService, PrometheusMetricsService prometheusMeterRegistry) {
+                                 MetricsService metricsService, PrometheusMetricsService prometheusMeterRegistry,
+                                 @Qualifier("healthCheckMap") Map<String, String> healthCheckMap) {
         this.config = config;
         this.ETSubscriptionProcessor = ETSubscriptionProcessor;
         this.SXSubscriptionProcessor = SXSubscriptionProcessor;
         this.stopPlaceQuaysProcessor = stopPlaceQuaysProcessor;
         this.metricsService = metricsService;
         this.prometheusMeterRegistry = prometheusMeterRegistry;
+        this.healthCheckMap = healthCheckMap;
         nodeStarted = LocalDateTime.now().format(DateTimeFormatter.ofPattern("yyyy-MM-dd HH:mm:ss"));
         siriNamespace.add("ns2", "http://www.ifopt.org.uk/acsb");
     }
@@ -267,9 +271,17 @@ public class UkurCamelRouteBuilder extends RouteBuilder {
 
         from("direct:OK")
                 .routeId("OK response")
-                .log(LoggingLevel.TRACE, "Return hardcoded 'OK' on uri '${header." + Exchange.HTTP_URI + "}'")
-                .setBody(simple("OK    \n\n"))
-                .setHeader(Exchange.HTTP_RESPONSE_CODE, constant("200"));
+                .choice()
+                    .when(p -> !isHazelcastAlive())
+                        .log("Hazelcast is shut down")
+                        .setBody(simple("Hazelcast is shut down"))
+                        .setHeader(Exchange.HTTP_RESPONSE_CODE, constant("500"))
+                    .endChoice()
+                    .otherwise()
+                        .setBody(simple("OK"))
+                        .setHeader(Exchange.HTTP_RESPONSE_CODE, constant("200"))
+                        .log(LoggingLevel.TRACE, "Return hardcoded 'OK' on uri '${header." + Exchange.HTTP_URI + "}'")
+                    .end();
 
         from("direct:routeStatus")
                 .routeId("Route Status")
@@ -292,6 +304,15 @@ public class UkurCamelRouteBuilder extends RouteBuilder {
                     exchange.getOut().setBody(status);
                 });
 
+    }
+
+    private boolean isHazelcastAlive() {
+        try {
+            healthCheckMap.put("hazelcast", "OK");
+            return healthCheckMap.containsKey("hazelcast");
+        } catch (Exception e) {
+            return false;
+        }
     }
 
     private String getHostName(){
