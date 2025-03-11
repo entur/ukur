@@ -10,10 +10,10 @@ configmap:
   loglevel: INFO
 
 resources:
-  memLimit: 20000Mi
-  cpuRequest: 3
-  memRequest: 16000Mi
-  xmx: 15000m
+  memLimit: 28000Mi
+  cpuRequest: 5
+  memRequest: 25000Mi
+  xmx: 26000m
 
 ingress:
   enabled: true
