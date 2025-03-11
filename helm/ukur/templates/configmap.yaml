@@ -17,6 +17,7 @@ data:
         spring.profiles.active=gcp-datastore
         camel.dataformat.jackson.object-mapper=objectMapper
         logging.level.root={{ .Values.configmap.loglevel }}
+        ukur.camel.subscription-heartbeat-check.interval=30000
     
         # HttpClient Connection-pool settings
         jdk.httpclient.connectionPoolSize=500
