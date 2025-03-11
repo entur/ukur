@@ -13,7 +13,7 @@ resources:
   memLimit: 28000Mi
   cpuRequest: 5
   memRequest: 25000Mi
-  xmx: 26000m
+  xmx: 25000m
 
 ingress:
   enabled: true
