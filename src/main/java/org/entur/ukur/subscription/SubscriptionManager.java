@@ -98,7 +98,7 @@ public class SubscriptionManager {
     private QuayAndStopPlaceMappingService quayAndStopPlaceMappingService;
     private String hostname;
     private Logger logger = LoggerFactory.getLogger(this.getClass());
-    private ThreadPoolExecutor pushExecutor = (ThreadPoolExecutor) Executors.newFixedThreadPool(50);
+    private ThreadPoolExecutor pushExecutor = (ThreadPoolExecutor) Executors.newFixedThreadPool(100);
     private Map<String, Long> subscriptionNextHeartbeat;
     private Map<MessageIdentifierKey, String> lastMessageChecksum;
     private ZonedDateTime nextTerminatedCheck = null;
@@ -678,13 +678,6 @@ public class SubscriptionManager {
         Timer.Context context = pushToHttp.time();
         try {
             String payload = siriMarshaller.marshall(pushMessage);
-
-            if ( (pushMessage instanceof EstimatedVehicleJourney ||
-                    pushMessage instanceof PtSituationElement) ||
-                    (pushMessage instanceof Siri && ((Siri)pushMessage).getServiceDelivery() != null)) {
-                // Excessive logging of payload
-                logger.debug("Sending data: {} for subscription {}", payload, subscription);
-            }
 
             HttpRequest post = HttpRequest.newBuilder()
                     .uri(URI.create(pushAddress))
