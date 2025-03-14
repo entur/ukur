@@ -658,7 +658,12 @@ public class SubscriptionManager {
                 dataStorageService.updateSubscription(subscription);
             }
         } else {
-            logger.info("Unexpected response code on push '{}' - increase failed push counter for subscription wih id {}", responseStatus, subscription.getId());
+
+            logger.info("Unexpected response code on push '{}' - increase failed push counter from {} for subscription wih id {}",
+                    responseStatus,
+                    subscription.getFailedPushCounter(),
+                    subscription.getId()
+            );
 
             // Last request failed - remove checksum for last send-attempt to retry
             lastMessageChecksum.remove(subscription.getId());
@@ -667,6 +672,7 @@ public class SubscriptionManager {
                 logger.info("Removing subscription with id {} after {} failed push attempts where first error was seen {}", subscription.getId(), subscription.getFailedPushCounter(), subscription.getFirstErrorSeen() );
                 remove(subscription.getId());
             } else {
+                logger.info("Updating subscription {} with failed push counter {}", subscription.getId(), subscription.getFailedPushCounter());
                 dataStorageService.updateSubscription(subscription);
             }
         }
