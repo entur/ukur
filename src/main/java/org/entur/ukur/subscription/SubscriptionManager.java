@@ -677,7 +677,9 @@ public class SubscriptionManager {
             }
         }
     }
-    HttpClient httpClient = HttpClient.newHttpClient();
+    HttpClient httpClient = HttpClient.newBuilder()
+            .version(HttpClient.Version.HTTP_1_1)
+            .build();;
 
     private HttpStatus post(Subscription subscription, String pushAddress, Object pushMessage) {
         Timer pushToHttp = metricsService.getTimer(MetricsService.TIMER_PUSH);
