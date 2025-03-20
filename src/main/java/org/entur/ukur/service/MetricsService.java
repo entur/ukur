@@ -54,6 +54,9 @@ public class MetricsService {
     public static final String METER_ET_WITH_DEVIATIONS    = "message.et-with-deviations";
     public static final String HISTOGRAM_RECEIVED_DELAY    = "histogram.received_delay";
     public static final String HISTOGRAM_PROCESSED_DELAY   = "histogram.processed_delay";
+    public static final String SUBSCRIPTION_ADD            = "subscription.add";
+    public static final String SUBSCRIPTION_UPDATE         = "subscription.update";
+    public static final String SUBSCRIPTION_DELETE         = "subscription.delete";
     private final Logger logger = LoggerFactory.getLogger(getClass());
     private final MetricRegistry metrics = new MetricRegistry();
 

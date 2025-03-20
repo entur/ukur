@@ -103,6 +103,10 @@ public class SubscriptionManager {
     private Map<MessageIdentifierKey, String> lastMessageChecksum;
     private ZonedDateTime nextTerminatedCheck = null;
 
+    HttpClient httpClient = HttpClient.newBuilder()
+            .version(HttpClient.Version.HTTP_1_1)
+            .build();
+
     @Autowired
     public SubscriptionManager(DataStorageService dataStorageService,
                                SiriMarshaller siriMarshaller,
@@ -410,31 +414,31 @@ public class SubscriptionManager {
         subscription.normalizeAndRemoveIgnoredStops();
         removeInvalidStopPointsFromSubscription(subscription);
 
-        boolean noToStops = subscription.getToStopPoints().isEmpty();
-        boolean noFromStops = subscription.getFromStopPoints().isEmpty();
-        boolean noCodespaces = subscription.getCodespaces().isEmpty();
-        boolean noLineRefs = subscription.getLineRefs().isEmpty();
-        if (noToStops && noFromStops && noCodespaces && noLineRefs) {
-            throw new IllegalArgumentException("No criterias given, must have at least one lineRef, one codespace or a valid fromStop and a valid toStop." +
-                    " Please check NSR database for valid stops");
-        }
-        if ( (noFromStops && !noToStops) || (noToStops && !noFromStops)) {
-            throw new IllegalArgumentException("Must have both TO and FROM valid stops");
-        }
+            boolean noToStops = subscription.getToStopPoints().isEmpty();
+            boolean noFromStops = subscription.getFromStopPoints().isEmpty();
+            boolean noCodespaces = subscription.getCodespaces().isEmpty();
+            boolean noLineRefs = subscription.getLineRefs().isEmpty();
+            if (noToStops && noFromStops && noCodespaces && noLineRefs) {
+                throw new IllegalArgumentException("No criterias given, must have at least one lineRef, one codespace or a valid fromStop and a valid toStop." +
+                        " Please check NSR database for valid stops");
+            }
+            if ((noFromStops && !noToStops) || (noToStops && !noFromStops)) {
+                throw new IllegalArgumentException("Must have both TO and FROM valid stops");
+            }
 
         if (!siriXML && subscription.isSiriXMLBasedSubscription()) {
             throw new IllegalArgumentException("Illegal name (can't start with 'SIRI-XML')");
         }
         if (StringUtils.isNotBlank(subscription.getId())) {
             logger.info("Attempts to updates subscription with id {}", subscription.getId());
-            if ( dataStorageService.updateSubscription(subscription)) {
+            if ( updateSubscription(subscription)) {
                 logger.info("Updated subscription with id {} successfully", subscription.getId());
             } else {
                 throw new InvalidSubscriptionIdException("Could not update subscription");
             }
             return subscription;
         } else {
-            Subscription added = dataStorageService.addSubscription(subscription);
+            Subscription added = addSubscription(subscription);
             logger.info("Added new subscription - assigns id: {}", added.getId());
             if (prometheusMetricsService != null) {
                 prometheusMetricsService.registerAddedSubscription(added.getPushHost(), 1);
@@ -464,7 +468,7 @@ public class SubscriptionManager {
     @SuppressWarnings({"unused", "UnusedReturnValue", "WeakerAccess"}) //Used from Camel REST api
     public void remove(String subscriptionId) {
         logger.info("Removes subscription with id {}", subscriptionId);
-        dataStorageService.removeSubscription(subscriptionId);
+        removeSubscription(subscriptionId);
         subscriptionNextHeartbeat.remove(subscriptionId);
 
         List<MessageIdentifierKey> messageKeysForSubscription = lastMessageChecksum.keySet().stream().filter(key -> key.subscriptionId.equals(subscriptionId)).collect(Collectors.toList());
@@ -655,7 +659,7 @@ public class SubscriptionManager {
         } else if (HttpStatus.OK.equals(responseStatus)) {
             if (subscription.getFailedPushCounter() > 0) {
                 subscription.resetFailedPushCounter();
-                dataStorageService.updateSubscription(subscription);
+                updateSubscription(subscription);
             }
         } else {
 
@@ -673,13 +677,38 @@ public class SubscriptionManager {
                 remove(subscription.getId());
             } else {
                 logger.info("Updating subscription {} with failed push counter {}", subscription.getId(), subscription.getFailedPushCounter());
-                dataStorageService.updateSubscription(subscription);
+                updateSubscription(subscription);
             }
         }
     }
-    HttpClient httpClient = HttpClient.newBuilder()
-            .version(HttpClient.Version.HTTP_1_1)
-            .build();;
+
+    private boolean updateSubscription(Subscription subscription) {
+        Timer.Context context = metricsService.getTimer(MetricsService.SUBSCRIPTION_UPDATE).time();
+        try {
+            return dataStorageService.updateSubscription(subscription);
+        } finally {
+            context.stop();
+        }
+    }
+
+    private Subscription addSubscription(Subscription subscription) {
+        Timer.Context context = metricsService.getTimer(MetricsService.SUBSCRIPTION_ADD).time();
+        try {
+            return dataStorageService.addSubscription(subscription);
+        } finally {
+            context.stop();
+        }
+    }
+
+    private void removeSubscription(String subscriptionId) {
+        Timer.Context context = metricsService.getTimer(MetricsService.SUBSCRIPTION_DELETE).time();
+        try {
+            dataStorageService.removeSubscription(subscriptionId);
+        } finally {
+            context.stop();
+        }
+    }
+
 
     private HttpStatus post(Subscription subscription, String pushAddress, Object pushMessage) {
         Timer pushToHttp = metricsService.getTimer(MetricsService.TIMER_PUSH);
