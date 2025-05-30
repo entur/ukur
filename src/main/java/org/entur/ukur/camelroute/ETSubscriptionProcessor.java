@@ -409,7 +409,7 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
     }
 
     private boolean isDelayed(ZonedDateTime aimed, ZonedDateTime expected) {
-        return false;
+        return aimed != null && expected != null && expected.isAfter(aimed);
     }
 
     private ZonedDateTime findOne(HashMap<String, StopData> stops, Set<String> fromStopPoints, int direction) {
