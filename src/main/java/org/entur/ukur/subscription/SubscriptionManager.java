@@ -72,6 +72,7 @@ import java.time.ZonedDateTime;
 import java.util.Collection;
 import java.util.Collections;
 import java.util.Date;
+import java.util.HashMap;
 import java.util.HashSet;
 import java.util.Iterator;
 import java.util.List;
@@ -143,6 +144,30 @@ public class SubscriptionManager {
     public Collection<Subscription> listAll() {
         Collection<Subscription> existingSubscriptions = dataStorageService.getSubscriptions();
         logger.debug("There are {} subscriptions", existingSubscriptions.size());
+        return Collections.unmodifiableCollection(existingSubscriptions);
+    }
+    @SuppressWarnings("unused") //Used from camel route
+    public Collection<Subscription> findDuplicates() {
+        Collection<Subscription> existingSubscriptions = dataStorageService.getSubscriptions();
+        logger.debug("There are {} subscriptions", existingSubscriptions.size());
+        HashMap<String, Subscription> tmpDuplicates = new HashMap<>();
+        HashMap<String, Subscription> urlDuplicates = new HashMap<>();
+        for (Subscription existingSubscription : existingSubscriptions) {
+            Subscription existing = tmpDuplicates.put(existingSubscription.getPushAddress(), existingSubscription);
+            if (existing != null) {
+                urlDuplicates.put(existing.getPushAddress(), existing);
+            }
+        }
+
+        return Collections.unmodifiableCollection(urlDuplicates.values());
+    }
+    @SuppressWarnings("unused") //Used from camel route
+    public Collection<Subscription> deleteDuplicates() {
+        Collection<Subscription> existingSubscriptions = findDuplicates();
+        logger.warn("Deleting {} duplicate subscriptions.   ", existingSubscriptions.size());
+        for (Subscription duplicate : existingSubscriptions) {
+            this.remove(duplicate.getId());
+        }
         return Collections.unmodifiableCollection(existingSubscriptions);
     }
 

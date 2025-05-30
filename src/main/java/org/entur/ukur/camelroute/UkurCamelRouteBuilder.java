@@ -239,6 +239,8 @@ public class UkurCamelRouteBuilder extends RouteBuilder {
                 .bindingMode(RestBindingMode.json)
                 .get("/subscriptions").to("bean:subscriptionManager?method=listAll")
                 .get("/subscriptions/reload").to("bean:subscriptionManager?method=reloadSubscriptionCache")
+                .get("/subscriptions/find-duplicates").to("bean:subscriptionManager?method=findDuplicates")
+                .get("/subscriptions/delete-duplicates").to("bean:subscriptionManager?method=deleteDuplicates")
                 .get("/routes").to("direct:routeStatus")
                 .get("/live").to("direct:OK")
                 .get("/ready").to("direct:ready")
