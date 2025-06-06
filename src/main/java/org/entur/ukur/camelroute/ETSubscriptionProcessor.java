@@ -344,6 +344,12 @@ public class ETSubscriptionProcessor implements org.apache.camel.Processor {
                     } else {
                         boolean delayedDeparture = call.getDepartureStatus() == CallStatusEnumeration.DELAYED || isDelayed(call.getAimedDepartureTime(), call.getExpectedDepartureTime());
                         boolean delayedArrival = call.getArrivalStatus() == CallStatusEnumeration.DELAYED || isDelayed(call.getAimedArrivalTime(), call.getExpectedArrivalTime());
+                        if (delayedArrival && call.getArrivalStatus() == null) {
+                            call.setArrivalStatus(CallStatusEnumeration.DELAYED);
+                        }
+                        if (delayedDeparture && call.getDepartureStatus() == null) {
+                            call.setDepartureStatus(CallStatusEnumeration.DELAYED);
+                        }
                         final Duration delayedArrivalDuration = getDelayedArrivalDuration(call.getAimedArrivalTime(), call.getExpectedArrivalTime());
                         if (delayedArrival || delayedDeparture) {
                             deviations.add(StopDetails.delayed(getStringValue(call.getStopPointRef()), delayedDeparture, delayedArrival, delayedArrivalDuration));
