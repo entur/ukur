@@ -396,6 +396,7 @@ public class SubscriptionManager {
         long epochNow = dateNow.getTime();
 
         Collection<Subscription> subscriptions = new HashSet<>(dataStorageService.getSubscriptions());
+        logger.info("Fetching subscriptions from datastore, size: " + subscriptions.size() + " took " + (System.currentTimeMillis() - epochNow) + "ms");
 
         //check for terminated subscriptions only every 3 hour (node local timestamp as there is no harm if we check more frequent)
         if (nextTerminatedCheck == null || nextTerminatedCheck.isAfter(now)) {
@@ -414,6 +415,7 @@ public class SubscriptionManager {
             }
         }
 
+        long t1 = System.currentTimeMillis();
         for (Subscription subscription : subscriptions) {
             Duration heartbeatInterval = subscription.getHeartbeatInterval();
             if (heartbeatInterval != null) {
@@ -427,6 +429,7 @@ public class SubscriptionManager {
                 }
             }
         }
+        logger.info("Handled heartbeat and termination for {} subscriptions in {} ms", subscriptions.size(), System.currentTimeMillis() - t1);
     }
 
     Subscription addOrUpdate(Subscription subscription, boolean siriXML) {
