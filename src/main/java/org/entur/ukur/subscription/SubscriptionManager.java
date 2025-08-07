@@ -164,10 +164,16 @@ public class SubscriptionManager {
     @SuppressWarnings("unused") //Used from camel route
     public Collection<Subscription> deleteDuplicates() {
         Collection<Subscription> existingSubscriptions = findDuplicates();
-        logger.warn("Deleting {} duplicate subscriptions.   ", existingSubscriptions.size());
+        logger.warn("Deleting {} duplicate subscriptions.", existingSubscriptions.size());
+        int counter = 0;
         for (Subscription duplicate : existingSubscriptions) {
             this.remove(duplicate.getId());
+            if (counter++ % 1000 == 0) {
+                logger.info("Deleted {} duplicate subscriptions so far", counter);
+            }
         }
+
+        logger.warn("Deleted {} duplicate subscriptions.", counter);
         return Collections.unmodifiableCollection(existingSubscriptions);
     }
 
