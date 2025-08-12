@@ -448,17 +448,22 @@ public class SubscriptionManager {
         subscription.normalizeAndRemoveIgnoredStops();
         removeInvalidStopPointsFromSubscription(subscription);
 
-            boolean noToStops = subscription.getToStopPoints().isEmpty();
-            boolean noFromStops = subscription.getFromStopPoints().isEmpty();
-            boolean noCodespaces = subscription.getCodespaces().isEmpty();
-            boolean noLineRefs = subscription.getLineRefs().isEmpty();
-            if (noToStops && noFromStops && noCodespaces && noLineRefs) {
-                throw new IllegalArgumentException("No criterias given, must have at least one lineRef, one codespace or a valid fromStop and a valid toStop." +
-                        " Please check NSR database for valid stops");
-            }
-            if ((noFromStops && !noToStops) || (noToStops && !noFromStops)) {
-                throw new IllegalArgumentException("Must have both TO and FROM valid stops");
-            }
+        boolean noToStops = subscription.getToStopPoints().isEmpty();
+        boolean noFromStops = subscription.getFromStopPoints().isEmpty();
+        boolean noCodespaces = subscription.getCodespaces().isEmpty();
+        boolean noLineRefs = subscription.getLineRefs().isEmpty();
+        if (noToStops && noFromStops && noCodespaces && noLineRefs) {
+            throw new IllegalArgumentException("No criterias given, must have at least one lineRef, one codespace or a valid fromStop and a valid toStop." +
+                    " Please check NSR database for valid stops");
+        }
+        if ((noFromStops && !noToStops) || (noToStops && !noFromStops)) {
+            throw new IllegalArgumentException("Must have both TO and FROM valid stops");
+        }
+
+        if (subscription.getPushHost().endsWith("vy.no") && noFromStops & noToStops) {
+            // Temporary workaround for VY API - avoid subscriptions on multimodal stops
+            throw new IllegalArgumentException("Suspected multimodal stops blocked for Vy.");
+        }
 
         if (!siriXML && subscription.isSiriXMLBasedSubscription()) {
             throw new IllegalArgumentException("Illegal name (can't start with 'SIRI-XML')");
