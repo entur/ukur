@@ -462,6 +462,7 @@ public class SubscriptionManager {
 
         if (subscription.getPushHost().endsWith("vy.no") && noFromStops & noToStops) {
             // Temporary workaround for VY API - avoid subscriptions on multimodal stops
+            logger.info("Blocked subscription with suspected multimodal stops for host {}, name {}", subscription.getPushHost(), subscription.getName());
             throw new IllegalArgumentException("Suspected multimodal stops blocked for Vy.");
         }
 
