@@ -1,6 +1,6 @@
-FROM eclipse-temurin:21.0.4_7-jdk-jammy
+FROM eclipse-temurin:21-noble
 
-RUN addgroup appuser && adduser --disabled-password appuser --ingroup appuser
+RUN addgroup --gid 2000 appuser && adduser --uid 2000 --disabled-password --ingroup appuser appuser
 USER appuser
 
 WORKDIR /home/appuser
