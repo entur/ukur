@@ -20,7 +20,7 @@
     <parent>
         <groupId>org.entur.ror</groupId>
         <artifactId>superpom</artifactId>
-        <version>2.4</version>
+        <version>6.4.0</version>
     </parent>
 
     <groupId>org.entur</groupId>
@@ -34,11 +34,11 @@
     <properties>
         <project.build.sourceEncoding>UTF-8</project.build.sourceEncoding>
         <docker.maven.plugin.version>0.21.0</docker.maven.plugin.version>
-        <spring-boot.version>3.1.5</spring-boot.version>
+        <spring-boot.version>4.0.6</spring-boot.version>
         <metrics-version>4.2.33</metrics-version>
-        <camel.version>4.1.0</camel.version>
+        <camel.version>4.20.0</camel.version>
         <hazelcast.version>5.3.0</hazelcast.version>
-        <entur.helpers.version>5.42.0</entur.helpers.version>
+        <entur.helpers.version>6.1.0</entur.helpers.version>
     </properties>
 
     <licenses>
@@ -192,7 +192,7 @@
         <dependency>
             <groupId>org.entur</groupId>
             <artifactId>siri-avro-mapper</artifactId>
-            <version>4.0.1</version>
+            <version>4.0.3</version>
         </dependency>
 
         <dependency>
