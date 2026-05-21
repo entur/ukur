@@ -321,6 +321,7 @@ public class UkurCamelRouteBuilder extends RouteBuilder {
             healthCheckMap.put("hazelcast", "OK");
             return healthCheckMap.containsKey("hazelcast");
         } catch (Exception e) {
+            log.error("Hazelcast health check failed", e);
             return false;
         }
     }
