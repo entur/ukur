@@ -116,6 +116,7 @@ public class UkurCamelRouteBuilder extends RouteBuilder {
         onException(Exception.class)
                 .handled(true)
                 .log(LoggingLevel.WARN, "Caught ${exception}")
+                .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(500))
                 .transform().simple("${exception.message}");
 
         onException(InvalidSubscriptionIdException.class)
@@ -265,11 +266,18 @@ public class UkurCamelRouteBuilder extends RouteBuilder {
         from("direct:ready")
                 .routeId("Ready checker")
                 .choice()
-                .when(exchange -> stopPlaceQuaysProcessor.hasRun()).to("direct:OK")
-                .otherwise()
-                .log(LoggingLevel.WARN, "not ready (has not retrieved stopplace data yet)")
-                .setBody(simple("NOT OK    \n\n"))
-                .setHeader(Exchange.HTTP_RESPONSE_CODE, constant("500"));
+                    .when(exchange -> !stopPlaceQuaysProcessor.hasRun())
+                        .log(LoggingLevel.WARN, "not ready (has not retrieved stopplace data yet)")
+                        .setBody(simple("NOT OK    \n\n"))
+                        .setHeader(Exchange.HTTP_RESPONSE_CODE, constant("500"))
+                    .when(p -> !isHazelcastAlive())
+                        .log("Hazelcast is shut down")
+                        .setBody(simple("Hazelcast is shut down"))
+                        .setHeader(Exchange.HTTP_RESPONSE_CODE, constant("500"))
+                    .otherwise()
+                        .setBody(simple("OK"))
+                        .setHeader(Exchange.HTTP_RESPONSE_CODE, constant("200"))
+                .end();
 
         from("direct:OK")
                 .routeId("OK response")
