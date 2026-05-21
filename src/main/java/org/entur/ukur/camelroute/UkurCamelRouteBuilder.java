@@ -281,17 +281,9 @@ public class UkurCamelRouteBuilder extends RouteBuilder {
 
         from("direct:OK")
                 .routeId("OK response")
-                .choice()
-                    .when(p -> !isHazelcastAlive())
-                        .log("Hazelcast is shut down")
-                        .setBody(simple("Hazelcast is shut down"))
-                        .setHeader(Exchange.HTTP_RESPONSE_CODE, constant("500"))
-                    .endChoice()
-                    .otherwise()
-                        .setBody(simple("OK"))
-                        .setHeader(Exchange.HTTP_RESPONSE_CODE, constant("200"))
-                        .log(LoggingLevel.TRACE, "Return hardcoded 'OK' on uri '${header." + Exchange.HTTP_URI + "}'")
-                    .end();
+                .setBody(simple("OK"))
+                .setHeader(Exchange.HTTP_RESPONSE_CODE, constant("200"))
+                .log(LoggingLevel.TRACE, "Return hardcoded 'OK' on uri '${header." + Exchange.HTTP_URI + "}'");
 
         from("direct:routeStatus")
                 .routeId("Route Status")
@@ -321,7 +313,7 @@ public class UkurCamelRouteBuilder extends RouteBuilder {
             healthCheckMap.put("hazelcast", "OK");
             return healthCheckMap.containsKey("hazelcast");
         } catch (Exception e) {
-            log.error("Hazelcast health check failed", e);
+            logger.error("Hazelcast health check failed", e);
             return false;
         }
     }

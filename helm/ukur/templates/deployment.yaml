@@ -39,13 +39,20 @@ spec:
               value: {{ .Values.env.datastore.project_id }}
           image: {{ .Values.image.identifier }}
           imagePullPolicy: {{ .Values.image.imagePullPolicy }}
+          startupProbe:
+            failureThreshold: 60
+            httpGet:
+              path: /internal/health/live
+              port: {{ .Values.service.http.internalPort }}
+              scheme: HTTP
+            periodSeconds: 10
+            timeoutSeconds: 10
           livenessProbe:
             failureThreshold: 5
             httpGet:
               path: /internal/health/live
               port: {{ .Values.service.http.internalPort }}
               scheme: HTTP
-            initialDelaySeconds: 60
             periodSeconds: 10
             successThreshold: 1
             timeoutSeconds: 60
@@ -63,7 +70,6 @@ spec:
               path: /internal/health/ready
               port: {{ .Values.service.http.internalPort }}
               scheme: HTTP
-            initialDelaySeconds: 120
             periodSeconds: 10
             successThreshold: 1
             timeoutSeconds: 60
