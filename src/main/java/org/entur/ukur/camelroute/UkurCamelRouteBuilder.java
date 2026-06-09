@@ -113,11 +113,22 @@ public class UkurCamelRouteBuilder extends RouteBuilder {
 
     @Override
     public void configure() {
+        // Unexpected errors: keep the full stack trace in the internal log (correlatable via the
+        // camel.breadcrumbId in logback.xml), but never echo exception details back to the caller.
         onException(Exception.class)
                 .handled(true)
-                .log(LoggingLevel.WARN, "Caught ${exception}")
+                .log(LoggingLevel.WARN, "Caught ${exception.stacktrace}")
                 .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(500))
-                .transform().simple("${exception.message}");
+                .setHeader(Exchange.CONTENT_TYPE, constant("text/plain"))
+                .setBody(constant("Internal server error"));
+
+        // Input validation: these messages are curated and safe to return to the caller. Use 400.
+        onException(IllegalArgumentException.class)
+                .handled(true)
+                .log(LoggingLevel.INFO, "Rejected request: ${exception.message}")
+                .setHeader(Exchange.HTTP_RESPONSE_CODE, constant(400))
+                .setHeader(Exchange.CONTENT_TYPE, constant("text/plain"))
+                .setBody(simple("${exception.message}"));
 
         onException(InvalidSubscriptionIdException.class)
                 .handled(true)
