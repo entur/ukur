@@ -187,7 +187,7 @@ public class SiriXMLSubscriptionHandlerTest {
         requestorRef.setValue("Req");
         SubscriptionRequest request = new SubscriptionRequest();
         request.setRequestorRef(requestorRef);
-        request.setAddress("pushaddress");
+        request.setAddress("https://server:port/pushaddress");
         SituationExchangeRequestStructure sxRequest = new SituationExchangeRequestStructure();
         SituationExchangeSubscriptionStructure sxSubscriptionReq = new SituationExchangeSubscriptionStructure();
         sxSubscriptionReq.setSituationExchangeRequest(sxRequest);
@@ -213,7 +213,7 @@ public class SiriXMLSubscriptionHandlerTest {
         assertTrue(booleanCaptor.getValue());
         Subscription subscription = subscriptionCaptor.getValue();
         assertEquals(Subscription.getName("Req", "Id"), subscription.getName());
-        assertEquals("pushaddress", subscription.getPushAddress());
+        assertEquals("https://server:port/pushaddress", subscription.getPushAddress());
         assertEquals(SubscriptionTypeEnum.SX, subscription.getType());
         assertTrue(subscription.isSiriXMLBasedSubscription());
         assertTrue(subscription.hasNoStops());
