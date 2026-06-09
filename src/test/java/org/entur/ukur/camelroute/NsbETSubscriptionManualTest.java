@@ -18,7 +18,7 @@ package org.entur.ukur.camelroute;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.tomakehurst.wiremock.junit.WireMockRule;
+import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
@@ -35,10 +35,10 @@ import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionManager;
 import org.entur.ukur.testsupport.DatastoreTest;
 import org.entur.ukur.xml.SiriMarshaller;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.org.siri.siri21.EstimatedVehicleJourney;
@@ -63,6 +63,7 @@ import java.util.Locale;
 import java.util.stream.Collectors;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.configureFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.findAll;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
@@ -71,18 +72,31 @@ import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlMatching;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @SuppressWarnings({"SameParameterValue", "Duplicates"})
+@Disabled //Manual test - requires external systems; not part of the default suite
 public class NsbETSubscriptionManualTest extends DatastoreTest {
     private final Logger logger = LoggerFactory.getLogger(getClass());
-    @Rule
-    public WireMockRule wireMockRule = new WireMockRule(options().dynamicPort());
+    private final WireMockServer wireMockRule = new WireMockServer(options().dynamicPort());
+
+    @BeforeEach
+    public void startWireMock() {
+        wireMockRule.start();
+        configureFor("localhost", wireMockRule.port());
+    }
+
+    @AfterEach
+    public void stopWireMock() {
+        wireMockRule.resetAll();
+        wireMockRule.stop();
+    }
+
     private SubscriptionManager subscriptionManager;
     private ETSubscriptionProcessor ETSubscriptionProcessor;
     private QuayAndStopPlaceMappingService quayAndStopPlaceMappingService;
@@ -90,7 +104,7 @@ public class NsbETSubscriptionManualTest extends DatastoreTest {
     private MetricsService metricsService = new MetricsService();
     private static final NumberFormat FORMATTER = NumberFormat.getInstance(Locale.forLanguageTag("no"));
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         super.setUp();
         HazelcastInstance hazelcastInstance = new TestHazelcastInstanceFactory().newHazelcastInstance();
@@ -104,7 +118,7 @@ public class NsbETSubscriptionManualTest extends DatastoreTest {
     }
 
     @Test
-    @Ignore //So idea don't run it as part of package/folder tests
+    @Disabled //So idea don't run it as part of package/folder tests
     public void prosessRecordedETMessages() throws Exception {
 
         LoggerContext logCtx = (LoggerContext) LoggerFactory.getILoggerFactory();
@@ -228,13 +242,13 @@ public class NsbETSubscriptionManualTest extends DatastoreTest {
         logger.info("s2ReceivedMessages (Asker-OsloS only stopplaces)      : {}", s2ReceivedMessages.size());
         logger.info("s3ReceivedMessages (Line L13)                         : {}", s3ReceivedMessages.size());
 
-        assertEquals("Excpected the same messages received", s1ReceivedMessages.size(), s2ReceivedMessages.size());
+        assertEquals(s1ReceivedMessages.size(), s2ReceivedMessages.size(), "Excpected the same messages received");
         HashSet<String> s1_uniqueDatedVehicleJourneyRefs = getUniqueDatedVehicleJourneyRefs(s1ReceivedMessages);
         HashSet<String> s2_uniqueDatedVehicleJourneyRefs = getUniqueDatedVehicleJourneyRefs(s2ReceivedMessages);
-        assertTrue("Excpected the same messages received", s1_uniqueDatedVehicleJourneyRefs.containsAll(s2_uniqueDatedVehicleJourneyRefs));
-        assertTrue("Excpected the same messages received", s2_uniqueDatedVehicleJourneyRefs.containsAll(s1_uniqueDatedVehicleJourneyRefs));
+        assertTrue(s1_uniqueDatedVehicleJourneyRefs.containsAll(s2_uniqueDatedVehicleJourneyRefs), "Excpected the same messages received");
+        assertTrue(s2_uniqueDatedVehicleJourneyRefs.containsAll(s1_uniqueDatedVehicleJourneyRefs), "Excpected the same messages received");
 
-        assertFalse("Expected messages regarding line L13", s3ReceivedMessages.isEmpty());
+        assertFalse(s3ReceivedMessages.isEmpty(), "Expected messages regarding line L13");
 
         List<LoggedRequest> allUnmatchedRequests = wireMockRule.findAllUnmatchedRequests();
         if (!allUnmatchedRequests.isEmpty()) {
@@ -246,7 +260,7 @@ public class NsbETSubscriptionManualTest extends DatastoreTest {
     }
 
     @Test
-    @Ignore //So idea don't run it as part of package/folder tests
+    @Disabled //So idea don't run it as part of package/folder tests
     public void processETMessageWithStatusBoardingAlighting() throws Exception {
 
         LoggerContext logCtx = (LoggerContext) LoggerFactory.getILoggerFactory();
@@ -307,7 +321,7 @@ public class NsbETSubscriptionManualTest extends DatastoreTest {
         List<EstimatedVehicleJourney> receivedMessages = getEstimatedVehicleJourney("/subscription/et");
         logger.info("ReceivedMessages )                         : {}", receivedMessages.size());
 
-        assertFalse("Expected message ", receivedMessages.isEmpty());
+        assertFalse(receivedMessages.isEmpty(), "Expected message ");
 
         List<LoggedRequest> allUnmatchedRequests = wireMockRule.findAllUnmatchedRequests();
         if (!allUnmatchedRequests.isEmpty()) {

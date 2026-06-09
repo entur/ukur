@@ -15,12 +15,12 @@
 
 package org.entur.ukur.subscription;
 
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.mockito.ArgumentCaptor;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
-import org.mockito.junit.MockitoJUnitRunner;
+import org.mockito.MockitoAnnotations;
 import uk.org.siri.siri21.EstimatedTimetableRequestStructure;
 import uk.org.siri.siri21.EstimatedTimetableSubscriptionStructure;
 import uk.org.siri.siri21.LineDirectionStructure;
@@ -42,15 +42,14 @@ import java.time.ZonedDateTime;
 
 import static org.entur.ukur.subscription.SiriXMLSubscriptionHandler.SIRI_VERSION;
 import static org.hamcrest.Matchers.containsInAnyOrder;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.verify;
 
-@RunWith(MockitoJUnitRunner.class)
 public class SiriXMLSubscriptionHandlerTest {
 
     private final static String HEARTBEAT_INTERVAL = "PT5M";
@@ -60,6 +59,11 @@ public class SiriXMLSubscriptionHandlerTest {
     private SubscriptionManager subscriptionManagerMock;
     @InjectMocks
     private SiriXMLSubscriptionHandler siriXMLSubscriptionHandler;
+
+    @BeforeEach
+    public void initMocks() {
+        org.mockito.MockitoAnnotations.openMocks(this);
+    }
 
     @Test
     public void testCreateETSubscription() throws Exception {

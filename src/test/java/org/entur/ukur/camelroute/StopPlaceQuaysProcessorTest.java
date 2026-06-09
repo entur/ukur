@@ -20,8 +20,8 @@ import org.apache.camel.Message;
 import org.apache.commons.io.IOUtils;
 import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.service.QuayAndStopPlaceMappingService;
-import org.junit.Ignore;
-import org.junit.Test;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -32,11 +32,11 @@ import java.util.Collection;
 import java.util.HashMap;
 import java.util.HashSet;
 
-import static junit.framework.TestCase.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.IsCollectionContaining.hasItems;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertTrue;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertTrue;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
@@ -96,7 +96,7 @@ public class StopPlaceQuaysProcessorTest {
 
     @SuppressWarnings("unchecked")
     @Test
-    @Ignore
+    @Disabled
     public void verifyActualTiamatData() throws IOException {
         QuayAndStopPlaceMappingService quayAndStopPlaceMappingService = new QuayAndStopPlaceMappingService(new MetricsService());
         StopPlaceQuaysProcessor processor = new StopPlaceQuaysProcessor(quayAndStopPlaceMappingService);
@@ -122,7 +122,7 @@ public class StopPlaceQuaysProcessorTest {
             }
         }
         logger.info("and {} unique quays", uniqueQuays.size());
-        assertFalse("Did not expect same quay on several stops", foundQuayOnSeveralStops);
+        assertFalse(foundQuayOnSeveralStops, "Did not expect same quay on several stops");
 
     }
 

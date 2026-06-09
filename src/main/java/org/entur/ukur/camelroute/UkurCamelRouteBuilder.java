@@ -239,7 +239,7 @@ public class UkurCamelRouteBuilder extends RouteBuilder {
         rest("/internal/health")
                 .bindingMode(RestBindingMode.json)
                 .get("/subscriptions").to("bean:subscriptionManager?method=listAll")
-                .get("/subscriptions/reload").to("bean:subscriptionManager?method=reloadSubscriptionCache")
+                .get("/subscriptions/reload").to("direct:reloadSubscriptionCache")
                 .get("/subscriptions/find-duplicates").to("bean:subscriptionManager?method=findDuplicates")
                 .get("/subscriptions/delete-duplicates").to("bean:subscriptionManager?method=deleteDuplicates")
                 .get("/routes").to("direct:routeStatus")
@@ -284,6 +284,14 @@ public class UkurCamelRouteBuilder extends RouteBuilder {
                 .setBody(simple("OK"))
                 .setHeader(Exchange.HTTP_RESPONSE_CODE, constant("200"))
                 .log(LoggingLevel.TRACE, "Return hardcoded 'OK' on uri '${header." + Exchange.HTTP_URI + "}'");
+
+        from("direct:reloadSubscriptionCache")
+                .routeId("Reload subscription cache")
+                // reloadSubscriptionCache returns void; set an explicit OK body so the JSON
+                // binding produces a 200 response instead of failing to marshal an empty body.
+                .to("bean:subscriptionManager?method=reloadSubscriptionCache")
+                .setBody(simple("OK"))
+                .setHeader(Exchange.HTTP_RESPONSE_CODE, constant("200"));
 
         from("direct:routeStatus")
                 .routeId("Route Status")

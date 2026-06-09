@@ -164,11 +164,6 @@
             <scope>provided</scope>
         </dependency>
         <dependency>
-            <groupId>xerces</groupId>
-            <artifactId>xercesImpl</artifactId>
-            <version>2.12.2</version>
-        </dependency>
-        <dependency>
             <groupId>com.esotericsoftware</groupId>
             <artifactId>kryo-shaded</artifactId>
             <version>4.0.2</version>
@@ -288,25 +283,34 @@
         </dependency>
 
         <!-- testing -->
-        <dependency>
-            <groupId>junit</groupId>
-            <artifactId>junit</artifactId>
-            <scope>test</scope>
-        </dependency>
-        <dependency>
-            <groupId>org.springframework</groupId>
-            <artifactId>spring-test</artifactId>
-            <scope>test</scope>
-        </dependency>
+        <!-- Brings JUnit 5 (Jupiter), Mockito, Hamcrest, spring-test and, crucially,
+             spring-boot-test + spring-boot-test-autoconfigure, which provide @SpringBootTest
+             and the @AutoConfigureWireMock support our integration tests rely on. -->
         <dependency>
             <groupId>org.springframework.boot</groupId>
             <artifactId>spring-boot-starter-test</artifactId>
             <scope>test</scope>
         </dependency>
         <dependency>
+            <groupId>org.apache.camel</groupId>
+            <artifactId>camel-test-junit5</artifactId>
+            <version>${camel.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
+            <groupId>org.apache.camel</groupId>
+            <artifactId>camel-test-spring-junit5</artifactId>
+            <version>${camel.version}</version>
+            <scope>test</scope>
+        </dependency>
+        <dependency>
             <groupId>org.springframework.cloud</groupId>
             <artifactId>spring-cloud-contract-wiremock</artifactId>
-            <version>2.0.2.RELEASE</version>
+            <!-- 4.1.5 keeps WireMock 2.x (so the JUnit 4 WireMockRule/@AutoConfigureWireMock
+                 in our tests still compile) but no longer references org.springframework.util.SocketUtils,
+                 which was removed in Spring 6. The old 2.0.2.RELEASE broke every @SpringBootTest that
+                 uses wiremock once the project moved to Spring Boot 4 / Spring Framework 7. -->
+            <version>4.1.5</version>
             <scope>test</scope>
         </dependency>
         <dependency>

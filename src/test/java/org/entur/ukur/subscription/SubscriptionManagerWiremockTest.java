@@ -15,7 +15,7 @@
 
 package org.entur.ukur.subscription;
 
-import com.github.tomakehurst.wiremock.junit.WireMockRule;
+import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.matching.RequestPatternBuilder;
 import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 import com.google.common.collect.Sets;
@@ -29,10 +29,10 @@ import org.entur.ukur.service.QuayAndStopPlaceMappingService;
 import org.entur.ukur.testsupport.DatastoreTest;
 import org.entur.ukur.xml.SiriMarshaller;
 import org.hamcrest.CoreMatchers;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 import uk.org.siri.siri21.AffectedRouteStructure;
 import uk.org.siri.siri21.AffectedVehicleJourneyStructure;
 import uk.org.siri.siri21.EstimatedTimetableDeliveryStructure;
@@ -53,6 +53,7 @@ import java.util.HashSet;
 import java.util.List;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.configureFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.findAll;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
@@ -62,25 +63,36 @@ import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.verify;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
 import static org.hamcrest.CoreMatchers.hasItem;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertFalse;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertNull;
-import static org.junit.Assert.assertThat;
-import static org.junit.Assert.fail;
+import static org.hamcrest.MatcherAssert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertFalse;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertNull;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
 
 public class SubscriptionManagerWiremockTest extends DatastoreTest {
 
-    @Rule
-    public WireMockRule wireMockRule = new WireMockRule(options().dynamicPort());
+    private final WireMockServer wireMockRule = new WireMockServer(options().dynamicPort());
+
+    @BeforeEach
+    public void startWireMock() {
+        wireMockRule.start();
+        configureFor("localhost", wireMockRule.port());
+    }
+
+    @AfterEach
+    public void stopWireMock() {
+        wireMockRule.resetAll();
+        wireMockRule.stop();
+    }
 
     private SubscriptionManager subscriptionManager;
     private SiriMarshaller siriMarshaller;
     private DataStorageService dataStorageService;
 
     @SuppressWarnings("unchecked")
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         super.setUp();
         siriMarshaller = new SiriMarshaller();
@@ -191,7 +203,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
     }
 
     @Test
-    @Ignore
+    @Disabled
     public void testETPushError() {
 
         String url = "/push/error/et";

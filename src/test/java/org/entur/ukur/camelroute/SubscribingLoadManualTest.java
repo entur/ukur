@@ -30,10 +30,9 @@ import org.entur.ukur.service.QuayAndStopPlaceMappingService;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionManager;
 import org.entur.ukur.xml.SiriMarshaller;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
@@ -42,8 +41,6 @@ import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cloud.contract.wiremock.AutoConfigureWireMock;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.junit4.AbstractJUnit4SpringContextTests;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 import uk.org.siri.siri21.EstimatedVehicleJourney;
 
 import javax.xml.stream.XMLStreamException;
@@ -77,17 +74,17 @@ import static com.github.tomakehurst.wiremock.client.WireMock.reset;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlMatching;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.fail;
 
 @SuppressWarnings("Duplicates")
-@RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(webEnvironment= SpringBootTest.WebEnvironment.MOCK, classes = App.class)
 @AutoConfigureWireMock(port = 0)
 @TestPropertySource("classpath:application-loadtest.properties")
 @DirtiesContext
-public class SubscribingLoadManualTest extends AbstractJUnit4SpringContextTests {
+@Disabled //Manual load test - requires external systems; not part of the default suite
+public class SubscribingLoadManualTest {
 
 
     private Logger logger = LoggerFactory.getLogger("TestControl");
@@ -113,7 +110,7 @@ public class SubscribingLoadManualTest extends AbstractJUnit4SpringContextTests 
     public SubscribingLoadManualTest() throws JAXBException {
     }
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         metricsService.reset();
         reset();
@@ -122,7 +119,7 @@ public class SubscribingLoadManualTest extends AbstractJUnit4SpringContextTests 
 
 
     @Test
-    @Ignore //so idea don't pick it up
+    @Disabled //so idea don't pick it up
     public void runETload() throws Exception {
 
         LoggerContext logCtx = (LoggerContext) LoggerFactory.getILoggerFactory();

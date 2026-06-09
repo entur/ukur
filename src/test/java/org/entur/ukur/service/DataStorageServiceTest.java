@@ -21,9 +21,9 @@ import com.hazelcast.test.TestHazelcastInstanceFactory;
 import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionTypeEnum;
 import org.entur.ukur.testsupport.DatastoreTest;
-import org.junit.After;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
@@ -33,8 +33,9 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import static org.entur.ukur.subscription.SubscriptionTypeEnum.*;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.hamcrest.core.Is.is;
-import static org.junit.Assert.*;
+import static org.junit.jupiter.api.Assertions.*;
 
 @SuppressWarnings("ALL")
 public class DataStorageServiceTest extends DatastoreTest {
@@ -43,13 +44,13 @@ public class DataStorageServiceTest extends DatastoreTest {
 
 
     @Override
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         super.setUp();
         hazelcastInstance = new TestHazelcastInstanceFactory().newHazelcastInstance();
     }
 
-    @After
+    @AfterEach
     public void tearDown() throws Exception {
         hazelcastInstance.shutdown();
     }

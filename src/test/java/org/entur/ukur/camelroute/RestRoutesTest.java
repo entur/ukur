@@ -17,27 +17,23 @@ package org.entur.ukur.camelroute;
 
 import org.entur.ukur.App;
 import org.entur.ukur.camelroute.testconfig.WiremockTestConfig;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.junit4.AbstractJUnit4SpringContextTests;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import java.io.IOException;
 import java.net.HttpURLConnection;
 import java.net.URL;
 
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
-@RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(webEnvironment= SpringBootTest.WebEnvironment.MOCK, classes = App.class)
 @TestPropertySource("classpath:application-polling.properties")
 @DirtiesContext
-public class RestRoutesTest extends AbstractJUnit4SpringContextTests {
+public class RestRoutesTest {
 
     @Autowired
     private WiremockTestConfig config;
@@ -65,7 +61,7 @@ public class RestRoutesTest extends AbstractJUnit4SpringContextTests {
         try {
             HttpURLConnection connection = (HttpURLConnection) new URL(path).openConnection();
             int responseCode = connection.getResponseCode();
-            assertEquals("Path '"+path+"' did not respond 200", 200, responseCode);
+            assertEquals(200, responseCode, "Path '"+path+"' did not respond 200");
         } catch (IOException e) {
             fail("Got an exception while calling path '"+path+"': "+e.getClass()+": "+e.getMessage());
         }

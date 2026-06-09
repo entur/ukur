@@ -18,9 +18,9 @@ package org.entur.ukur.testsupport;
 import com.google.cloud.datastore.*;
 import com.google.cloud.datastore.testing.LocalDatastoreHelper;
 import com.google.common.collect.Iterators;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
+import org.junit.jupiter.api.AfterAll;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.slf4j.LoggerFactory;
 import org.threeten.bp.Duration;
 
@@ -36,7 +36,7 @@ public abstract class DatastoreTest {
     /**
      * Starts the local Datastore emulator.
      */
-    @BeforeClass
+    @BeforeAll
     public static void beforeClass() throws IOException, InterruptedException {
         logger.info("Starts HELPER...");
         HELPER.start();
@@ -46,7 +46,7 @@ public abstract class DatastoreTest {
     /**
      * Initializes Datastore and cleans out any residual values.
      */
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         datastore = HELPER.getOptions().toBuilder().setNamespace("test").build().getService();
         StructuredQuery<Key> query = Query.newKeyQueryBuilder().build();
@@ -59,7 +59,7 @@ public abstract class DatastoreTest {
     /**
      * Stops the local Datastore emulator.
      */
-    @AfterClass
+    @AfterAll
     public static void afterClass() throws IOException, InterruptedException, TimeoutException {
         logger.info("Stops HELPER...");
         HELPER.stop(Duration.ofSeconds(10));

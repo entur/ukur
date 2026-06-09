@@ -15,7 +15,7 @@
 
 package org.entur.ukur.xml;
 
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 import uk.org.siri.siri21.DatedVehicleJourneyRef;
 import uk.org.siri.siri21.DestinationRef;
 import uk.org.siri.siri21.SituationVersion;
@@ -25,8 +25,8 @@ import java.math.BigInteger;
 import static org.entur.ukur.xml.SiriObjectHelper.getBigIntegerValue;
 import static org.entur.ukur.xml.SiriObjectHelper.getStringValue;
 import static org.entur.ukur.xml.SiriObjectHelper.getValue;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNull;
 
 public class SiriObjectHelperTest {
 

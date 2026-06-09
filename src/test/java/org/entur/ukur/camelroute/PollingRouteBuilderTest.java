@@ -20,30 +20,26 @@ import org.apache.camel.ProducerTemplate;
 import org.apache.commons.io.IOUtils;
 import org.entur.ukur.App;
 import org.entur.ukur.service.MetricsService;
-import org.junit.Ignore;
-import org.junit.Test;
-import org.junit.runner.RunWith;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
 import org.springframework.cloud.contract.wiremock.AutoConfigureWireMock;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
-import org.springframework.test.context.junit4.AbstractJUnit4SpringContextTests;
-import org.springframework.test.context.junit4.SpringJUnit4ClassRunner;
 
 import java.io.IOException;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.*;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.fail;
 
-@RunWith(SpringJUnit4ClassRunner.class)
 @SpringBootTest(webEnvironment= SpringBootTest.WebEnvironment.MOCK, classes = App.class)
 @AutoConfigureWireMock(port = 0)
 @TestPropertySource("classpath:application-polling.properties")
 @DirtiesContext
-@Ignore
-public class PollingRouteBuilderTest extends AbstractJUnit4SpringContextTests {
+@Disabled
+public class PollingRouteBuilderTest {
 
     @Autowired
     private MetricsService metricsService;

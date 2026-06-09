@@ -18,7 +18,7 @@ package org.entur.ukur.camelroute;
 import ch.qos.logback.classic.Level;
 import ch.qos.logback.classic.LoggerContext;
 import com.fasterxml.jackson.databind.ObjectMapper;
-import com.github.tomakehurst.wiremock.junit.WireMockRule;
+import com.github.tomakehurst.wiremock.WireMockServer;
 import com.github.tomakehurst.wiremock.verification.LoggedRequest;
 import com.hazelcast.core.HazelcastInstance;
 import com.hazelcast.test.TestHazelcastInstanceFactory;
@@ -34,10 +34,10 @@ import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionManager;
 import org.entur.ukur.testsupport.DatastoreTest;
 import org.entur.ukur.xml.SiriMarshaller;
-import org.junit.Before;
-import org.junit.Ignore;
-import org.junit.Rule;
-import org.junit.Test;
+import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Disabled;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.org.siri.siri21.PtSituationElement;
@@ -59,6 +59,7 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static com.github.tomakehurst.wiremock.client.WireMock.aResponse;
+import static com.github.tomakehurst.wiremock.client.WireMock.configureFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.equalTo;
 import static com.github.tomakehurst.wiremock.client.WireMock.findAll;
 import static com.github.tomakehurst.wiremock.client.WireMock.post;
@@ -66,23 +67,36 @@ import static com.github.tomakehurst.wiremock.client.WireMock.postRequestedFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.stubFor;
 import static com.github.tomakehurst.wiremock.client.WireMock.urlEqualTo;
 import static com.github.tomakehurst.wiremock.core.WireMockConfiguration.options;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 
 @SuppressWarnings({"SameParameterValue", "Duplicates"})
+@Disabled //Manual test - requires external systems; not part of the default suite
 public class NsbSXSubscriptionManualTest extends DatastoreTest {
     private final Logger logger = LoggerFactory.getLogger(getClass());
-    @Rule
-    public WireMockRule wireMockRule = new WireMockRule(options().dynamicPort());
+    private final WireMockServer wireMockRule = new WireMockServer(options().dynamicPort());
+
+    @BeforeEach
+    public void startWireMock() {
+        wireMockRule.start();
+        configureFor("localhost", wireMockRule.port());
+    }
+
+    @AfterEach
+    public void stopWireMock() {
+        wireMockRule.resetAll();
+        wireMockRule.stop();
+    }
+
     private SubscriptionManager subscriptionManager;
     private SXSubscriptionProcessor SXSubscriptionProcessor;
     private QuayAndStopPlaceMappingService quayAndStopPlaceMappingService;
     private SiriMarshaller siriMarshaller;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         super.setUp();
         HazelcastInstance hazelcastInstance = new TestHazelcastInstanceFactory().newHazelcastInstance();
@@ -96,7 +110,7 @@ public class NsbSXSubscriptionManualTest extends DatastoreTest {
     }
 
     @Test
-    @Ignore //So idea don't run it as part of package/folder tests
+    @Disabled //So idea don't run it as part of package/folder tests
     public void prosessRecordedSXMessages() throws Exception {
 
         LoggerContext logCtx = (LoggerContext) LoggerFactory.getILoggerFactory();

@@ -28,8 +28,8 @@ import org.entur.ukur.subscription.Subscription;
 import org.entur.ukur.subscription.SubscriptionManager;
 import org.entur.ukur.testsupport.DatastoreTest;
 import org.entur.ukur.xml.SiriMarshaller;
-import org.junit.Before;
-import org.junit.Test;
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import uk.org.siri.siri21.AffectedRouteStructure;
@@ -51,10 +51,10 @@ import java.util.List;
 import java.util.stream.Collectors;
 
 import static java.util.Arrays.asList;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNotNull;
-import static org.junit.Assert.assertTrue;
-import static org.junit.Assert.fail;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.junit.jupiter.api.Assertions.assertNotNull;
+import static org.junit.jupiter.api.Assertions.assertTrue;
+import static org.junit.jupiter.api.Assertions.fail;
 import static org.mockito.Mockito.mock;
 
 public class SXSubscriptionProcessorTest extends DatastoreTest {
@@ -64,12 +64,12 @@ public class SXSubscriptionProcessorTest extends DatastoreTest {
     private SXSubscriptionProcessor processor;
     private SiriMarshaller siriMarshaller;
 
-    @Before
+    @BeforeEach
     public void setUp() throws Exception {
         super.setUp();
         HazelcastInstance hazelcastInstance = new TestHazelcastInstanceFactory().newHazelcastInstance();
         ITopic<String> subscriptionTopic = hazelcastInstance.getTopic("subscriptions");
-        MetricsService metricsServiceMock = mock(MetricsService.class);
+        MetricsService metricsService = new MetricsService();
         siriMarshaller = new SiriMarshaller();
         DataStorageService dataStorageService = new DataStorageService(datastore, subscriptionTopic);
         HashMap<String, Collection<String>> stopPlacesAndQuays = new HashMap<>();
@@ -91,7 +91,7 @@ public class SXSubscriptionProcessorTest extends DatastoreTest {
         quayAndStopPlaceMappingService.updateStopsAndQuaysMap(stopPlacesAndQuays);
 
         subscriptionManager =
-                new SubscriptionManager(dataStorageService, siriMarshaller, metricsServiceMock, new HashMap<>(), new HashMap<>(), quayAndStopPlaceMappingService);
+                new SubscriptionManager(dataStorageService, siriMarshaller, metricsService, new HashMap<>(), new HashMap<>(), quayAndStopPlaceMappingService);
         processor = new SXSubscriptionProcessor(subscriptionManager, siriMarshaller, mock(FileStorageService.class), mock(MetricsService.class));
     }
 

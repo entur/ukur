@@ -19,7 +19,7 @@ import org.entur.ukur.service.DataStorageService;
 import org.entur.ukur.service.MetricsService;
 import org.entur.ukur.service.QuayAndStopPlaceMappingService;
 import org.entur.ukur.xml.SiriMarshaller;
-import org.junit.Test;
+import org.junit.jupiter.api.Test;
 
 import jakarta.xml.bind.JAXBException;
 import java.util.Collections;
@@ -28,8 +28,8 @@ import java.util.Set;
 
 import static org.entur.ukur.subscription.SubscriptionTypeEnum.ET;
 import static org.hamcrest.CoreMatchers.hasItem;
-import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertThat;
+import static org.junit.jupiter.api.Assertions.assertEquals;
+import static org.hamcrest.MatcherAssert.assertThat;
 import static org.mockito.Mockito.mock;
 import static org.mockito.Mockito.when;
 

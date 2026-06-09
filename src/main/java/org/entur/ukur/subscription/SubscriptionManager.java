@@ -460,9 +460,10 @@ public class SubscriptionManager {
             throw new IllegalArgumentException("Must have both TO and FROM valid stops");
         }
 
-        if (subscription.getPushHost().endsWith("vy.no") && noFromStops & noToStops) {
+        String pushHost = subscription.getPushHost();
+        if (pushHost != null && pushHost.endsWith("vy.no") && noFromStops & noToStops) {
             // Temporary workaround for VY API - avoid subscriptions on multimodal stops
-            logger.info("Blocked subscription with suspected multimodal stops for host {}, name {}", subscription.getPushHost(), subscription.getName());
+            logger.info("Blocked subscription with suspected multimodal stops for host {}, name {}", pushHost, subscription.getName());
             throw new IllegalArgumentException("Suspected multimodal stops blocked for Vy.");
         }
 
