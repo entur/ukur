@@ -5,7 +5,7 @@ USER appuser
 
 WORKDIR /home/appuser
 
-ADD target/ukur-*-SNAPSHOT.jar ukur.jar
+COPY target/ukur-*-SNAPSHOT.jar ukur.jar
 
 EXPOSE 8080
 CMD ["sh", "-c", "java $JAVA_OPTIONS -jar ukur.jar"]
