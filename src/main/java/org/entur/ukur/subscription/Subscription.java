@@ -152,6 +152,7 @@ public class Subscription implements Serializable {
         return pushAddress;
     }
 
+    @JsonIgnore // derived from pushAddress; serializing it breaks JSON round-tripping (no setter)
     public String getPushHost() {
         return pushAddressURL != null ? pushAddressURL.getHost() : null;
     }

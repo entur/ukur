@@ -188,17 +188,21 @@ public class UkurCamelRouteBuilder extends RouteBuilder {
 
     private void createWorkerRoutes(String stopPlaceQuaysURL, long stopPlaceUpdaterRepeatInterval) {
 
-        ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
-        executor.scheduleWithFixedDelay(() -> {
-                    try {
-                        stopPlaceQuaysProcessor.readFileFromInputStream(new URL(stopPlaceQuaysURL).openStream());
-                        logger.info("StopPlaceQuays initialized from {}", stopPlaceQuaysURL);
-                    } catch (IOException e) {
-                        logger.info("Initializing StopPlaceQuays failed - fallback to camelroutes", e);
-                    }
-        }, 0,
-        stopPlaceUpdaterRepeatInterval,
-        TimeUnit.MILLISECONDS);
+        if (stopPlaceQuaysURL == null || stopPlaceQuaysURL.isBlank()) {
+            logger.info("No stop_place_quays URL configured - skipping periodic StopPlaceQuays fetch");
+        } else {
+            ScheduledExecutorService executor = Executors.newSingleThreadScheduledExecutor();
+            executor.scheduleWithFixedDelay(() -> {
+                        try {
+                            stopPlaceQuaysProcessor.readFileFromInputStream(new URL(stopPlaceQuaysURL).openStream());
+                            logger.info("StopPlaceQuays initialized from {}", stopPlaceQuaysURL);
+                        } catch (IOException e) {
+                            logger.info("Initializing StopPlaceQuays failed - fallback to camelroutes", e);
+                        }
+            }, 0,
+            stopPlaceUpdaterRepeatInterval,
+            TimeUnit.MILLISECONDS);
+        }
 
 
         from(config.getEtPubsubQueue())

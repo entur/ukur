@@ -35,7 +35,7 @@ public class SiriObjectHelper {
 
     @SuppressWarnings("unchecked")
     public static <T> T getValue(Object siriObjectWithValue, Class<T> resultClass) {
-        if (siriObjectWithValue == null) {
+        if (siriObjectWithValue == null || (""+siriObjectWithValue).isBlank()) {
             return null;
         }
         try {

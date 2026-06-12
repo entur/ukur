@@ -38,7 +38,7 @@ public class UkurConfiguration {
     @Value("${ukur.camel.rest.port:8080}")
     private int restPort;
 
-    @Value("${ukur.stop_place_quays.url:http4://tiamat/services/stop_places/list/stop_place_quays/}")
+    @Value("${ukur.stop_place_quays.url:}")
     private String stopPlaceQuaysURL;
 
     @Value("${ukur.camel.polling.interval:60000}")

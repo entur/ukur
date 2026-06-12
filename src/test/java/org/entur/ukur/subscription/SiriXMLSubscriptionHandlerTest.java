@@ -83,7 +83,7 @@ public class SiriXMLSubscriptionHandlerTest {
         assertTrue(booleanCaptor.getValue());
         Subscription subscription = subscriptionCaptor.getValue();
         assertEquals(Subscription.getName("Requestor", "clientGeneratedSubscriptionId-2"), subscription.getName());
-        assertEquals("https://server:port/pushaddress", subscription.getPushAddress());
+        assertEquals("https://server/pushaddress", subscription.getPushAddress());
         assertEquals(SubscriptionTypeEnum.ET, subscription.getType());
         assertTrue(subscription.isSiriXMLBasedSubscription());
         assertTrue(subscription.hasNoStops());
@@ -100,7 +100,7 @@ public class SiriXMLSubscriptionHandlerTest {
         requestorRef.setValue("Requestor");
         SubscriptionRequest request = new SubscriptionRequest();
         request.setRequestorRef(requestorRef);
-        request.setAddress("https://server:port/pushaddress");
+        request.setAddress("https://server/pushaddress");
         EstimatedTimetableRequestStructure etRequest = new EstimatedTimetableRequestStructure();
         EstimatedTimetableSubscriptionStructure etSubscriptionReq = new EstimatedTimetableSubscriptionStructure();
         etSubscriptionReq.setEstimatedTimetableRequest(etRequest);
@@ -126,7 +126,7 @@ public class SiriXMLSubscriptionHandlerTest {
         assertTrue(booleanCaptor.getValue());
         Subscription subscription = subscriptionCaptor.getValue();
         assertEquals(Subscription.getName("Requestor", "Id"), subscription.getName());
-        assertEquals("https://server:port/pushaddress", subscription.getPushAddress());
+        assertEquals("https://server/pushaddress", subscription.getPushAddress());
         assertEquals(SubscriptionTypeEnum.ET, subscription.getType());
         assertTrue(subscription.isSiriXMLBasedSubscription());
         assertTrue(subscription.hasNoStops());
@@ -170,7 +170,7 @@ public class SiriXMLSubscriptionHandlerTest {
         assertTrue(booleanCaptor.getValue());
         Subscription subscription = subscriptionCaptor.getValue();
         assertEquals(Subscription.getName("Requestor", "clientGeneratedSubscriptionId-1"), subscription.getName());
-        assertEquals("https://server:port/pushaddress", subscription.getPushAddress());
+        assertEquals("https://server/pushaddress", subscription.getPushAddress());
         assertEquals(SubscriptionTypeEnum.SX, subscription.getType());
         assertTrue(subscription.isSiriXMLBasedSubscription());
         assertTrue(subscription.hasNoStops());
@@ -187,7 +187,7 @@ public class SiriXMLSubscriptionHandlerTest {
         requestorRef.setValue("Req");
         SubscriptionRequest request = new SubscriptionRequest();
         request.setRequestorRef(requestorRef);
-        request.setAddress("https://server:port/pushaddress");
+        request.setAddress("https://server/pushaddress");
         SituationExchangeRequestStructure sxRequest = new SituationExchangeRequestStructure();
         SituationExchangeSubscriptionStructure sxSubscriptionReq = new SituationExchangeSubscriptionStructure();
         sxSubscriptionReq.setSituationExchangeRequest(sxRequest);
@@ -213,7 +213,7 @@ public class SiriXMLSubscriptionHandlerTest {
         assertTrue(booleanCaptor.getValue());
         Subscription subscription = subscriptionCaptor.getValue();
         assertEquals(Subscription.getName("Req", "Id"), subscription.getName());
-        assertEquals("https://server:port/pushaddress", subscription.getPushAddress());
+        assertEquals("https://server/pushaddress", subscription.getPushAddress());
         assertEquals(SubscriptionTypeEnum.SX, subscription.getType());
         assertTrue(subscription.isSiriXMLBasedSubscription());
         assertTrue(subscription.hasNoStops());
@@ -313,7 +313,7 @@ public class SiriXMLSubscriptionHandlerTest {
         SubscriptionRequest request = new SubscriptionRequest();
         request.setRequestorRef(requestorRef);
         request.setRequestTimestamp(now);
-        request.setAddress("https://server:port/pushaddress");
+        request.setAddress("https://server/pushaddress");
         SubscriptionContextStructure ctx = new SubscriptionContextStructure();
 
         ctx.setHeartbeatInterval(heartbeatInterval);

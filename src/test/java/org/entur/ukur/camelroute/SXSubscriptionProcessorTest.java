@@ -290,7 +290,7 @@ public class SXSubscriptionProcessorTest extends DatastoreTest {
 
     private Subscription createSubscription(String name, String fromStop, String toStop, String line) {
         Subscription s = new Subscription();
-        s.setPushAddress("push");
+        s.setPushAddress("http://push");
         if (name != null) {
 
             s.setName(name);
