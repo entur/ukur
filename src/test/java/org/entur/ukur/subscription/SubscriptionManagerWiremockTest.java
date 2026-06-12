@@ -29,7 +29,9 @@ import org.entur.ukur.service.QuayAndStopPlaceMappingService;
 import org.entur.ukur.testsupport.DatastoreTest;
 import org.entur.ukur.xml.SiriMarshaller;
 import org.hamcrest.CoreMatchers;
+import org.junit.jupiter.api.AfterAll;
 import org.junit.jupiter.api.AfterEach;
+import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
@@ -73,18 +75,33 @@ import static org.mockito.Mockito.mock;
 
 public class SubscriptionManagerWiremockTest extends DatastoreTest {
 
-    private final WireMockServer wireMockRule = new WireMockServer(options().dynamicPort());
+    // One server (and one configured admin client) for the whole class: starting/stopping a fresh
+    // WireMockServer per test method churned dynamic ports and leaked an HttpAdminClient on every
+    // configureFor() call. We start once, reset state between methods, and stop once.
+    private static WireMockServer wireMockServer;
 
-    @BeforeEach
-    public void startWireMock() {
-        wireMockRule.start();
-        configureFor("localhost", wireMockRule.port());
+    @BeforeAll
+    public static void startWireMock() {
+        wireMockServer = new WireMockServer(options().dynamicPort());
+        wireMockServer.start();
+        configureFor("localhost", wireMockServer.port());
+    }
+
+    @AfterAll
+    public static void stopWireMock() {
+        if (wireMockServer != null) {
+            wireMockServer.stop();
+        }
     }
 
     @AfterEach
-    public void stopWireMock() {
-        wireMockRule.resetAll();
-        wireMockRule.stop();
+    public void resetWireMock() {
+        // Drain in-flight async pushes before clearing, so a late push from this method cannot
+        // land in the next method's request journal on the shared server.
+        if (subscriptionManager != null) {
+            waitNoActivePushThreads();
+        }
+        wireMockServer.resetAll();
     }
 
     private SubscriptionManager subscriptionManager;
@@ -145,7 +162,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         subscription.addFromStopPoint("NSR:Quay:232");
         subscription.addToStopPoint("NSR:Quay:125");
         subscription.setName("Push over http test");
-        subscription.setPushAddress("http://localhost:" + wireMockRule.port() + url);
+        subscription.setPushAddress("http://localhost:" + wireMockServer.port() + url);
         subscription.setUseSiriSubscriptionModel(true);
         subscription = subscriptionManager.addOrUpdate(subscription);
 
@@ -281,7 +298,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
 
     @Test
     public void testSXPushMessageForSubscriptionWithCodespace() throws JAXBException, XMLStreamException {
-        String urlWithStop = "/push/1/sx";
+        String urlWithStop = "/push/3/sx";
         stubFor(post(urlEqualTo(urlWithStop))
                 .withHeader("Content-Type", equalTo("application/xml"))
                 .willReturn(aResponse()));
@@ -437,7 +454,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         subscription.setName(Subscription.getName(requestor, "1"));
         subscription.setHeartbeatInterval(heartbeatInterval);
         subscription.setInitialTerminationTime(initialTerminationTime);
-        subscription.setPushAddress("http://localhost:" + wireMockRule.port() + url);
+        subscription.setPushAddress("http://localhost:" + wireMockServer.port() + url);
         subscription.addCodespace("TEST");
         subscriptionManager.addOrUpdate(subscription, true);
     }
@@ -562,7 +579,7 @@ public class SubscriptionManagerWiremockTest extends DatastoreTest {
         }
         subscription.setName("Push over http test");
         pushAddress = pushAddress.substring(0, pushAddress.length() - 3); //last '/et' (or '/sx') is added by the subscription manager
-        subscription.setPushAddress("http://localhost:" + wireMockRule.port() + pushAddress);
+        subscription.setPushAddress("http://localhost:" + wireMockServer.port() + pushAddress);
         return subscriptionManager.addOrUpdate(subscription);
     }
 
