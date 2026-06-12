@@ -1,4 +1,4 @@
-name: Build and push
+name: Build and push and deploy
 on:
   push:
     branches:
@@ -8,26 +8,25 @@ on:
       - master
 jobs:
   maven-verify:
-    env:
-      JFROG_USER: ${{ secrets.ARTIFACTORY_AUTH_USER }}
-      JFROG_PASS: ${{ secrets.ARTIFACTORY_AUTH_TOKEN }}
     runs-on: ubuntu-24.04
     permissions:
       contents: read
     steps:
       - uses: actions/checkout@v4
-      - name: Copy maven settings
-        run: |
-          wget https://raw.githubusercontent.com/entur/ror-maven-settings/master/.m2/settings.xml -O .github/workflows/settings.xml
       - uses: actions/setup-java@v4
         with:
           java-version: 21.0.1+12
           distribution: liberica
           cache: 'maven'
-      - run: mvn verify -s .github/workflows/settings.xml
+      - run: mvn verify
       - uses: actions/upload-artifact@v4.4.0
         with:
           path: target/*.jar
+  docker-lint:
+    needs: [ maven-verify ]
+    uses: entur/gha-docker/.github/workflows/lint.yml@v1
+    with:
+      ignore: "DL3018"
   docker-build:
     needs: [maven-verify]
     uses: entur/gha-docker/.github/workflows/build.yml@v1
@@ -38,3 +37,157 @@ jobs:
     if: github.repository_owner == 'entur' && github.event_name == 'push'
     needs: [docker-build]
     uses: entur/gha-docker/.github/workflows/push.yml@v1
+  helm-lint:
+    uses: entur/gha-helm/.github/workflows/lint.yml@v1
+    with:
+      environment: dev
+
+  terraform-lint:
+    uses: entur/gha-terraform/.github/workflows/lint.yml@v2
+
+
+  tf-plan-dev:
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
+    needs: [ terraform-lint, docker-push ]
+    name: Terraform Plan DEV
+    uses: entur/gha-terraform/.github/workflows/plan.yml@v2
+    with:
+      environment: dev
+
+  tf-approval-dev:
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && needs.tf-plan-dev.outputs.has_changes == 'true' }}
+    needs: [ tf-plan-dev ]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: Approve
+    steps:
+      - name: Manual approval
+        shell: bash
+        run: echo "Approve DEV tf plan"
+
+  tf-apply-dev:
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && needs.tf-plan-dev.outputs.has_changes == 'true' }}
+    needs: [ tf-plan-dev, tf-approval-dev ]
+    name: Terraform Apply DEV
+    uses: entur/gha-terraform/.github/workflows/apply.yml@v2
+    with:
+      environment: dev
+      has_changes: ${{ needs.tf-plan-dev.outputs.has_changes }}
+
+  deploy-dev:
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && github.ref == 'refs/heads/master' }}
+    needs: [ helm-lint, tf-plan-dev, tf-apply-dev, docker-push ]
+    uses: entur/gha-helm/.github/workflows/deploy.yml@v1
+    with:
+      environment: dev
+      image: ${{ needs.docker-push.outputs.image_name }}:${{ needs.docker-push.outputs.image_tag}}
+      chart: helm/ukur
+      namespace: ukur
+      release_name: ukur
+    secrets: inherit
+
+  approval-tst:
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && github.ref == 'refs/heads/master' }}
+    needs: [ deploy-dev, helm-lint, tf-plan-dev, tf-apply-dev, docker-push ]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: Approve
+    steps:
+      - name: Manual approval
+        shell: bash
+        run: echo "Approve TST deployment"
+
+
+  tf-plan-tst:
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
+    needs: [ terraform-lint, approval-tst ]
+    name: Terraform Plan TST
+    uses: entur/gha-terraform/.github/workflows/plan.yml@v2
+    with:
+      environment: tst
+
+  tf-approval-tst:
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && needs.tf-plan-tst.outputs.has_changes == 'true' }}
+    needs: [ tf-plan-tst ]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: Approve
+    steps:
+      - name: Manual approval
+        shell: bash
+        run: echo "Approve TST tf plan"
+
+  tf-apply-tst:
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && needs.tf-plan-tst.outputs.has_changes == 'true' }}
+    needs: [ tf-plan-tst, tf-approval-tst ]
+    name: Terraform Apply TST
+    uses: entur/gha-terraform/.github/workflows/apply.yml@v2
+    with:
+      environment: tst
+      has_changes: ${{ needs.tf-plan-tst.outputs.has_changes }}
+
+
+  deploy-tst:
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && github.ref == 'refs/heads/master' }}
+    needs: [ approval-tst, tf-plan-tst, tf-apply-tst, docker-push ]
+    uses: entur/gha-helm/.github/workflows/deploy.yml@v1
+    with:
+      environment: tst
+      image: ${{ needs.docker-push.outputs.image_name }}:${{ needs.docker-push.outputs.image_tag}}
+      chart: helm/ukur
+      namespace: ukur
+      release_name: ukur
+    secrets: inherit
+
+  approval-prd:
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && github.ref == 'refs/heads/master' }}
+    needs: [ deploy-tst, approval-tst, tf-plan-tst, tf-apply-tst, docker-push ]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: Approve
+    steps:
+      - name: Manual approval
+        shell: bash
+        run: echo "Approve PRD deployment"
+
+
+  tf-plan-prd:
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
+    needs: [ terraform-lint, approval-prd ]
+    name: Terraform Plan PRD
+    uses: entur/gha-terraform/.github/workflows/plan.yml@v2
+    with:
+      environment: prd
+
+  tf-approval-prd:
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && needs.tf-plan-prd.outputs.has_changes == 'true' }}
+    needs: [ tf-plan-prd ]
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    environment: Approve
+    steps:
+      - name: Manual approval
+        shell: bash
+        run: echo "Approve PRD tf plan"
+
+  tf-apply-prd:
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && needs.tf-plan-prd.outputs.has_changes == 'true' }}
+    needs: [ tf-plan-prd, tf-approval-prd ]
+    name: Terraform Apply PRD
+    uses: entur/gha-terraform/.github/workflows/apply.yml@v2
+    with:
+      environment: prd
+      has_changes: ${{ needs.tf-plan-prd.outputs.has_changes }}
+
+
+  deploy-prd:
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && github.ref == 'refs/heads/master' }}
+    needs: [ approval-prd, tf-plan-prd, tf-apply-prd, docker-push ]
+    uses: entur/gha-helm/.github/workflows/deploy.yml@v1
+    with:
+      environment: prd
+      image: ${{ needs.docker-push.outputs.image_name }}:${{ needs.docker-push.outputs.image_tag}}
+      chart: helm/ukur
+      namespace: ukur
+      release_name: ukur
+    secrets: inherit

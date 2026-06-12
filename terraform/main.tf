@@ -1,9 +1,11 @@
 terraform {
-  required_version = ">= 0.13.2"
-}
-
-provider "google" {
-  version = "~> 4.84.0"
+  required_version = ">= 1.5.0"
+  required_providers {
+    google = {
+      source  = "hashicorp/google"
+      version = "~> 4.39"
+    }
+  }
 }
 
 resource "google_pubsub_subscription" "anshar_et_subscription" {
