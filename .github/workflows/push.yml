@@ -28,7 +28,7 @@ jobs:
     with:
       ignore: "DL3018"
   docker-build:
-    needs: [maven-verify]
+    needs: [maven-verify, docker-lint]
     uses: entur/gha-docker/.github/workflows/build.yml@v1
     with:
       build_artifact_name: artifact
@@ -76,19 +76,20 @@ jobs:
 
   deploy-dev:
     if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && github.ref == 'refs/heads/master' }}
-    needs: [ helm-lint, tf-plan-dev, tf-apply-dev, docker-push ]
+    needs: [ helm-lint, tf-plan-dev, tf-apply-dev, docker-push, docker-lint ]
     uses: entur/gha-helm/.github/workflows/deploy.yml@v1
     with:
       environment: dev
       image: ${{ needs.docker-push.outputs.image_name }}:${{ needs.docker-push.outputs.image_tag}}
       chart: helm/ukur
+      image_set_path: "image.identifier"
       namespace: ukur
       release_name: ukur
     secrets: inherit
 
   approval-tst:
     if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && github.ref == 'refs/heads/master' }}
-    needs: [ deploy-dev, helm-lint, tf-plan-dev, tf-apply-dev, docker-push ]
+    needs: [ deploy-dev, helm-lint, tf-plan-dev, tf-apply-dev, docker-push, docker-lint ]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: Approve
@@ -129,19 +130,20 @@ jobs:
 
   deploy-tst:
     if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && github.ref == 'refs/heads/master' }}
-    needs: [ approval-tst, tf-plan-tst, tf-apply-tst, docker-push ]
+    needs: [ approval-tst, tf-plan-tst, tf-apply-tst, docker-push, docker-lint ]
     uses: entur/gha-helm/.github/workflows/deploy.yml@v1
     with:
       environment: tst
       image: ${{ needs.docker-push.outputs.image_name }}:${{ needs.docker-push.outputs.image_tag}}
       chart: helm/ukur
+      image_set_path: "image.identifier"
       namespace: ukur
       release_name: ukur
     secrets: inherit
 
   approval-prd:
     if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && github.ref == 'refs/heads/master' }}
-    needs: [ deploy-tst, approval-tst, tf-plan-tst, tf-apply-tst, docker-push ]
+    needs: [ deploy-tst, approval-tst, tf-plan-tst, tf-apply-tst, docker-push, docker-lint ]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: Approve
@@ -182,12 +184,13 @@ jobs:
 
   deploy-prd:
     if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && github.ref == 'refs/heads/master' }}
-    needs: [ approval-prd, tf-plan-prd, tf-apply-prd, docker-push ]
+    needs: [ approval-prd, tf-plan-prd, tf-apply-prd, docker-push, docker-lint ]
     uses: entur/gha-helm/.github/workflows/deploy.yml@v1
     with:
       environment: prd
       image: ${{ needs.docker-push.outputs.image_name }}:${{ needs.docker-push.outputs.image_tag}}
       chart: helm/ukur
+      image_set_path: "image.identifier"
       namespace: ukur
       release_name: ukur
     secrets: inherit
