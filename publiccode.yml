@@ -1,0 +1,67 @@
+# publiccode.yml metadata, see https://yml.publiccode.tools/
+publiccodeYmlVersion: "0.7.0"
+
+name: Ukur
+url: https://github.com/entur/ukur
+
+platforms:
+  - web
+  - linux
+
+categories:
+  - data-collection
+  - communications
+
+developmentStatus: stable
+softwareType: standalone/backend
+
+organisation:
+  name: Entur AS
+  uri: https://entur.no
+
+usedBy:
+  - Norway (nationwide), Entur AS
+
+intendedAudience:
+  scope:
+    - transportation
+  countries:
+    - "NO"
+
+description:
+  en:
+    localisedName: Ukur
+    shortDescription: Detects deviations in real-time traffic data and pushes them to subscribers.
+    longDescription: >
+      Ukur watches the real-time public transport data that flows through Anshar and works out which departures
+      actually deviate from plan. Consumers register subscriptions describing what they care about, as from and to
+      stop points, lines or codespaces, and Ukur pushes matching deviations to their push address instead of
+      making them poll and compare the full feed themselves. Subscriptions can be narrowed to a deviation type,
+      such as delays above a minimum threshold, track changes or cancellations, and can be kept alive with
+      heartbeats.
+      Deviations are derived from SIRI-ET and SIRI-SX messages. Subscriptions can be created either in a
+      proprietary JSON format or as standard SIRI XML subscription requests. Ukur is not meant to push directly to
+      end-user clients; a subscriber is expected to fan out to its own users.
+    documentation: https://github.com/entur/ukur/blob/master/functional_description.md
+    features:
+      - Subscriptions on from and to stop points, lines and codespaces
+      - Deviation detection from SIRI-ET and SIRI-SX real-time data
+      - Filtering by deviation type, including minimum delay
+      - Push delivery to a subscriber-provided address, with optional heartbeats
+      - Subscription in proprietary JSON or standard SIRI XML format
+      - Consumes real-time data from Anshar
+
+legal:
+  license: EUPL-1.2
+  mainCopyrightOwner: Entur AS
+
+maintenance:
+  type: internal
+  contacts:
+    - name: Entur ROR (Open Data and Journey Planning)
+      email: kollektivdata@entur.org
+
+localisation:
+  localisationReady: false
+  availableLanguages:
+    - en
