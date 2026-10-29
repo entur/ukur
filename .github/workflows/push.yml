@@ -13,10 +13,17 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@v4
+      # setup-java's liberica distribution can't select 21.0.13.0.3+5 (it maps to the same
+      # semver as the vulnerable 21.0.13.0.2 GA build), so install the exact JDK from its tarball.
+      - name: Download Liberica JDK 21.0.13.0.3+5
+        run: |
+          curl --proto '=https' --tlsv1.2 -fsSL -o "$RUNNER_TEMP/liberica.tar.gz" "https://github.com/bell-sw/Liberica/releases/download/21.0.13.0.3+5/bellsoft-jdk21.0.13.0.3+5-linux-amd64.tar.gz"
+          echo "f6bac5c836223d91525360bfbb2e422b39f8fcebedafbc1adda27945934926da  $RUNNER_TEMP/liberica.tar.gz" | sha256sum -c -
       - uses: actions/setup-java@v4
         with:
-          java-version: 21.0.1+12
-          distribution: liberica
+          distribution: jdkfile
+          jdkFile: ${{ runner.temp }}/liberica.tar.gz
+          java-version: 21.0.13
           cache: 'maven'
       - run: mvn verify
       - uses: actions/upload-artifact@v4.4.0
