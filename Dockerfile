@@ -1,4 +1,4 @@
-FROM eclipse-temurin:21-noble
+FROM bellsoft/liberica-openjdk-debian:21.0.13.0.3-5
 
 RUN addgroup --gid 2000 appuser && adduser --uid 2000 --disabled-password --ingroup appuser appuser
 USER appuser
