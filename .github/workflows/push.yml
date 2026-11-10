@@ -56,7 +56,7 @@ jobs:
     if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
     needs: [ terraform-lint, docker-push ]
     name: Terraform Plan DEV
-    uses: entur/gha-terraform/.github/workflows/plan.yml@v2
+    uses: entur/gha-terraform/.github/workflows/plan.yml@v3
     with:
       environment: dev
 
@@ -109,7 +109,7 @@ jobs:
     if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
     needs: [ terraform-lint, approval-tst ]
     name: Terraform Plan TST
-    uses: entur/gha-terraform/.github/workflows/plan.yml@v2
+    uses: entur/gha-terraform/.github/workflows/plan.yml@v3
     with:
       environment: tst
 
@@ -163,7 +163,7 @@ jobs:
     if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
     needs: [ terraform-lint, approval-prd ]
     name: Terraform Plan PRD
-    uses: entur/gha-terraform/.github/workflows/plan.yml@v2
+    uses: entur/gha-terraform/.github/workflows/plan.yml@v3
     with:
       environment: prd
 
