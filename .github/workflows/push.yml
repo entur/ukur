@@ -44,7 +44,7 @@ jobs:
     needs: [docker-build]
     uses: entur/gha-docker/.github/workflows/push.yml@v1
   helm-lint:
-    uses: entur/gha-helm/.github/workflows/lint.yml@v1
+    uses: entur/gha-helm/.github/workflows/lint.yml@v2
     with:
       environment: dev
 
