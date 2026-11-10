@@ -49,7 +49,7 @@ jobs:
       environment: dev
 
   terraform-lint:
-    uses: entur/gha-terraform/.github/workflows/lint.yml@v2
+    uses: entur/gha-terraform/.github/workflows/lint.yml@v3
 
 
   tf-plan-dev:
