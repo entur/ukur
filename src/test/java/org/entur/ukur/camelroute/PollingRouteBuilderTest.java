@@ -24,7 +24,7 @@ import org.junit.jupiter.api.Disabled;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.cloud.contract.wiremock.AutoConfigureWireMock;
+import org.wiremock.spring.EnableWireMock;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
 
@@ -35,7 +35,7 @@ import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.fail;
 
 @SpringBootTest(webEnvironment= SpringBootTest.WebEnvironment.MOCK, classes = App.class)
-@AutoConfigureWireMock(port = 0)
+@EnableWireMock
 @TestPropertySource("classpath:application-polling.properties")
 @DirtiesContext
 @Disabled

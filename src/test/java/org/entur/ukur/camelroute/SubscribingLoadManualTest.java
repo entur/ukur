@@ -38,7 +38,7 @@ import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.boot.test.context.SpringBootTest;
-import org.springframework.cloud.contract.wiremock.AutoConfigureWireMock;
+import org.wiremock.spring.EnableWireMock;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.context.TestPropertySource;
 import uk.org.siri.siri21.EstimatedVehicleJourney;
@@ -80,7 +80,7 @@ import static org.junit.jupiter.api.Assertions.fail;
 
 @SuppressWarnings("Duplicates")
 @SpringBootTest(webEnvironment= SpringBootTest.WebEnvironment.MOCK, classes = App.class)
-@AutoConfigureWireMock(port = 0)
+@EnableWireMock
 @TestPropertySource("classpath:application-loadtest.properties")
 @DirtiesContext
 @Disabled //Manual load test - requires external systems; not part of the default suite
