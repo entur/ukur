@@ -33,7 +33,7 @@ public class WiremockTestConfig extends UkurConfiguration {
 
     private Logger logger = LoggerFactory.getLogger(this.getClass());
 
-    @Value("${wiremock.server.port}")
+    @Value("${wiremock.server.port:}") // only set in tests annotated with @EnableWireMock
     private String wiremockPort;
     private Integer restPort = null;
 
