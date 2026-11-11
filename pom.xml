@@ -320,6 +320,14 @@
             <scope>test</scope>
             <version>${hazelcast.version}</version>
         </dependency>
+        <!-- The hazelcast tests jar (seen with 5.7.0) uses org.junit.Assert in its mock network but does not
+             declare JUnit 4; our own tests are JUnit 5 only, so add it explicitly. -->
+        <dependency>
+            <groupId>junit</groupId>
+            <artifactId>junit</artifactId>
+            <version>4.13.2</version>
+            <scope>test</scope>
+        </dependency>
 
     </dependencies>
 
