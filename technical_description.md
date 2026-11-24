@@ -28,8 +28,9 @@ and internally between threads to process messages with as little delay as possi
 
 ## Deployment
 
-A docker image is built using fabric8 and friends. This image is deployed to Google Cloud with service and deployment
-configurations from a different environment git-repo. Normally Ukur is deployed with two pods.
+The Docker image runs on a distroless Java 25 base image (`gcr.io/distroless/java25-debian13:nonroot`, no shell). It is
+built and deployed to Google Cloud by GitHub Actions using the Helm chart in `helm/ukur` and the Terraform in `terraform`.
+JVM flags are passed via `JDK_JAVA_OPTIONS` in the Helm chart. Ukur runs with two pods in dev and tst and four in prd.
 
 There are liveness and readiness probes set up to the corresponding endpoints in camel (internal/health/live and 
 internal/health/ready). P.t. the liveness probe simply responds 200 without any further checking, the readiness probe 
