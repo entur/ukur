@@ -13,25 +13,40 @@ jobs:
       contents: read
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
-      - name: Download Liberica JDK 27.0.1.0.3+5
-        run: |
-          curl --proto '=https' --tlsv1.2 -fsSL -o "$RUNNER_TEMP/liberica.tar.gz" "https://github.com/bell-sw/Liberica/releases/download/27.0.1.0.3%2B5/bellsoft-jdk27.0.1.0.3+5-linux-amd64.tar.gz"
-          echo "6e689b8f3a7e1100cb237857cb4f5cabdf806070832f5773dbf73eee00e00a58  $RUNNER_TEMP/liberica.tar.gz" | sha256sum -c -
+      # Same JDK as the distroless runtime image (Temurin). check-latest skips the runner's
+      # cached JDK, which can lag behind.
       - uses: actions/setup-java@d1374f8ac74474200d16ef8ecee22c7ae7a51880 # v6.3.0
         with:
-          distribution: jdkfile
-          jdkFile: ${{ runner.temp }}/liberica.tar.gz
-          java-version: 27.0.1
+          distribution: temurin
+          java-version: 25
+          check-latest: true
           cache: 'maven'
       - run: mvn verify
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           path: target/*.jar
+  docker-smoke:
+    needs: [maven-verify]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+      - uses: actions/download-artifact@9000827ccba6bdab643e8b6fd33ac0654aef8333 # v8.0.2
+        with:
+          name: artifact
+          path: target
+      - run: docker build -t ukur:smoke .
+      # Nothing else in CI runs the image. Reaching Spring's startup line proves the JRE loaded the
+      # application bytecode; it then fails on config that only exists in the cluster, which is fine.
+      # A wrong class file version or an unusable base image never gets that far.
+      - run: |
+          timeout 180 docker run --rm ukur:smoke 2>&1 | tee smoke.log || true
+          grep -q "using Java" smoke.log
   docker-lint:
     needs: [ maven-verify ]
     uses: entur/gha-docker/.github/workflows/lint.yml@v1
-    with:
-      ignore: "DL3018"
   docker-build:
     needs: [maven-verify, docker-lint]
     uses: entur/gha-docker/.github/workflows/build.yml@v1
@@ -40,7 +55,7 @@ jobs:
       build_artifact_path: target
   docker-push:
     if: github.repository_owner == 'entur' && github.event_name == 'push'
-    needs: [docker-build]
+    needs: [docker-build, docker-smoke]
     uses: entur/gha-docker/.github/workflows/push.yml@v1
   helm-lint:
     uses: entur/gha-helm/.github/workflows/lint.yml@v2

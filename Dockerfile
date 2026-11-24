@@ -1,11 +1,13 @@
-FROM bellsoft/liberica-openjdk-debian:27
+FROM gcr.io/distroless/java25-debian13:nonroot@sha256:59bbb349c9752fc57b75744b41b1614c9dabe8bb4869523aabd5a4288f6c09a0 AS builder
+WORKDIR /home/nonroot
+COPY target/ukur-*-SNAPSHOT.jar application.jar
+RUN [ "/usr/bin/java", "-Djarmode=tools", "-jar", "application.jar", "extract", "--layers", "--destination", "extracted" ]
 
-RUN addgroup --gid 2000 appuser && adduser --uid 2000 --disabled-password --ingroup appuser appuser
-USER appuser
-
-WORKDIR /home/appuser
-
-COPY target/ukur-*-SNAPSHOT.jar ukur.jar
-
+FROM gcr.io/distroless/java25-debian13:nonroot@sha256:59bbb349c9752fc57b75744b41b1614c9dabe8bb4869523aabd5a4288f6c09a0
+WORKDIR /deployments
+COPY --from=builder /home/nonroot/extracted/dependencies/ ./
+COPY --from=builder /home/nonroot/extracted/spring-boot-loader/ ./
+COPY --from=builder /home/nonroot/extracted/snapshot-dependencies/ ./
+COPY --from=builder /home/nonroot/extracted/application/ ./
 EXPOSE 8080
-CMD ["sh", "-c", "java $JAVA_OPTIONS -jar ukur.jar"]
+ENTRYPOINT [ "/usr/bin/java", "-jar", "application.jar" ]
