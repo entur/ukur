@@ -242,8 +242,13 @@ public class DataStorageServiceTest extends DatastoreTest {
         assertNumberOfSubscriptionsWithWait(4, service1);
 
         logger.info("Update subscription to second DataStorageService");
-        addedSubscription.setName("Test#4-updated");
-        service1.updateSubscription(addedSubscription);
+        // Update service1's own instance: addedSubscription is service2's cached instance, so renaming it
+        // would make service2 look updated before it has processed the UPDATED message
+        Subscription toUpdate = getSubscriptionByNameWithWait(service1, "Test#4");
+        assertNotNull(toUpdate);
+        assertNotSame(addedSubscription, toUpdate);
+        toUpdate.setName("Test#4-updated");
+        service1.updateSubscription(toUpdate);
         assertNumberOfSubscriptionsWithWait(4, service2);
         assertNumberOfSubscriptionsWithWait(4, service1);
         Subscription subFrom1 = getSubscriptionByNameWithWait(service1, "Test#4-updated");
