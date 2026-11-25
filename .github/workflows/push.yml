@@ -131,7 +131,8 @@ jobs:
 
   tf-plan-tst:
     # A cancelled approval is not a failure, so everything after an approval requires success explicitly.
-    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && needs.approval-tst.result == 'success' }}
+    # PRs skip the approvals but still plan.
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && (github.event_name == 'pull_request' || needs.approval-tst.result == 'success') }}
     needs: [ terraform-lint, approval-tst ]
     name: Terraform Plan TST
     uses: entur/gha-terraform/.github/workflows/plan.yml@v3
@@ -188,7 +189,7 @@ jobs:
 
 
   tf-plan-prd:
-    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && needs.approval-prd.result == 'success' }}
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && (github.event_name == 'pull_request' || needs.approval-prd.result == 'success') }}
     needs: [ terraform-lint, approval-prd ]
     name: Terraform Plan PRD
     uses: entur/gha-terraform/.github/workflows/plan.yml@v3
