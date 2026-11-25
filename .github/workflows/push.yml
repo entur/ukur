@@ -6,6 +6,11 @@ on:
   pull_request:
     branches:
       - master
+# A new push to a PR cancels the PR's older run. Runs on master are never cancelled here, since that
+# could stop a deploy halfway; the approval jobs below handle master.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event.pull_request.number || github.sha }}
+  cancel-in-progress: true
 jobs:
   maven-verify:
     runs-on: ubuntu-24.04
@@ -113,6 +118,11 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: Approve
+    # A newer run reaching this approval cancels the older run's pending one. One group per stage,
+    # so an older run reaching prd approval cannot cancel a newer run's tst approval.
+    concurrency:
+      group: ${{ github.workflow }}-approval-tst
+      cancel-in-progress: true
     steps:
       - name: Manual approval
         shell: bash
@@ -120,7 +130,9 @@ jobs:
 
 
   tf-plan-tst:
-    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
+    # A cancelled approval is not a failure, so everything after an approval requires success explicitly.
+    # PRs skip the approvals but still plan.
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && (github.event_name == 'pull_request' || needs.approval-tst.result == 'success') }}
     needs: [ terraform-lint, approval-tst ]
     name: Terraform Plan TST
     uses: entur/gha-terraform/.github/workflows/plan.yml@v3
@@ -149,7 +161,7 @@ jobs:
 
 
   deploy-tst:
-    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && github.ref == 'refs/heads/master' }}
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && github.ref == 'refs/heads/master' && needs.approval-tst.result == 'success' }}
     needs: [ approval-tst, tf-plan-tst, tf-apply-tst, docker-push, docker-lint ]
     uses: entur/gha-helm/.github/workflows/deploy.yml@v2
     with:
@@ -162,11 +174,14 @@ jobs:
     secrets: inherit
 
   approval-prd:
-    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && github.ref == 'refs/heads/master' }}
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && github.ref == 'refs/heads/master' && needs.deploy-tst.result == 'success' }}
     needs: [ deploy-tst, approval-tst, tf-plan-tst, tf-apply-tst, docker-push, docker-lint ]
     runs-on: ubuntu-latest
     timeout-minutes: 10
     environment: Approve
+    concurrency:
+      group: ${{ github.workflow }}-approval-prd
+      cancel-in-progress: true
     steps:
       - name: Manual approval
         shell: bash
@@ -174,7 +189,7 @@ jobs:
 
 
   tf-plan-prd:
-    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') }}
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && (github.event_name == 'pull_request' || needs.approval-prd.result == 'success') }}
     needs: [ terraform-lint, approval-prd ]
     name: Terraform Plan PRD
     uses: entur/gha-terraform/.github/workflows/plan.yml@v3
@@ -203,7 +218,7 @@ jobs:
 
 
   deploy-prd:
-    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && github.ref == 'refs/heads/master' }}
+    if: ${{ !cancelled() && !contains(needs.*.result, 'failure') && github.ref == 'refs/heads/master' && needs.approval-prd.result == 'success' }}
     needs: [ approval-prd, tf-plan-prd, tf-apply-prd, docker-push, docker-lint ]
     uses: entur/gha-helm/.github/workflows/deploy.yml@v2
     with:
